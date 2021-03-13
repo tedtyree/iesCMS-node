@@ -7,10 +7,11 @@ const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 
 let vStatic = null;
 let vDynamic = null;
+let mimic = null;
 
 const serverPort = 8118;
 const serverConfig = ".\\secrets\\server.cfg";
-
+const websitePathTemplate='./websites/{{siteID}}/site.cfg';
 
 // =======================================================
 // DEVELOPMENT ENVIRONMENT
@@ -40,7 +41,7 @@ var iesDomains = {};
 var siteList = [];
 console.log('DIR List:' + JSON.stringify(dlist));
 dlist.forEach(dDir => {
-      var dPath='./websites/' + dDir + '/site.cfg';
+      var dPath=websitePathTemplate.replace('{{siteID}}',dDir);
       try {
             if (existsSync(dPath)) {
               //file exists
@@ -78,12 +79,34 @@ dlist.forEach(dDir => {
           }
 });
 
+function parseCookies(str) {
+      let rx = /([^;=\s]*)=([^;]*)/g;
+      let obj = { };
+      for ( let m ; m = rx.exec(str) ; )
+        obj[ m[1] ] = decodeURIComponent( m[2] );
+      return obj;
+    }
+
+    function stringifyCookies(thesecookies) {
+      return Object.entries( thesecookies )
+        .map( ([k,v]) => k + '=' + encodeURIComponent(v) )
+        .join( '; ');
+    }
+
 http.createServer(function (req, res) {
+
+let cms = {}; // Primary CMS object to hold all things CMS
+let err = 0;
+let errMessage = "";
+
 //const { method, url, headers } = req;
 const q = 'z'; //url.parse(req.url,true).query;
-const h = url.parse(req.url,true).host;
+cms.url = url.parse(req.url,true);
 const p = 'z'; //url.parse(req.url,true).pathname;
 const s = 'z'; //url.parse(req.url,true).search;
+
+let cookies = parseCookies( req.headers.cookie );
+
   if (!vStatic) {
         vStatic = Date.now();
 }
@@ -91,12 +114,13 @@ const s = 'z'; //url.parse(req.url,true).search;
 
   // parse URL
   var urlPath = req.url;
-  var urlParams = null;
+  var urlParamString = null;
+  cms.urlHost = req.headers.host;
   var urlBasePath = '';
   let urlSepPosition = urlPath.indexOf("?");
   try {
       if (urlSepPosition >=0) { 
-            urlParams = urlPath.slice(urlSepPosition+1);
+            urlParamString = urlPath.slice(urlSepPosition+1);
             urlPath = urlPath.slice(0,urlSepPosition);
       }
   } catch (errSepPosition) {}
@@ -108,24 +132,91 @@ const s = 'z'; //url.parse(req.url,true).search;
   } else {
         urlBasePath=urlPathList[0].trim();
   }
+  
+  // Parse URL Parameters TODO
+  // Already parsed... cms.url.query
 
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.end('method=' + req.method + '\n'
-         + 'url Path=' + urlPath + '\n'
-         + 'url Params=' + urlParams + '\n'
-         + 'host=' + req.headers.host + '\n'
-         + 'protocol=' + req.headers.protocol + '\n'
-        + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
-        + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
-        + querystring.stringify(req.headers) + '\n'
-        //'query=' + q + '\n'
-         +  'host=' + h + '\n'
-		 //+ 'path=' + p + '\n'
-         + 'search=' + s + '\n'
-         + 'vStatic=' + vStatic + '\n'
-         + 'vDynamic=' + vDynamic + '\n'
-         + 'Hello s53 World! [from node.js]\n'
-         + 'DIR List:' + JSON.stringify(siteList)
-         + 'urlPathList:' + JSON.stringify(urlPathList)
-         + 'urlBasePath:' + urlBasePath);
-}).listen(8118);
+  // Detemrine SiteID
+  cms.siteID = null;
+  try { cms.siteID = iesDomains[cms.urlHost.toLowerCase()]; } catch {}
+  if (!cms.siteID) {
+        err = 171;
+        errMessage = "Failed to find site for domain: " + cms.siteID + " [ERR" + err + "]";
+  }
+
+  
+  // Mimic (can only mimic on hostsite)
+  if (cms.siteID == 'hostsite') {
+        // check if mimic specified in URL
+        if (cms.url.query.mimic) {
+              cms.siteID = cms.url.params.mimic;
+              // set mimic cookie TODO
+              // newCookies.add('mimic',cms.siteID);
+        } else {
+            // check for mimic cookie
+            if (cookies.mimic) {
+              cms.siteID = cookies.mimic;
+            }
+        }
+  }
+
+  // Read Site config (first check if config already loaded)
+  var dPath=websitePathTemplate.replace('{{siteID}}',cms.siteID);
+  let cfg = null;
+  try {
+        if (existsSync(dPath)) {
+              let tmpCfg = new iesJSON();
+              tmpCfg.DeserializeFlexFile(dPath);
+              if (tmpCfg.Status ==0 && tmpCfg.jsonType=='object') {
+                    cfg = tmpCfg;
+              }
+        } 
+      } catch {}
+  if (!cfg) { 
+      err = 173;
+      errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
+      }
+
+  mimic = cookies.mimic;
+  newCookies = {};
+  newCookies.mimic = mimic?mimic:'';
+  newCookies.random = 'green toad';
+  res.writeHead(200, [
+        ['Set-Cookie', 'mycookie4=test5'],
+        ['Set-Cookie', 'mycookie5=test6'],
+        ['Set-Cookie', 'mimic='],
+        ['Content-Type', 'text/plain']
+  ]);
+
+  let DebbugerMessage = 
+  'method=' + req.method + '\n'
+  + 'url Path=' + urlPath + '\n'
+  + 'url Params=' + urlParamString + '\n'
+  + 'url Params=' + JSON.stringify(cms.url.query) + '\n'
+  + 'host=' + cms.urlHost + '\n'
+  + 'protocol=' + req.headers.protocol + '\n'
+ + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
+ + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
+ + querystring.stringify(req.headers) + '\n'
+ + 'Header cookies=' + JSON.stringify(cookies) + '\n'
+ //'query=' + q + '\n'
+  +  'host=' + cms.urlHost + '\n'
+      //+ 'path=' + p + '\n'
+  + 'search=' + s + '\n'
+  + 'vStatic=' + vStatic + '\n'
+  + 'vDynamic=' + vDynamic + '\n'
+  + 'siteID=' + cms.siteID + '\n'
+  + 'mimic=' + mimic + '\n'
+  + 'newCookies=' + stringifyCookies(newCookies) + '\n'
+  + 'Hello s53 World! [from node.js]\n'
+  + 'DIR List:' + JSON.stringify(siteList) + '\n'
+  + 'urlPathList:' + JSON.stringify(urlPathList) + '\n'
+  + 'iesDomains:' + JSON.stringify(iesDomains) + '\n'
+  + 'urlBasePath:' + urlBasePath;
+
+  if (err==0) {
+      res.end(DebbugerMessage);
+  } else {
+      res.end("ERROR: " + errMessage + '\n\n' + DebbugerMessage);
+  } 
+}).listen(serverPort);
