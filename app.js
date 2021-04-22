@@ -210,7 +210,8 @@ let cookies = parseCookies( req.headers.cookie );
   } else {
         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
             debugLog += "hostsiteEngine.CreateHtml()\n";
-              cms.hostsiteEngine.CreateHtml(cms);
+            cms.thisEngine = cms.hostsiteEngine; // allows downstream to call engine
+            cms.thisEngine.CreateHtml(cms);
         }
       }
 
