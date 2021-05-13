@@ -7,3 +7,10 @@ This CMS is being modeled after iesCMS which is a C# based CMS.  Also relatively
 # RUN  (currently on serverPort 8118
 node app.js
 browse to > localhost:8118
+
+Use localhost:8118/home?mimic=<siteid> to mimic a specific website for testing
+
+# DEBUGGING
+Open app.js in the editor (select the app.js tab if not selected)
+Select Run > Start Debugging
+Select "Node.js"

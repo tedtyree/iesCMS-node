@@ -135,18 +135,22 @@ let cookies = parseCookies( req.headers.cookie );
         vDynamic = Date.now();
 
   // parse URL
-  var urlPath = req.url;
-  var urlParamString = null;
+  /* var urlPath = req.url; ** use cms.url.pathname - includes path + file + extension (not query params)*/
+  /* var urlParamString = null; */
+  var pathExtPosition = cms.url.pathname.lastIndexOf('.');
+  cms.pathExt = (pathExtPosition < 0) ? '' : cms.url.pathname.substr(pathExtPosition).toLowerCase();
   cms.urlHost = req.headers.host;
   var urlBasePath = '';
-  let urlSepPosition = urlPath.indexOf("?");
+  /*
+  let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
   try {
       if (urlSepPosition >=0) { 
-            urlParamString = urlPath.slice(urlSepPosition+1);
+            // urlParamString = urlPath.slice(urlSepPosition+1); ** use cms.url.query 
             urlPath = urlPath.slice(0,urlSepPosition);
       }
   } catch (errSepPosition) {}
-  var urlPathList = urlPath.split("/");
+  */
+  var urlPathList = cms.url.pathname.split("/");  // FUTURE: Not sure this is needed
   if (!urlPathList[0]) {urlPathList.shift();} // removed the initial /
   if (urlPathList.length == 0 || (!urlPathList[0])) {
         // no first item in path
@@ -210,7 +214,7 @@ let cookies = parseCookies( req.headers.cookie );
   } else {
         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
             debugLog += "hostsiteEngine.CreateHtml()\n";
-            cms.thisEngine = cms.hostsiteEngine; // allows downstream to call engine
+            cms.thisEngine = cms.hostsiteEngine; // allows downstream to call engine - FUTURE: MAYBE LEAVE ORIGINAL IN CASE IT HAS CustomTags???
             cms.thisEngine.CreateHtml(cms);
         }
       }
@@ -233,13 +237,14 @@ let cookies = parseCookies( req.headers.cookie );
   if (cms.url.query.mimic) {
       myHead.push(['Set-Cookie', 'mimic=' + cms.url.query.mimic]);
   }
-  myHead.push(['Content-Type', 'text/plain']);
+  //myHead.push(['Content-Type', 'text/plain']);
+  myHead.push(['Content-Type', 'text/html']);
   res.writeHead(200, myHead);
 
   let DebbugerMessage = 
   'method=' + req.method + '\n'
-  + 'url Path=' + urlPath + '\n'
-  + 'url Params=' + urlParamString + '\n'
+  + 'url Path=' + cms.url.pathname + '\n'
+  + 'url PathExtension=' + cms.pathExt + '\n' 
   + 'url Params=' + JSON.stringify(cms.url.query) + '\n'
   + 'host=' + cms.urlHost + '\n'
   + 'protocol=' + req.headers.protocol + '\n'

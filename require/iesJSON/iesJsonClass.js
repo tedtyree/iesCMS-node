@@ -428,7 +428,7 @@ class iesJSON {
 	
 	DeserializeFlex(snewString, start = 0, OkToClip = false)
 	{
-		UseFlexJson = true;
+		this.UseFlexJson = true;
 		this.Deserialize(snewString, start, OkToClip);
 		return this._status;
 	} // End Function
