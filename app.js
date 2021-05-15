@@ -1,7 +1,7 @@
 var http = require('http');
 var url = require('url');
 const querystring = require('querystring');
-const { readdirSync, statSync, existsSync } = require('fs');
+const { readdirSync, statSync, existsSync, createReadStream } = require('fs');
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommon = require('./require/iesCommon.js');
@@ -138,9 +138,14 @@ let cookies = parseCookies( req.headers.cookie );
   /* var urlPath = req.url; ** use cms.url.pathname - includes path + file + extension (not query params)*/
   /* var urlParamString = null; */
   var pathExtPosition = cms.url.pathname.lastIndexOf('.');
-  cms.pathExt = (pathExtPosition < 0) ? '' : cms.url.pathname.substr(pathExtPosition).toLowerCase();
+  cms.pathExt = (pathExtPosition < 0) ? '' : cms.url.pathname.substr(pathExtPosition+1).toLowerCase();
   cms.urlHost = req.headers.host;
-  var urlBasePath = '';
+  cms.urlBasePath = '';
+  cms.urlFileName = '';
+  cms.fileFullPath = ''; // This should get set by the website engine
+  cms.resultType = '';
+  cms.mimeType = '';
+
   /*
   let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
   try {
@@ -150,13 +155,16 @@ let cookies = parseCookies( req.headers.cookie );
       }
   } catch (errSepPosition) {}
   */
-  var urlPathList = cms.url.pathname.split("/");  // FUTURE: Not sure this is needed
-  if (!urlPathList[0]) {urlPathList.shift();} // removed the initial /
-  if (urlPathList.length == 0 || (!urlPathList[0])) {
+  cms.urlPathList = cms.url.pathname.split("/");  // FUTURE: Not sure this is needed
+  if (!cms.urlPathList[0]) {cms.urlPathList.shift();} // removed the initial /
+  if (cms.urlPathList.length <= 1 || (!cms.urlPathList[0])) {
         // no first item in path
-        urlBasePath='';
+        cms.urlBasePath='';
   } else {
-        urlBasePath=urlPathList[0].trim();
+        cms.urlBasePath=cms.urlPathList[0].trim();
+  }
+  if (cms.urlPathList.length >= 1) {
+        cms.urlFileName=cms.urlPathList.pop();
   }
   
   // Parse URL Parameters TODO
@@ -208,69 +216,96 @@ let cookies = parseCookies( req.headers.cookie );
   cms.thisEngine = websiteEngines[cms.siteID];
   cms.Html = "ERROR: nosite [ERR-14159]";
   //cms.iesCommon = new iesCommon();
-  if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
-      debugLog += "thisEngine.CreateHtml()\n";
-      cms.thisEngine.CreateHtml(cms);
-  } else {
-        if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
-            debugLog += "hostsiteEngine.CreateHtml()\n";
-            cms.thisEngine = cms.hostsiteEngine; // allows downstream to call engine - FUTURE: MAYBE LEAVE ORIGINAL IN CASE IT HAS CustomTags???
+  try {
+      if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
+            debugLog += "thisEngine.CreateHtml()\n";
             cms.thisEngine.CreateHtml(cms);
-        }
+      } else {
+            if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
+                  debugLog += "hostsiteEngine.CreateHtml()\n";
+                  // We leave a reference to thisEngine in case it has Custom Tags
+                  cms.hostsiteEngine.CreateHtml(cms);
+            }
       }
+  } catch (e) {
+        cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
+  }
 
   mimic = cookies.mimic;
   newCookies = {};
   newCookies.mimic = mimic?mimic:'';
   newCookies.random = 'green toad';
-  /*
-  res.writeHead(200, [
-        ['Set-Cookie', 'mycookie4=test5'],
-        ['Set-Cookie', 'mycookie5=test6'],
-        ['Set-Cookie', 'mimic='],
-        ['Content-Type', 'text/plain']
-  ]);
-*/
-  let myHead = [];
-  myHead.push(['Set-Cookie', 'mycookie4=test4']);
-  myHead.push(['Set-Cookie', 'mycookie5=test5']);
-  if (cms.url.query.mimic) {
-      myHead.push(['Set-Cookie', 'mimic=' + cms.url.query.mimic]);
+
+  /* FUTURE: HOW TO HANDLE GET/POST/etc.
+  if (req.method !== 'GET') {
+        res.statusCode = 501;
+        res.setHeader('Content-Type', 'text/plain');
+        return res.end('Method not implemented');
+    }
+  */
+
+  if (cms.resultType=='file') {
+        if (!cms.fileFullPath) {
+            res.setHeader('Content-Type', 'text/plain');
+            res.statusCode = 404;
+            res.end('Not found');
+        } else {
+            var streamFile = createReadStream(cms.fileFullPath);
+            streamFile.on('open', function () {
+                res.setHeader('Content-Type', cms.mimeType);
+                streamFile.pipe(res);
+            });
+            streamFile.on('error', function () {
+                // FUTURE: may want to indicate or log other types of errors here?
+                res.setHeader('Content-Type', 'text/plain');
+                res.statusCode = 404;
+                res.end('Not found');
+            });
+      }
   }
-  //myHead.push(['Content-Type', 'text/plain']);
-  myHead.push(['Content-Type', 'text/html']);
-  res.writeHead(200, myHead);
+  if (cms.resultType=='html') {
+  
+      let myHead = [];
+      myHead.push(['Set-Cookie', 'mycookie4=test4']);
+      myHead.push(['Set-Cookie', 'mycookie5=test5']);
+      if (cms.url.query.mimic) {
+            myHead.push(['Set-Cookie', 'mimic=' + cms.url.query.mimic]);
+      }
+      //myHead.push(['Content-Type', 'text/plain']);
+      myHead.push(['Content-Type', 'text/html']);
+      res.writeHead(200, myHead);
 
-  let DebbugerMessage = 
-  'method=' + req.method + '\n'
-  + 'url Path=' + cms.url.pathname + '\n'
-  + 'url PathExtension=' + cms.pathExt + '\n' 
-  + 'url Params=' + JSON.stringify(cms.url.query) + '\n'
-  + 'host=' + cms.urlHost + '\n'
-  + 'protocol=' + req.headers.protocol + '\n'
- + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
- + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
- + querystring.stringify(req.headers) + '\n'
- + 'Header cookies=' + JSON.stringify(cookies) + '\n'
- //'query=' + q + '\n'
-  +  'host=' + cms.urlHost + '\n'
-      //+ 'path=' + p + '\n'
-  + 'search=' + s + '\n'
-  + 'vStatic=' + vStatic + '\n'
-  + 'vDynamic=' + vDynamic + '\n'
-  + 'siteID=' + cms.siteID + '\n'
-  + 'mimic=' + mimic + '\n'
-  + 'newCookies=' + stringifyCookies(newCookies) + '\n'
-  + 'Hello s53 World! [from node.js]\n'
-  + 'DIR List:' + JSON.stringify(siteList) + '\n'
-  + 'urlPathList:' + JSON.stringify(urlPathList) + '\n'
-  + 'iesDomains:' + JSON.stringify(iesDomains) + '\n'
-  + 'urlBasePath:' + urlBasePath + '\n'
-  + debugLog;
+      let DebbugerMessage = 
+      'method=' + req.method + '\n'
+      + 'url Path=' + cms.url.pathname + '\n'
+      + 'url PathExtension=' + cms.pathExt + '\n' 
+      + 'url Params=' + JSON.stringify(cms.url.query) + '\n'
+      + 'host=' + cms.urlHost + '\n'
+      + 'protocol=' + req.headers.protocol + '\n'
+      + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
+      + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
+      + querystring.stringify(req.headers) + '\n'
+      + 'Header cookies=' + JSON.stringify(cookies) + '\n'
+      //'query=' + q + '\n'
+      +  'host=' + cms.urlHost + '\n'
+            //+ 'path=' + p + '\n'
+      + 'search=' + s + '\n'
+      + 'vStatic=' + vStatic + '\n'
+      + 'vDynamic=' + vDynamic + '\n'
+      + 'siteID=' + cms.siteID + '\n'
+      + 'mimic=' + mimic + '\n'
+      + 'newCookies=' + stringifyCookies(newCookies) + '\n'
+      + 'Hello s53 World! [from node.js]\n'
+      + 'DIR List:' + JSON.stringify(siteList) + '\n'
+      + 'urlPathList:' + JSON.stringify(cms.urlPathList) + '\n'
+      + 'iesDomains:' + JSON.stringify(iesDomains) + '\n'
+      + 'urlBasePath:' + cms.urlBasePath + '\n'
+      + debugLog;
 
-  if (err==0) {
-      res.end(cms.Html + '\n\n' + DebbugerMessage);
-  } else {
-      res.end("ERROR: " + errMessage + '\n\n' + DebbugerMessage);
-  } 
+      if (err==0) {
+            res.end(cms.Html + '\n\n' + DebbugerMessage);
+      } else {
+            res.end("ERROR: " + errMessage + '\n\n' + DebbugerMessage);
+      } 
+  } // end if (cms.resultType=='html')
 }).listen(serverPort);
