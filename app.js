@@ -1,7 +1,7 @@
 var http = require('http');
 var url = require('url');
 const querystring = require('querystring');
-const { readdirSync, statSync, existsSync, createReadStream } = require('fs');
+const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommon = require('./require/iesCommon.js');
@@ -9,6 +9,10 @@ const { Console } = require('console');
 
 var websiteEngines = {};
 var debugLog = "";
+var debugMode = 99;
+var debugFile = "";
+var debugHttpFile = "";
+var forwardedHost = false;  // For PRODUCTION set this to true :: forces us to read x-forwarded-host instead
 
 let vStatic = null;
 let vDynamic = null;
@@ -38,6 +42,18 @@ const env_production = {
 	,pathSeperator: '/'  // Linux Server = Production Environment
 }
 
+function timestamp(){
+      function pad(n) {return n<10 ? "0"+n : n}
+      d=new Date();
+      dash="-";
+      return d.getFullYear()+dash+
+      pad(d.getMonth()+1)+dash+
+      pad(d.getDate())+dash+
+      pad(d.getHours())+dash+
+      pad(d.getMinutes())+dash+
+      pad(d.getSeconds())
+    }
+
 // =======================================================
 // Select one environment - comment out the others...
 const env = env_development;
@@ -50,6 +66,27 @@ var dlist = readdirSync(path).filter(function (file) {
   });
 var iesDomains = {};
 var siteList = [];
+
+// Load SERVER parameters
+let serverCfg = new iesJSON();
+serverCfg.DeserializeFlexFile('./server.cfg'); // Cannot log the error yet, log file has not been created.
+if (serverCfg.Status == 0) {
+      debugMode = serverCfg.getNum('debugMode',debugMode);
+      forwardedHost = serverCfg.getBool('forwardedHost',forwardedHost);
+}
+
+// Setup debug log
+if (debugMode>0) {
+      var ts = timestamp();
+      debugFile = "./log/app_log_" + ts + ".txt";
+      appendFileSync(debugFile,"app.js Start: " + ts + "\n");
+} 
+
+// Now that the log file is set, log the error that may have occurred when opening server.cfg above.
+if (serverCfg.Status != 0 && debugMode > 0) {
+      appendFileSync(debugFile,"ERROR: Failed to load server.cfg. [ERR9417]\n");
+} 
+
 console.log('DIR List:' + JSON.stringify(dlist));
 dlist.forEach(dDir => {
       var dPath=websitePathTemplate.replace('{{siteID}}',dDir);
@@ -115,6 +152,14 @@ function parseCookies(str) {
         .join( '; ');
     }
 
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+// **************************************************************************
+
 http.createServer(function (req, res) {
 
 let cms = {}; // Primary CMS object to hold all things CMS
@@ -124,8 +169,18 @@ let errMessage = "";
 //const { method, url, headers } = req;
 const q = 'z'; //url.parse(req.url,true).query;
 cms.url = url.parse(req.url,true);
+cms.server = serverCfg;
 const p = 'z'; //url.parse(req.url,true).pathname;
 const s = 'z'; //url.parse(req.url,true).search;
+
+ 
+if (debugMode>0) {
+      var ts = timestamp();
+      debugHttpFile = "./log/httpServer_log_" + ts + ".txt";
+      appendFileSync(debugHttpFile,"httpServer Start: " + ts + "\n" +
+            "url: " + req.url + "\n");
+}
+
 
 let cookies = parseCookies( req.headers.cookie );
 
@@ -139,7 +194,9 @@ let cookies = parseCookies( req.headers.cookie );
   /* var urlParamString = null; */
   var pathExtPosition = cms.url.pathname.lastIndexOf('.');
   cms.pathExt = (pathExtPosition < 0) ? '' : cms.url.pathname.substr(pathExtPosition+1).toLowerCase();
-  cms.urlHost = req.headers.host;
+  cms.urlHost = null;
+  if (!forwardedHost) { cms.urlHost = req.headers.host; }
+  else { cms.urlHost = req.headers['x-forwarded-host']; }
   cms.urlBasePath = '';
   cms.urlFileName = '';
   cms.fileFullPath = ''; // This should get set by the website engine
@@ -174,62 +231,69 @@ let cookies = parseCookies( req.headers.cookie );
   cms.siteID = null;
   try { cms.siteID = iesDomains[cms.urlHost.toLowerCase()]; } catch {}
   if (!cms.siteID) {
-        err = 171;
-        errMessage = "Failed to find site for domain: " + cms.siteID + " [ERR" + err + "]";
-  }
-
-  
-  // Mimic (can only mimic on hostsite)
-  if (cms.siteID == 'hostsite') {
-        // check if mimic specified in URL
-        if (cms.url.query.mimic) {
-              cms.siteID = cms.url.query.mimic;
-              // set mimic cookie TODO
-              // newCookies.add('mimic',cms.siteID);
-        } else {
-            // check for mimic cookie
-            if (cookies.mimic) {
-              cms.siteID = cookies.mimic;
-            }
+        err = 171; // ERR171
+        errMessage = "Failed to find site for domain: " + cms.urlHost + " [ERR" + err + "]";
+        if (debugMode > 0) {
+            appendFileSync(debugHttpFile,"ERROR: " + errMessage + "\n");
         }
+        // We were getting peppered with odd URLs... so here we end the call rather than responding with the default hostsite
+        cms.resultType = 'abort';  // this will skip other response types
+        res.connection.destroy();
   }
 
-  // Read Site config (first check if config already loaded)
-  var dPath=websitePathTemplate.replace('{{siteID}}',cms.siteID);
-  let cfg = null;
-  try {
-        if (existsSync(dPath)) {
-              let tmpCfg = new iesJSON();
-              tmpCfg.DeserializeFlexFile(dPath);
-              if (tmpCfg.Status ==0 && tmpCfg.jsonType=='object') {
-                    cfg = tmpCfg;
-              }
-        } 
-      } catch {}
-  if (!cfg) { 
-      err = 173;
-      errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
-      }
-
-  // PROCESS REQUEST
-  cms.hostsiteEngine = websiteEngines.hostsite;
-  cms.thisEngine = websiteEngines[cms.siteID];
-  cms.Html = "ERROR: nosite [ERR-14159]";
-  //cms.iesCommon = new iesCommon();
-  try {
-      if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
-            debugLog += "thisEngine.CreateHtml()\n";
-            cms.thisEngine.CreateHtml(cms);
-      } else {
-            if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
-                  debugLog += "hostsiteEngine.CreateHtml()\n";
-                  // We leave a reference to thisEngine in case it has Custom Tags
-                  cms.hostsiteEngine.CreateHtml(cms);
+  if (cms.siteID) {
+      // Mimic (can only mimic on hostsite)
+      if (cms.siteID == 'hostsite') {
+            // check if mimic specified in URL
+            if (cms.url.query.mimic) {
+                  cms.siteID = cms.url.query.mimic;
+                  // set mimic cookie TODO
+                  // newCookies.add('mimic',cms.siteID);
+            } else {
+                  // check for mimic cookie
+                  if (cookies.mimic) {
+                  cms.siteID = cookies.mimic;
+                  }
             }
       }
-  } catch (e) {
-        cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
-  }
+
+      // Read Site config (first check if config already loaded)
+      var dPath=websitePathTemplate.replace('{{siteID}}',cms.siteID);
+      let cfg = null;
+      try {
+            if (existsSync(dPath)) {
+                  let tmpCfg = new iesJSON();
+                  tmpCfg.DeserializeFlexFile(dPath);
+                  if (tmpCfg.Status ==0 && tmpCfg.jsonType=='object') {
+                        cfg = tmpCfg;
+                  }
+            } 
+            } catch {}
+      if (!cfg) { 
+            err = 173;
+            errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
+            }
+
+      // PROCESS REQUEST
+      cms.hostsiteEngine = websiteEngines.hostsite;
+      cms.thisEngine = websiteEngines[cms.siteID];
+      cms.Html = "ERROR: nosite [ERR-14159]";
+      //cms.iesCommon = new iesCommon();
+      try {
+            if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
+                  debugLog += "thisEngine.CreateHtml()\n";
+                  cms.thisEngine.CreateHtml(cms);
+            } else {
+                  if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
+                        debugLog += "hostsiteEngine.CreateHtml()\n";
+                        // We leave a reference to thisEngine in case it has Custom Tags
+                        cms.hostsiteEngine.CreateHtml(cms);
+                  }
+            }
+      } catch (e) {
+            cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
+      }
+  } // end if(cmsSiteID)
 
   mimic = cookies.mimic;
   newCookies = {};
@@ -302,10 +366,24 @@ let cookies = parseCookies( req.headers.cookie );
       + 'urlBasePath:' + cms.urlBasePath + '\n'
       + debugLog;
 
+      if (debugMode>0) {
+            appendFileSync(debugHttpFile,"err=" + err + ":" + errMessage + "\n" +
+                  "============ DebbugerMessage =================\n" + DebbugerMessage + "\n");
+      } 
+
       if (err==0) {
             res.end(cms.Html + '\n\n' + DebbugerMessage);
       } else {
             res.end("ERROR: " + errMessage + '\n\n' + DebbugerMessage);
       } 
   } // end if (cms.resultType=='html')
+
+  if (debugMode>0) {
+      appendFileSync(debugHttpFile,"httpServer processing complete: " + timestamp() + "\n");
+      } 
+
 }).listen(serverPort);
+
+if (debugMode>0) {
+      appendFileSync(debugFile,"app.js Setup complete.\n");
+} 

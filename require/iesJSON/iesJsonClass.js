@@ -376,6 +376,26 @@ class iesJSON {
        }
     }
 
+    getNum(idx,defaultValue = 0,dotNotation = true) {
+        // FUTURE-NEW: is there a more efficient way? 
+       let foundItem = this.i(idx,dotNotation);
+       if (foundItem.Parent) {
+           return foundItem.toNum(defaultValue);
+       } else {
+            return defaultValue;
+       }
+    }
+
+    getBool(idx,defaultValue = false,dotNotation = true) {
+        // FUTURE-NEW: is there a more efficient way? 
+       let foundItem = this.i(idx,dotNotation);
+       if (foundItem.Parent) {
+           return foundItem.toBool(defaultValue);
+       } else {
+            return defaultValue;
+       }
+    }
+
     toStr(defaultValue = "") {
         if (this._status != 0) { return defaultValue; } // Invalid status
         if (!this._value_valid) { return defaultValue; }
@@ -384,6 +404,30 @@ class iesJSON {
             ||  this._jsonType == iesJsonConstants.typeObject
             || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
         return this._value + '';
+    }
+
+    toNum(defaultValue = "") {
+        if (this._status != 0) { return defaultValue; } // Invalid status
+        if (!this._value_valid) { return defaultValue; }
+        if (this._jsonType == iesJsonConstants.typeNumber) { return this._value; }
+        if (this._jsonType == iesJsonConstants.typeNull
+            ||  this._jsonType == iesJsonConstants.typeObject
+            || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
+        return Number(this._value);
+    }
+
+    toBool(defaultValue = "") {
+        if (this._status != 0) { return defaultValue; } // Invalid status
+        if (!this._value_valid) { return defaultValue; }
+        if (this._jsonType == iesJsonConstants.typeBoolean) { return this._value; }
+        if (this._jsonType == iesJsonConstants.typeNull
+            ||  this._jsonType == iesJsonConstants.typeObject
+            || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
+        return this.parseBoolean(this._value);
+    }
+
+    parseBoolean(v) {
+        return !v || v==='false' || v==='False' || v==='FALSE' ? false : true;
     }
 
     static CreateNull()
