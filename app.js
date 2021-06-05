@@ -212,7 +212,7 @@ let cookies = parseCookies( req.headers.cookie );
       }
   } catch (errSepPosition) {}
   */
-  cms.urlPathList = cms.url.pathname.split("/");  // FUTURE: Not sure this is needed
+  cms.urlPathList = decodeURI(cms.url.pathname).split("/");  // FUTURE: Not sure this is needed
   if (!cms.urlPathList[0]) {cms.urlPathList.shift();} // removed the initial /
   if (cms.urlPathList.length <= 1 || (!cms.urlPathList[0])) {
         // no first item in path
@@ -241,6 +241,8 @@ let cookies = parseCookies( req.headers.cookie );
         res.connection.destroy();
   }
 
+  cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
+  
   if (cms.siteID) {
       // Mimic (can only mimic on hostsite)
       if (cms.siteID == 'hostsite') {
@@ -272,7 +274,9 @@ let cookies = parseCookies( req.headers.cookie );
       if (!cfg) { 
             err = 173;
             errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
+            cfg = new iesJSON("{}");
             }
+      cms.SITE = cfg;
 
       // PROCESS REQUEST
       cms.hostsiteEngine = websiteEngines.hostsite;
@@ -292,6 +296,7 @@ let cookies = parseCookies( req.headers.cookie );
             }
       } catch (e) {
             cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
+            cms.resultType='html';
       }
   } // end if(cmsSiteID)
 
@@ -370,12 +375,10 @@ let cookies = parseCookies( req.headers.cookie );
             appendFileSync(debugHttpFile,"err=" + err + ":" + errMessage + "\n" +
                   "============ DebbugerMessage =================\n" + DebbugerMessage + "\n");
       } 
-
-      if (err==0) {
-            res.end(cms.Html + '\n\n' + DebbugerMessage);
-      } else {
-            res.end("ERROR: " + errMessage + '\n\n' + DebbugerMessage);
-      } 
+      if (err !=0) { cms.Html = "ERROR: " + errMessage; }
+      // if (debugMode > 5) { cms.Html += '\n\n' + DebbugerMessage; }
+      res.end(cms.Html);
+      
   } // end if (cms.resultType=='html')
 
   if (debugMode>0) {

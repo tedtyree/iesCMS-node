@@ -1,0 +1,14 @@
+body {
+font-family: arial;
+font-size: 12pt;
+color: #000000;
+}
+
+p, ul, li 
+{
+	font-family: arial;
+	font-size: 12pt;
+	color: #000000;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}

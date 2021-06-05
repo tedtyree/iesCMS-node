@@ -1,3 +1,4 @@
+const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
@@ -11,16 +12,31 @@ class webEngine {
     constructor(thisSiteID) {
         assignedSiteID = thisSiteID;
     	}
-        
 
-    static invalidSiteID(cms) {
+    invalidSiteID(cms) {
         if (assignedSiteID != _siteID) {
             cms.err = 517;
             cms.errMessage = 'ERROR: webEngine missmatch: ' + assignedSiteID + ' != ' + _siteID;
             return true;
         }
         return false;
+    }
 
+    CustomTags(ret,cms) {
+        var content = new StringBuilder();
+        ret.Processed=true;
+        switch (ret.Tag.toLowerCase()) {
+            case "tag1":
+                ret.ReturnContent = "tag1_content";
+                break;
+            case "tag2":
+                content.append("tag2_content");
+                break;
+            default:
+                ret.Processed=false;
+                break;
+        }
+        ret.ReturnContent += content.toString();
     }
 
     CreateHtml(cms) {
@@ -30,7 +46,7 @@ class webEngine {
         var pageTemplate;
         var templatePath;
 
-       // if (this.invalidSiteID(cms)) { return; }
+        if (this.invalidSiteID(cms)) { return; }
         cms.Html = "hostsite HTML<br>";
         let filePath = cms.url.pathname.replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
@@ -39,7 +55,8 @@ class webEngine {
             filePath = filePath.replace(/\//g,'_');
         }
         // debugger
-        cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        cms.pageId = filePath;
 
         // FUTURE: Determine if path is located in root (shared common folders) or in Websites/<siteid>
         
@@ -124,13 +141,6 @@ class webEngine {
         return;
     }
 
-    static CustomTags(tag,content) {
-        switch (tag.toLowerCase()) {
-            case "tag1":
-                content = "tag1_content";
-                break;
-        }
-    }
 }
 
 module.exports = webEngine;

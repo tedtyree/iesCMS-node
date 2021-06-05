@@ -32,11 +32,15 @@ class webEngine {
 
        // if (this.invalidSiteID(cms)) { return; }
         cms.Html = "hostsite HTML<br>";
-        let filePath = cms.url.pathname.replace(/\\/g,'/');
+        let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
         if (cms.pathExt == '' || cms.pathExt == 'htm' || cms.pathExt == 'html') {
             fileType = 'html';
             filePath = filePath.replace(/\//g,'_');
+        }
+        if (filePath == '') {
+            filePath = iesCommon.getParamStr(cms,"DefaultPageID","home");
+            fileType=='html'
         }
         // debugger
         cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
@@ -57,7 +61,8 @@ class webEngine {
                 return;
             }
 
-            var contentHtml = readFileSync(cms.fileFullPath, 'utf8');
+            // FUTURE: Can we read and parse this using iesCommon.LoadHtmlFile?
+            var contentHtml = readFileSync(cms.fileFullPath, 'utf8').toString();
             // look for [[{ header }]]
             var p1 = contentHtml.indexOf('[[{');
             if (p1 >=0) {

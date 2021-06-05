@@ -357,6 +357,15 @@ class iesJSON {
             }
             return -1;
         }
+    
+    contains(idx,dotNotation = true) {
+        let foundItem = this.i(idx,dotNotation);
+        if (foundItem.Parent) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     getStr(idx,defaultValue = "",dotNotation = true) {
         // FUTURE-NEW: is there a more efficient way? if we item() to get this, we may not find out if it is missing... but here we are searching twice. ugh

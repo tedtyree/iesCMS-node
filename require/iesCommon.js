@@ -1,5 +1,6 @@
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync } = require('fs');
+const iesJSON = require('./iesJSON/iesJsonClass.js');
 class iesCommonLib {
 
     mime = {
@@ -15,19 +16,41 @@ class iesCommonLib {
 
     constructor() { }
 
-    AdminTags(ret,content) {
+    AdminTags(ret,Custom,cms) {
+        var content = new StringBuilder();
         ret.Processed=true;
         switch (ret.Tag.toLowerCase()) {
+            case "js":
+            case "javascript":
+                // *** Include the main javascript file or link (or multiple if needed)
+                // *** NOTE: Including the js directly is done so that we can replace [[Tags]] - otherwise use a <script> tag in the html for efficiency.
+                content.append(this.ReadJavascript(ret.Param1,cms));
+                break;
+            case "menu":
+                // Add a menu template
+                // Leave ret.Processed=true - Even if the below fails, we do not want this parameter to fall through to another layer because we matched the tag.
+                let MenuName = ret.Param1.trim();
+                if (MenuName == "") { MenuName = this.getParamStr(cms,"DefaultMenu","main"); }
+                // Look for menu in the template folders: local then server
+                try
+                {
+                    const menuPath = this.FindFileInFolders("menu_" + MenuName + ".cfg", this.getParamStr(cms,"TemplateFolder"), this.getParamStr(cms,"CommonTemplateFolder"));
+                    const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.UserLevel);
+                    content.append(webBlock.content + ''); // Not much error checking - it either works or doesn't
+                }
+                catch { }
+                break;
+            case "pageid":
+                content.append(cms.pageId);
+                break;
             case "tagz":
                 ret.ReturnContent = "tagz_content";
-                break;
-            case "js":
-                ret.ReturnContent = "<b>THIS-IS-JS</b>";
                 break;
             default:
                 ret.Processed = false;
                 break;
         }
+        ret.ReturnContent += content.toString();
     }
 
 
@@ -68,7 +91,7 @@ class iesCommonLib {
                         // And if we didn't find ]] then we pass through un-processed
                         replacement = "[[" + words.slice(0,1);
                         if (endPos >= 0) { replacement += "]]"; }
-                        else { endPos = inputString.Length - 1; }
+                        else { endPos = inputString.length - 1; }
                     }
                     else
                     {
@@ -79,7 +102,7 @@ class iesCommonLib {
 
                         var ret = {};
 
-                        switch (possiblePieces.Length)
+                        switch (possiblePieces.length)
                         {
                             case 5:
                             case 6:
@@ -131,13 +154,13 @@ class iesCommonLib {
                             ret.Processed = true;
                         }
                         if(ret.Processed == false && Custom && Custom.CustomTags) {
-                            Custom.CustomTags(ret, this);
+                            Custom.CustomTags(ret, cms);
                         }
 
                         if (ret.Processed == false)
                         {
                             // Tag not processed, let's try the admin level to replace this tag...
-                            this.AdminTags(ret);
+                            this.AdminTags(ret, Custom, cms);
                         }
 
                         // Check if our replacement string has [[tags]] that need to be replaced
@@ -148,7 +171,7 @@ class iesCommonLib {
                             if (pt >= 0)
                             {
                                 // Recursive call to replace [[tags]]
-                                var replace2 = ReplaceTags(replacement, header, content, Custom, cms, lvl);
+                                var replace2 = this.ReplaceTags(replacement, header, content, Custom, cms, lvl);
                                 replacement = replace2;
                             }
                         }
@@ -160,13 +183,15 @@ class iesCommonLib {
                 }
             } while (charPosition != -1);
 
-            if (beginning < (inputString.Length))
+            if (beginning < (inputString.length))
             {
-                data.Append(inputString.substring(beginning));
+                data.append(inputString.substring(beginning));
             }
 
             return data.toString();
         } // END ReplaceTags
+
+        /* ******************************************** SUPPORT ROUTINES *********************************** */
 
         SplitTags(inputString)
         {
@@ -255,6 +280,248 @@ class iesCommonLib {
         }
         return null; // file not found
     }
+
+    ReadJavascript(subTag, cms)
+    {
+        // *** This script finds the specified .js file and returns its content
+        // *** (to be included in the HTML response stream)
+        // *** .js file may be in the Template Folder or the Root folder.
+        let ret = "";
+        let strFile = subTag;
+        if (strFile.trim() == "") { strFile = this.getParamStr(cms,"Default_JS","main"); }  //FUTURE: Put "main" as a parameter Default_JS in config file
+        strFile = strFile + ".js";
+
+        let folders = [
+            this.getParamStr(cms,"sourceFolder",""),
+            this.getParamStr(cms,"baseFolder",""), // WorldFolder
+        ];
+
+        ret = this.ReadFileFrom(strFile, folders);
+
+        if (ret != "")
+        {
+            ret = "<SCRIPT type=\"text/javascript\" LANGUAGE=\"JavaScript\">\n" +
+                "<!" + "--\n" + ret + "// --" + ">\n" + "<" + "/SCRIPT>\n";
+        }
+
+        return ret;
+
+    } // End Function
+
+    getParamStr(cms,tagId,defaultValue,tagReplace = true) {
+        let v="";
+        // first we look in cms.SITE
+        if (cms.SITE.contains(tagId)) {
+            v = cms.SITE.getStr(tagId);
+        }
+        else if (cms.SERVER.contains(tagId)) {
+            v = cms.SERVER.getStr(tagId);
+        }
+        else { v = defaultValue; }
+        if (typeof v === 'string') { v = this.tagReplaceString(v, cms.SITE, cms.SERVER); }
+        return v;
+    }
+
+    // **************** tagReplaceString()
+    tagReplaceString(inputString, cfg1, cfg2, cfg3, cfg4, lvl = 0)
+    {
+        var charPosition = 0;
+        var beginning = 0;
+        var startPos = 0;
+        var endPos = 0;
+        var data = new StringBuilder();
+   
+        // Safety - keep from causing an infinite loop.
+        if (lvl++ > 99) { return inputString; }
+
+            do
+            {
+                // Let's look for our tags to replace
+                charPosition = inputString.indexOf("[[", beginning);
+                if (charPosition != -1)
+                {
+                    startPos = charPosition;
+                    endPos = inputString.indexOf("]]", startPos); // what to do if closing ]] is not found
+                    
+                    var word = "";
+                    if (endPos >= 0)
+                    {
+                        word = inputString.substring(startPos + 2, endPos);
+                    }
+                    else
+                    {
+                        word = inputString.substring(startPos + 2);
+                    }
+
+                    var replacement = "";
+                    if (word) {
+                        // First check to see if Custom tag definitions will replace this Tag...
+                        let Processed = false;
+                       
+                        if (Processed == false && cfg1 && cfg1.contains) {
+                            if (cfg1.contains(word)) {
+                                Processed = true;
+                                replacement = cfg1.getStr(word);
+                            }
+                        }
+
+                        if (Processed == false && cfg2 && cfg2.contains) {
+                            if (cfg2.contains(word)) {
+                                Processed = true;
+                                replacement = cfg2.getStr(word);
+                            }
+                        }
+
+                        if (Processed == false && cfg3 && cfg3.contains) {
+                            if (cfg3.contains(word)) {
+                                Processed = true;
+                                replacement = cfg3.getStr(word);
+                            }
+                        }
+
+                        if (Processed == false && cfg4 && cfg4.contains) {
+                            if (cfg4.contains(word)) {
+                                Processed = true;
+                                replacement = cfg4.getStr(word);
+                            }
+                        }
+
+                        // Check if our replacement string has [[tags]] that need to be replaced
+                        var pt = replacement.indexOf("[[");
+                        if (pt >= 0)
+                        {
+                            // Recursive call to replace [[tags]]
+                            var replace2 = this.tagReplaceString(replacement, cfg1, cfg2, cfg3, cfg4, lvl);
+                            replacement = replace2;
+                        }
+                    } // END if (word)
+
+                    data.append(inputString.substring(beginning, startPos));
+                    data.append(replacement);
+                    beginning = endPos + 2;
+                }
+            } while (charPosition != -1);
+
+            if (beginning < (inputString.length))
+            {
+                data.append(inputString.substring(beginning));
+            }
+
+            return data.toString();
+        } // END tagReplaceString
+
+        // Look for a text file in a list of folders and load the first one that exists
+        ReadFileFrom(sFileName, Folders)
+        {
+            let sPath='';
+            for (const nextFolder of Folders) {
+                let strFolder = (nextFolder + '').trim();
+                if (strFolder) {
+                    sPath = strFolder.replace(/\\/g,'/');
+                    if (sPath.slice(-1) != '/') { sPath += '/'; }
+                    sPath += sFileName;
+                    if (existsSync(sPath))
+                    {
+                        return readFileSync(sPath);
+                    }
+                }
+            } // End foreach
+            return "";
+        }
+
+        // LoadHtmlFile()
+        // Returns an object {content,jsonHeader (as  iesJSON),foundHeader,status,errMsg}
+        // Note: If ContentField is specified, then the content of the HTML file is
+        //    added to the htmlFile JSON object AND is returned as the return parameter
+        // UserViewLevel: Set this value if you would like to have this routine check MinViewLevel in the header 
+        //    and BLANK OUT content_area (return value) if user does not have sufficient permissions to view content
+        // status: 0=success, <0 indicates failed
+        LoadHtmlFile(cfgFilePath, htmlFile, ContentField = "content_area", UserViewLevel = -1)
+        {
+            let status = -9; // default status = 'failed'
+            let errMsg = "";
+            let jsonHeader = new iesJSON("{}");
+            let fileContent = "";
+            let start = 0;
+            let end = 0;
+            let foundHeader = false;
+            try
+            {
+                if (cfgFilePath.trim() != '')
+                {
+                    if (existsSync(cfgFilePath))
+                    {
+                        fileContent = readFileSync(cfgFilePath,'utf8').toString();  //Read the file
+                    }
+                }
+            }
+            catch (Exception) { }
+
+            if (fileContent.trim() != '')
+            {
+
+                if (fileContent.indexOf("[[{") >= 0)
+                {
+                    start = fileContent.indexOf("[[{") + 2;
+                    end = fileContent.indexOf("}]]") - 1;
+                    foundHeader = true; 
+
+                    let jSON = fileContent.substring(start, end);
+
+                    let pageJsonOK = false;
+                    if (jSON)
+                    {
+                        try
+                        {
+                            jsonHeader.DeserializeFlex(jSON);
+                              // Future: check for errors?
+                            if (jsonHeader.Status ==0 && jsonHeader.jsonType=='object') {
+                                pageJsonOK = true;
+                            } else {
+                                errMsg = errMsg + "Error: Failed to parse HTML file JSON header. [ERR-8668]";
+                                status = -2;
+                            }
+                            
+                        }
+                        catch (Exception)
+                        {
+                            //Unable to find it...Let's just move on?
+                            // Below we will create an empty Header object
+                            errMsg = errMsg + "JSON Header missing or corrupt: " + cfgFilePath + " [ERR-8669]";
+                            status = -3;
+                        }
+                    }
+                } // End if (fileContent.IndexOf("[[{")
+
+                //Let's remove the json header from the content
+                if (fileContent.trim() != '' && end > 0)
+                {
+                    fileContent = fileContent.splice(end+3);
+                }
+                if ((UserViewLevel >= 0) && (foundHeader == true))
+                {
+                    if (UserViewLevel < htmlFile.getInt("MinViewLevel",999))
+                    {
+                        // User does not have permission to view this content
+                        fileContent = "";
+                        errMsg = "Insufficient permission to view content. [ERR-27931]";
+                        status = -1;  // Not sure that this is really an 'error', but flag it as such
+                    }
+                }
+                if (ContentField.trim() != '')
+                {
+                    htmlFile.AddToObjBase(ContentField, fileContent);
+                }
+                if (errMsg == "") { status = 0; }
+            } // End if (!String.IsNullOrEmpty(fileContent))
+            else
+            {
+                // Failed to get page content.
+                errMsg = errMsg + "Failed to load page content: " + cfgFilePath + " [ERR-6891]";
+                status = -4;
+            }
+            return {content:fileContent, jsonHeader, foundHeader, status, errMsg};
+        }
 
 }
 

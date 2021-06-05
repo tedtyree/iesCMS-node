@@ -1,0 +1,947 @@
+/* 
+   css Copyright (c) 2009 Sandvox Web Designs (http://www.sandvoxwebdesigns.com)
+   NOTE: Sandvox Web Designs is a third party design developer and are not owned or operated by Karelia Software. Sandvox Web Designs uses the name "Sandvox" with permission from Karelia Software
+   All associated graphics belong to their respective owners 
+        and are licensed separately. 
+*/
+
+/* @group Global */
+
+a {
+    color: #0782c9;
+    text-decoration: none;
+    border:none;
+}
+
+a:hover, a:focus{
+    border:none;
+	color: #2e2e2e;
+}
+
+a.imageLink {
+	border: 0px none;
+}
+
+a img { border: none; }
+
+.clear {
+	clear: both;
+	height: 0;
+}
+
+.hidden {
+    display:none;
+}
+img .narrow {
+    float: right;
+	
+}
+img .wide {
+	display: block;
+}
+
+body {
+	font: 0.84em/1.6em Arial, Helvetica, Verdana, sans-serif;
+	margin: 0 0 60px;
+	background-color: #5a5a5a;
+}
+
+li a:hover, li a:focus{
+    border:none;
+}
+
+li a:active {
+    
+}
+blockquote {
+	font-style: italic;
+	background-color: #f2f2f2;
+	padding: 7px;
+}
+.pagelet blockquote{
+	font-style: italic;
+	background-color: #f2f2f2;
+	padding: 7px;
+	margin-left: 1px;
+	width: 218px;
+	line-height: 1.2em;
+	font-size: .95em;
+}
+code {
+	color: #1d1d1e;
+	font: bold .9em "Courier New", Courier, mono;
+	margin-left: 40px;
+}
+
+/* @end */
+
+/* @group Miscelaneous */
+
+
+
+/* @end */
+
+/* @group Photo Page & Grid Index */
+
+/* @group Photo Navigation */
+
+/* photo navigation */
+
+.photo-navigation {
+	position:relative;
+    height: 34px;
+    width:200px;
+    margin:0px auto 8px auto;
+}
+
+.photo-navigation div {
+	width:30px;
+	height:34px;
+	position: absolute;
+    text-indent: -5000em;
+}
+
+.photo-navigation a {
+	border-bottom:none;
+	display:block;
+	width:100%;
+	height:100%;
+}
+
+#previous-photo	{
+    background: url(photo-previous-off.gif) no-repeat 0 center;
+    left: 40px;
+    width: 40px;
+}
+#previous-photo a {
+    background: url(photo-previous-on.gif) no-repeat 0 center;
+}
+
+#next-photo {
+    background: url(photo-next-off.gif) no-repeat 0 center;
+    left: 126px; 
+    width: 40px;
+}
+#next-photo a {
+    background: url(photo-next-on.gif) no-repeat 0 center;
+}
+
+#photo-list {
+    background: url(photo-list-off.gif) no-repeat 0 center;
+    left: 84px;
+	width: 40px;
+}
+#photo-list a {
+    background: url(photo-list-off.gif) no-repeat 0 center;
+}
+#photo-list a:hover {
+    background: url(photo-list.gif) no-repeat 0 center;
+}
+
+.image-controls a {
+	border-bottom:none !important;
+}
+
+.allow-sidebar #previous-photo {
+	left:210px;
+}
+.allow-sidebar #next-photo {
+	left:290px;
+}
+
+.allow-sidebar #photo-list {
+	left:250px;
+}
+
+
+
+/* @end */
+
+div.photo-viewer-summary .article {
+    margin: auto;
+}
+
+/* Used on Photo Grid Pages ... */
+.photogrid-index {
+    text-align: left;
+    margin-top: 10px;
+    padding: 5px;
+    padding-left: 10px;
+    overflow: auto;
+    position: relative;
+    width: 660px;
+}
+
+body.no-sidebar .photogrid-index {
+	padding: 5px 20px;
+	width:910px;
+}
+
+.photogrid-index a {
+	color:#000;
+	text-decoration:none;
+}
+
+
+.gridItem {
+    float: left;
+    position:relative;
+    width:150px;
+    height:180px;	/* room for caption */
+    margin: 10px;
+    padding-top: 10px;
+    background: white;
+    overflow: hidden;
+	text-align: center;
+}
+*html .gridItem {
+	text-align: left;
+}
+*html .gridItem h3 {
+
+	top: 100px; /* needs to leave 38px from the bottom of the gridItem */
+}
+
+.gridItem h3 {
+    font-size: 0.9em;
+    font-weight: normal;
+    color: #000000;
+    margin-top: 4px;
+    margin-left: 7px;
+    margin-right: 7px;
+    position:absolute;
+	top: 140px; /* needs to leave 38px from the bottom of the gridItem */
+	width: 136px;
+}
+
+.gridItem img {
+    border: 1px solid #102536;
+    margin: auto;
+    display:block;
+    position: absolute;
+    top: 0;
+    bottom: 40px;
+    right: 0;
+    left: 0;
+}
+
+span .in h3{
+	font-size: .9em;
+}
+
+
+/* Used on index summary pages */
+.listing-index #main li h3 a {
+    text-decoration:none;
+    font-size:1em;
+    font-weight:normal;
+}
+
+
+
+/* @end */
+
+/* @group Sidebar, Pagelets, Callouts */
+
+#sidebar {
+    float: right;
+    width: 230px;
+    font-size: 0.9em;
+    margin-right: 10px;
+}
+
+#sidebar p, .pagelet table, .pagelet dl {
+    margin-left: 10px;
+    margin-right: 10px;
+    text-align: left;
+}
+
+.pagelet ul, .pagelet ol, .pagelet table, .pagelet dl {
+	text-align:left;
+}
+.Index-Pagelet li{
+	margin-top: 10px;
+	margin-bottom: 10px;
+	list-style-type: none;
+	list-style-image: url(links.gif);
+	list-style-position: outside;
+}
+.pagelet li{
+	margin-top: 10px;
+	margin-bottom: 10px;
+	list-style-type: none;
+	list-style-image: url(links.gif);
+	list-style-position: outside;
+}
+.pagelet {
+    width: 230px;
+    overflow:hidden;
+	margin-top: 10px;
+}
+.pagelet p{
+	margin-top: 8px;
+	line-height: 1.4em;
+	font-size: .96em;
+}
+
+.pagelet h4 {
+    padding: 5px;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #040404;
+    text-align: center;
+}
+
+.pagelet.bordered {
+	border: 1px solid #595959;
+	margin: 10px;
+	padding: 2px;
+	width: 228px;
+	position: relative;
+	right: 8px;
+}
+
+.pagelet.bordered p {
+	padding: 0px 4px 0;
+	margin-top: 10px;
+}
+
+.pagelet.bordered h4 {
+	margin: 8px 0px 12px;
+}
+
+.pagelet .contactElement.labelsOnSide {
+	margin-right:20px;
+}
+
+
+/* photo-page, html-page (in some cases), iframe-page don't have sidebar */
+
+li a, #sidebar a {
+    color: #000000;
+    text-decoration: none;
+	border:none;
+}
+
+.callout {    
+	float: left;
+    text-align: center;
+    border-right: none;
+	margin: 0px 1px 30px -20px !important;
+	clear: both;
+}
+.callout .pagelet {
+	width: 248px;
+	margin: 10px 10px -30px 16px;
+}
+.callout .pagelet.bordered {
+	border: 1px solid #5a5a5a;
+	margin: 10px 10px -20px 20px;
+	padding:0px;
+	width: 248px;
+}
+*html .callout .pagelet.bordered {
+	margin: 10px 10px -20px 36px !important;
+	width: 248px;
+}
+*html .callout .pagelet {
+	width: 248px;
+	margin: 10px 10px -30px 26px;
+}
+.callout .pagelet.bordered p {
+	padding: 0px 4px 0 6px;
+	margin-top: 10px;
+}
+
+.callout .pagelet.bordered h4 {
+	margin: 8px 0px 16px;
+}
+
+.callout li{
+	margin-left: -12px;
+	font-size: .86em;
+	line-height: .9em;
+}
+.callout h4 {
+    font-weight: bold !important;
+    font-size: 1em !important;
+    line-height: normal;
+    text-shadow: none;
+}
+* html .callout {
+	position: relative;
+	margin-right: -5px;
+	margin-left: 5px;
+}
+.callout-container .ImageElement{
+	margin-bottom: -20px;
+	margin-top: 20px;
+}
+.callout-container .ImageElement .caption{
+	font-size: 1em;
+	
+}
+.callout p {
+    text-align: left;
+    padding-left: 10px;
+    padding-right: 10px;
+	font-size: .86em;
+	
+}
+
+/* @end */
+
+/* @group Layout */
+
+body.no-sidebar #main {
+    margin-left: 0px;
+    margin-right: 0px;
+    font-size: 1em;
+    position:relative;
+    width: 900px;
+}
+body.allow-sidebar #main {
+    margin-left: 0px;
+    float: left;
+    width: 680px;
+    font-size: 1em;
+}
+
+
+h1, h2, h3, h4, h5, h6, #title, #sitemenu-content, #page-bottom, .caption {
+	font-family:"Trebuchet MS", helvetica, verdana, sans-serif;
+}
+
+h4, h5, h6 {
+	margin: 0em 0em 0.8em 0em;
+	font-size: 100%;
+}
+
+#page {
+    width: 1002px;
+	background: url(content.png) repeat-y;
+	margin-top: -20px;
+	margin-left: auto;
+	margin-right: auto;
+}
+#main{
+	padding-left: 20px;
+	line-height: 1.5em;
+	font-weight: normal;
+	font-style: normal;
+	font-size: 1em;
+}
+
+#main {
+	float: left;
+	clear: left;
+}
+#main #spac {
+	height: 20px;
+}
+#main p{
+	margin-top: -10px;
+	font-weight: normal;
+	font-style: normal;
+}
+#main h1{
+	color: #000;
+	font-size: 1.8em;
+	padding-left: 0;
+	margin: 0;
+	padding: 2px;
+}
+#main h2{
+	color: #000;
+	font-size: 1.6em;
+	padding-left: 0;
+	padding: 2px;
+	line-height: 1.1em;
+}
+#main h4{
+	color: #000;
+	font-size: 1.2em;
+	padding-left: 0;
+	padding: 2px;
+}
+#main h5{
+	color: #000;
+	font-size: 1.1em;
+	padding-left: 0;
+}
+body.no-sidebar #page {
+
+}
+
+#page-top {
+    margin:0;
+	background: url(header.png) no-repeat;
+}
+
+#title {
+    padding: 0;
+    padding-bottom: 2px;
+    text-align: center;
+    text-decoration:none;
+    margin: 0;
+    margin-top: 10px;
+	height: 221px;
+}
+
+#title a {
+    text-decoration:none;
+}
+
+h1 {
+    text-align: center;
+    color: #000;
+    margin: 0 auto 5px;
+    padding-top: 90px;
+    display: block;
+	font: italic bold 3.5em "Times New Roman", Times, serif, Georgia;
+	width: 800px;
+}
+
+h1 a {
+    text-decoration:none;
+    border:none;
+	color: #161616;
+}
+
+h1 a:hover, h1 a:focus, h1 a:active {
+	color: #373737;
+	text-decoration: none;
+	border:none;
+}
+
+#title img {
+    border:none;
+    margin-top: 10px;
+}
+
+#title p {
+    font-weight: normal;
+    font-size: 1.6em;
+    text-align: center;
+    margin: 20px auto 0px;
+    padding-bottom: 14px;
+    color: #000000;
+	width: 800px;
+}
+
+body.has-custom-banner #page-top {
+	background-position: center top;
+	background-repeat: no-repeat; 
+	height: 411px;
+	width: 942px
+}
+
+#page-top.has-logo #title {
+	padding: 0;
+    padding-bottom: 2px;
+    text-align: center;
+    text-decoration:none;
+    margin: 0;
+    margin-top: 10px;
+	height: 221px;
+}
+
+body.has-custom-banner #page-top h1 {
+	font-weight: bold;
+    font-size: 3.5em;
+    text-align: left;
+    color: #fff;
+    margin: 0px 10px 5px 10px;
+    padding-top: 60px;
+    display: block;
+	padding-left: 40px;
+}
+body.has-custom-banner #sitemenu-container {
+    clear: both;
+    padding-top: 0px;
+    margin-top: 0px;
+	margin-bottom: 20px;
+}
+
+#page-top.has-logo h1 {
+	font-weight: bold;
+    font-size: 3.5em;
+    text-align: center;
+    color: #000000;
+	
+}
+#page-top img{
+	float: right;
+	position: relative;
+	top: 70px;
+	right: 120px;
+}
+body.has-custom-banner #page-top p {
+	font-weight: normal;
+    font-size: 1.6em;
+    text-align: left;
+    margin: 20px 10px 0px 50px;
+    padding-bottom: 14px;
+    color: #fff;
+}
+#page-content {
+    width: 954px;
+    margin: auto;
+    clear: both;
+    margin-top: 10px;
+	font-size: 1.2em;
+	line-height: 1.3em;
+	
+}
+body.has-custom-banner #page-content {
+    width: 934px;
+    margin: auto;
+    clear: both;
+    margin-top: 60px;
+	font-size: 1.2em;
+	line-height: 1.3em;
+	
+}
+
+
+* html #page-content {
+	margin-top:0px;
+}
+
+body.no-sidebar #page-content {
+    width: 934px;
+}
+
+h2 {
+    display: block;
+    font-weight: bold;
+    text-align: left;
+    margin-top: 0;
+    color: #000;
+	padding: 10px 10px 1px;
+	font-size: 1.5em;
+}
+
+
+.caption {
+    padding: 10px;
+    font-size: 1.5em;
+}
+
+
+
+/* @end */
+
+/* @group Page  Bottom */
+
+#page-bottom-contents a{
+
+}
+
+#page-bottom-contents a:hover{
+
+}
+
+#page-bottom-contents{
+	color: #000;
+	width: 700px;
+	margin-right: auto;
+	margin-left: auto;
+	font-size: .9em;
+	clear: both;
+	margin-bottom: 50px;
+	padding: 80px 10px;
+}
+
+body.allow-sidebar #page-bottom {
+}
+
+#page-bottom {
+    font-weight: normal;
+    font-size: 1.1em;
+    text-align: center;
+    color: white;
+	background: url(footer.png) no-repeat 0 bottom;
+	padding-right: 5px;
+	padding-top: 5px;
+	padding-left: 5px;
+	width: 1002px;
+}
+
+
+
+/* @end */
+
+/* @group Site Menu */
+
+#sitemenu-container {
+    clear: both;
+    padding-top: 0px;
+	border-bottom: 1px solid #f3f3f3;
+	border-top: 1px solid #f3f3f3;
+	width: 930px;
+	margin: 0px 20px 20px 40px;
+}
+
+#sitemenu {
+    clear: both;
+    padding: 0;
+	color: #000;
+	font-size: 1.1em;
+	text-align: center;
+	margin-bottom: auto;
+	margin-left: 20px;
+	margin-right: 20px;
+}
+
+#sitemenu-content ul {
+    text-align: center;
+	margin:0px;
+	padding: 10px 5px 9px;
+}
+
+#sitemenu-content li {
+    display: inline;
+    margin-top: 1px;
+    padding: 0px 3px;
+    font-size: 1.0em;
+    color: #000;
+	font-style: italic;
+	line-height: 1.6em;
+}
+
+#sitemenu-content span.i1 {
+    border: none !important;
+}
+
+#sitemenu-content a{
+    text-decoration: none;
+    border:none;
+    padding-left: 3px;
+    color: #000;
+	line-height: 1.6em;
+}
+
+#sitemenu-content li.currentPage span.in, #sitemenu-content li.currentParent a {
+    text-decoration: none;
+    padding-left: 3px;
+    color: black;
+	font-weight: bold;
+	font-size: 1.2em;
+}
+
+#sitemenu-content a:hover, a:focus{
+    color: black;
+	font-weight: normal;
+	padding-left: 3px;
+	text-decoration: none;
+	border-bottom: 1px solid #b8b8b8;
+}
+
+#sitemenu-content a:active {
+    border: none !important;
+	font-weight: bold;
+}
+
+
+
+/* @end */
+
+/* @group Blog */
+
+.timestamp{
+	margin-bottom: 10px;
+}
+#main .article h3 {
+     padding: 5px;
+     font-size: 1.3em;
+     color: #000000;
+     font-weight: bold;
+     text-align: left;
+     margin-right: -10px;
+     margin-left: -10px;
+     clear: right;
+     border:none;
+}
+
+.article h3 a {
+    color: #000000;
+    padding: 3px;
+    text-decoration: none;
+    border:none;
+}
+
+.article h3 a:hover, a:focus{
+    border:none;
+    text-decoration: none;
+}
+
+.article h3 a:active {
+    
+}
+
+.article-info {
+	clear:both;
+}
+
+.article, .no-callouts {
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.article img {
+    border: none;
+}
+
+.article img.narrow {
+    float: left;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.article-thumbnail {
+    float: left;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+
+
+/* @end */
+
+.HTMLElement {
+    margin-bottom: 10px;
+}
+
+.ImageElement, .VideoElement {
+    text-align: center;
+}
+
+/* @group Up2Five */
+
+/*Up2five*/
+#page-content .Up2five {
+	width: 880px;
+}
+#page-content .Up2five h4{
+	text-align: left;
+}
+.column {
+	float: left;
+	text-align: left;
+}
+.one { width: 100%; }
+.two { width: 50%; }
+.three { width: 33%; }
+.four { width: 25%; }
+.five { width: 20%; }
+.column .content { width: 90%; margin: 0 auto;
+}
+
+
+/* @end */
+
+#extraDiv1, #extraDiv2, #extraDiv3, #extraDiv4, #extraDiv5, #extraDiv6 {
+	}
+
+/* @group Boxes */
+
+ .box h3{
+	text-align: center;
+	color: #fff;
+	width: 100%;
+	height: 22px;
+	font-size: 1em;
+	line-height: 22px;
+	background-color: #232323;
+}
+ .box{
+	text-align: left;
+	color: #000000;
+	border: 1px solid #e9e9e9;
+	border-top-style: none;
+	padding-bottom: 5px;
+	position: relative;
+	width: 96%;
+	margin-bottom: 10px;
+}
+.box p{
+	padding-right: 5px;
+	padding-left: 5px;
+}
+
+.box ul{
+	
+}
+.box li {
+	margin-left: 2px;
+}
+
+
+.callout .box h3{
+	text-align: center;
+	color: #fff;
+	width: 96%;
+	height: 16px;
+	line-height: 16px;
+	background-color: #232323;
+	font-size: .9em;
+	margin-left: 0;
+}
+.callout .box{
+	text-align: left;
+	color: #000000;
+	border: 1px solid #e9e9e9;
+	border-top-style: none;
+	padding-bottom: 5px;
+	position: relative;
+	width: 93%;
+	margin-bottom: 10px;
+	margin-left: 10px;
+}
+.callout .box p{
+	padding-right: 5px;
+	padding-left: 5px;
+}
+
+.callout .box ul{
+	
+}
+.callout .box li {
+	margin-left: 2px;
+}
+/* @end */
+
+/* @group Color Specific */
+
+
+#main h2{
+	color: #194892;
+	
+}
+
+
+#page-bottom-contents a{
+	color: #194892;
+}
+
+#page-bottom-contents a:hover{
+	color: #1d55b0;
+}
+
+
+a {
+    color: #194892;
+    
+}
+
+a:hover, a:focus{
+	color: #1d55b0;
+}
+
+
+#sitemenu-content li.currentPage span.in, #sitemenu-content li.currentParent a {
+    color: #194892;
+}
+/* @end */

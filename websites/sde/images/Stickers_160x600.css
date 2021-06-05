@@ -1,0 +1,56 @@
+.stickerbody{margin:0px; padding:0px;}
+.wXbody, .wXheader, .wXalert, .wXgrill, .forecast {font-family:Arial, Helvetica; font-size:9px;}
+.wXbody {width:160px; height:600px; border:1px black solid; background:url(../../../Images/Stickers/v2/160x600/bg.gif) no-repeat; text-align:center;}
+.wXbody .headerlogo {clear:both; margin-top:10px;}
+.wXheader { height:35px; line-height:12px;  text-align:center; margin-top:10px;}
+.wXgrill {height:53px; width:160px; padding-left:10px; margin-top:12px; padding-bottom:0px;}
+.wXgrill #thermometer { float:left; height:52px; margin:0px 0px 0px 4px; border:1px;}
+.wXgrill #temperature{ float:left; height:45px; margin:0px 0px 0px 4px; padding-top:7px;}
+.wXgrill #compass { float:left; height:52px; margin:0px 0px 0px 4px;}
+
+.wXalert {background:url(../../../Images/Stickers/v2/160x600/alert.gif) no-repeat; width:150px; color:#ffffff; text-align:center;}
+.wXalert a:link, .wXalert a:visited {color:#ffffff;}
+
+#compass { width:52px; text-align:center; }
+
+.compass-n { background:url(../../../Images/Stickers/v2/160x600/compass-n.gif) no-repeat center; }
+.compass-ne { background:url(../../../Images/Stickers/v2/160x600/compass-ne.gif) no-repeat center; }
+.compass-e { background:url(../../../Images/Stickers/v2/160x600/compass-e.gif) no-repeat center; }
+.compass-se { background:url(../../../Images/Stickers/v2/160x600/compass-se.gif) no-repeat center; }
+.compass-s { background:url(../../../Images/Stickers/v2/160x600/compass-s.gif) no-repeat center; }
+.compass-sw { background:url(../../../Images/Stickers/v2/160x600/compass-sw.gif) no-repeat center; }
+.compass-w { background:url(../../../Images/Stickers/v2/160x600/compass-w.gif) no-repeat center; }
+.compass-nw { background:url(../../../Images/Stickers/v2/160x600/compass-nw.gif) no-repeat center; }
+
+.wXgrill #windspeed { font-size:13px; font-weight:bold; margin-top:14px; margin-left:2px;}
+.wXgrill #wsmeasure { font-size:7px; font-weight:bold; margin-left:2px;}
+
+.wXbody .wXlinks { line-height:14px; text-align:left; padding-left:20px; float:left; font-size:11px; margin-top: 20px;}
+.wXbody .wXlinks2 { line-height:14px; text-align:left; padding-left:30px; float:left; font-size:11px; margin-top: 20px;}
+.wXbody .wXlinks3 { line-height:14px; text-align:left; padding-left:20px; float:left; font-size:11px; margin-top: 7px;}
+.wXbody .wXlinks a:link, .wXlinks a:visited, .wXlinks2 a:link, .wXlinks2 a:visited, .wXlinks3 a:link, .wXlinks3 a:visited {text-decoration:none; color:#0000ff; font-size:11px;} 
+
+
+.divider {clear:both; width:80px; margin-top:10px;}
+.divider2 {clear:both; width:80px; margin-top:-10px;}
+.wXheader #zipcode {font-weight:bold !important; font-size:11px !important;}
+.wXheader h1 { font-size:9px; margin:0px; padding:0px; font-weight:normal;}
+#temperature h2 { font-size:20px; display:inline; height:43px; color:#000000; line-height:43px; margin:0px; padding:0px;}
+.wXheader #zipcode {font-weight:bold; font-size:10px;}
+#zipcode a:link, #zipcode a:visited {text-decoration:none; color:#000000;}
+
+.forecast {display:block; margin:15px 0px 0px 35px; height:150px;}
+.day1 {clear:both; width:70px;}
+.day2 {clear:both; width:70px; padding:15px 0px 35px 0px;}
+.day {font-size:14px; text-align:left; padding-right:20px;}
+.cond {float:left; padding-right:5px;}
+.high {float:left; vertical-align:top; font-size:14px; font-weight:bold;}
+.low {float:left; font-size:14px;}
+
+.wXbody .footer {clear:both; margin-top:130px;}
+.wXbody .footertext {color:#ffffff;}
+
+.wXbody iframe { margin-top:15px;}
+.wXbody #logo {margin-top:34px;}
+
+.error {font-family:Arial, Helvetica; font-size:11px; color:#ff0000; width:140px;}
