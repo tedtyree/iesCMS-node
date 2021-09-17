@@ -246,17 +246,21 @@ let cookies = parseCookies( req.headers.cookie );
   if (cms.siteID) {
       // Mimic (can only mimic on hostsite)
       if (cms.siteID == 'hostsite') {
+			var override = '';
             // check if mimic specified in URL
             if (cms.url.query.mimic) {
-                  cms.siteID = cms.url.query.mimic;
+				  override = cms.url.query.mimic;
                   // set mimic cookie TODO
                   // newCookies.add('mimic',cms.siteID);
             } else {
                   // check for mimic cookie
                   if (cookies.mimic) {
-                  cms.siteID = cookies.mimic;
+					override = cookies.mimic;
                   }
             }
+			if (override && override.toLowerCase() != 'none') {
+				cms.siteID = override;
+			}
       }
 
       // Read Site config (first check if config already loaded)

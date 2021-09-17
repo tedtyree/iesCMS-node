@@ -780,7 +780,12 @@ class iesJSON {
                         break;
                 }
                 if (breakBreak) { break; }
-                mePos.increment(); // move to next character
+                // move to next character
+                if (c=='\n') {
+                    mePos.incrementLine(1);
+                } else {
+                    mePos.increment(); 
+                }
                 safety--;
                 if (safety<=0) { 
                     this._status = -169;
@@ -1084,7 +1089,7 @@ class iesJSON {
                 if (cNext == ']') { break; } // return. we are done buildng the JSON object
                 // *** Comma required between items in object
                 if (cNext != ',') { 
-                   this.StatusErr(-17, "Expected , symbol to separate value pairs @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-17)");
+                   this.StatusErr(-37, "Expected , symbol to separate values @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-37)");
                    break;
                 }
                 mePos.increment();
