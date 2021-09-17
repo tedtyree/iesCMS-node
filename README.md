@@ -17,3 +17,14 @@ Select "Node.js"
 
 # INSTALL
 copy entire iesCMS-node folder to server > /var/www
+
+
+# CONVERT WEBSITE TO iesCMS-Node
+1) rename site.cfg to all lowercase letters (linux/node is case sensitive)
+2) fix any json errors in site.cfg (example: fixed a missing quote)
+3) Change "baseFolder" in site.cfg to...
+   ,baseFolder:"[[SERVER_FOLDER]]\\websites\\[[SiteID]]"
+4) changed url of logo in top left corner to "/" (it was index.html)
+5) update other page links to remove ".html" or ".ashx" suffix
+6) migrate any custom tags (if needed, you will need to create a custom class for the website)
+7) test website locally for all functionality
