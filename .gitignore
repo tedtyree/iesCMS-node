@@ -106,3 +106,8 @@ dist
 
 # TernJS port file
 .tern-port
+
+
+# Websites that should not be in the repo 
+
+websites/kenyaheart

@@ -17,6 +17,7 @@ Select "Node.js"
 
 # INSTALL
 copy entire iesCMS-node folder to server > /var/www
+open a folder in the root installation and run npm install string-builder 
 
 
 # CONVERT WEBSITE TO iesCMS-Node
