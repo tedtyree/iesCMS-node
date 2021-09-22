@@ -31,10 +31,12 @@ class iesCommonLib {
                 // Leave ret.Processed=true - Even if the below fails, we do not want this parameter to fall through to another layer because we matched the tag.
                 let MenuName = ret.Param1.trim();
                 if (MenuName == "") { MenuName = this.getParamStr(cms,"DefaultMenu","main"); }
+                //content.append("<!-- DEBUGGER MenuName=" + MenuName + ", TemplateFolder=" + this.getParamStr(cms,"TemplateFolder") + " -->");
                 // Look for menu in the template folders: local then server
                 try
                 {
                     const menuPath = this.FindFileInFolders("menu_" + MenuName + ".cfg", this.getParamStr(cms,"TemplateFolder"), this.getParamStr(cms,"CommonTemplateFolder"));
+                    //content.append("<!-- DEBUGGER menuPath=" + menuPath + " -->");
                     const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.UserLevel);
                     content.append(webBlock.content + ''); // Not much error checking - it either works or doesn't
                 }
@@ -264,17 +266,23 @@ class iesCommonLib {
 
 
     FindFileInFolders(fileName,Path1,Path2,Path3,Path4) {
+        var regexCmd = /\\/g;
+        if (Path1) { Path1 = Path1.replace(regexCmd,'/'); }
+
         var fileFullPath = Path1 + (Path1.slice(-1) == '/'?'':'/') + fileName;
         if (existsSync(fileFullPath)) { return fileFullPath; }
-        if(Path2) {
+        if (Path2) {
+            Path2 = Path2.replace(regexCmd,'/');
             fileFullPath = Path2 + (Path2.slice(-1) == '/'?'':'/') + fileName;
             if (existsSync(fileFullPath)) { return fileFullPath; }
         }
         if(Path3) {
+            Path3 = Path3.replace(regexCmd,'/');
             fileFullPath = Path3 + (Path3.slice(-1) == '/'?'':'/') + fileName;
             if (existsSync(fileFullPath)) { return fileFullPath; }
         }
         if(Path4) {
+            Path4 = Path4.replace(regexCmd,'/');
             fileFullPath = Path4 + (Path4.slice(-1) == '/'?'':'/') + fileName;
             if (existsSync(fileFullPath)) { return fileFullPath; }
         }

@@ -1,0 +1,22 @@
+{
+  "name": "iescms-node",
+  "version": "1.0.0",
+  "description": "Outrageously simple content management system (CMS) for NodeJS\r UNDER DEVELOPMENT",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tedtyree/iesCMS-node.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tedtyree/iesCMS-node/issues"
+  },
+  "homepage": "https://github.com/tedtyree/iesCMS-node#readme",
+  "dependencies": {
+    "string-builder": "^0.1.8"
+  }
+}
