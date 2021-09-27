@@ -1,0 +1,79 @@
+/* admin_block.css - formatting to control the location and formatting of the Admin/Edit links when a user with correct priviledges logs in and browses a website
+You can link to admin_block.css (as is done in admin/templates/admin_block.cfg... or you can override these with local versions of the same files in
+the website template and src and css folders */
+
+/* #admin_block_div { position:absolute; top: 20; width: 120px; right: -220px; z-index:999; text-align:right; }
+*/
+#admin_block_div { position:fixed; top: 20px; right: 20px; z-index:20000; border: none;}
+#admin_editpage_link_div { margin-top:10px; }
+
+
+
+/* the following makes the admin edit button work (and look sweeet) DSchwab */
+
+div {
+	position:relative;
+}
+
+.adminEditDiv{
+	position:absolute;
+	bottom:0;
+	right:0;
+	left:0;
+	top:0;
+	z-index: 9;
+	clear:both;
+	
+	pointer-events:none;
+}
+
+.adminEditDiv button{
+	position:absolute;
+	bottom:0;
+	right:0;
+	width:30px;
+	height:30px;
+	
+	box-shadow: 0 0 20px rgba(0,0,0,0);
+	background-color: rgba(0,0,0,0);
+	border-radius:10px;
+	border:0;
+	
+	pointer-events:auto;
+	cursor:pointer;
+	transition: background-color .2s, box-shadow .2s, width 0s linear .2s, height 0s linear .2s;
+}
+
+.adminEditDiv button:hover{
+	width:100%;
+	height:100%;
+	box-shadow: 0 0 20px rgba(0,0,0,.6);
+	background-color: rgba(0,0,0,.3);
+	transition: background-color .2s, box-shadow .2s, width 0s linear 0s, height 0s linear 0s;
+}
+.adminEditDiv button img{
+	width:23px;
+	height:22px;
+	position:absolute;
+	right:5px;
+	bottom:5px;
+	border-radius:0;
+	padding:0;
+	margin:0;
+}
+
+.adminbutton{
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	width:10em;
+	height:1.8em;
+	color:black;
+	background: lightgray;
+    background: linear-gradient(white,lightgray,lightgray);
+	padding-right:1em;
+	border-radius:3px; 
+	border:1px solid black;
+}
+.adminbutton:hover{
+	background: linear-gradient(darkgray,lightgray,lightgray);
+}

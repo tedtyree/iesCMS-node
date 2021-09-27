@@ -1,0 +1,4199 @@
+<%@ Import Namespace="System.Collections" %>
+<%@ Import Namespace="System.Globalization" %>
+<script language='c#' runat='server'>
+	
+public class cmsInfo
+{
+public string World="";
+public string LoginCache="";
+public string PageID="";
+
+public int UserNo=-1; // DB IDX of User Record
+public int UserObjID=-1; // wObjects IDX of User Record
+public int UserLevel=0; // Security Level of user
+public string UserID=""; // Login ID
+public string UserName="";
+public string LoginFlag="";
+public iesJSON User=null;  // If UserNo<0 then this object is not yet populated
+	
+public iesJSON wiki=null;
+public int wikiNotFound=0;
+public string RequestedPage="";
+public System.Web.SessionState.HttpSessionState Session;
+public System.Web.HttpRequest Request;
+public System.Web.HttpResponse Response;
+public HttpApplicationState Application;
+public iesDBlib.iesDB db;
+public string PageHTML="";
+public string TemplateHTML="";
+public int MinViewLevel=999;
+public int MinEditLevel=999;
+public string ErrMsg="";
+public StringBuilder DebugOutput;
+
+  public string UrlParam(string Param, bool TrimFlag=true) {
+	string ret="";
+	try { ret=(string)Request.QueryString[Param]; }
+	catch { }
+	if (ret==null) {ret="";}
+	if (TrimFlag) { ret=ret.Trim(); }
+	return ret;
+  }
+  
+  public string FormParam(string Param, bool TrimFlag=true) {
+	string ret="";
+	try { ret=(string)Request.Form[Param]; }
+	catch { }
+	if (ret==null) {ret="";}
+	if (TrimFlag) { ret=ret.Trim(); }
+	return ret;
+  }
+  
+  public string FormOrUrlParam(string Param, bool TrimFlag=true) {
+	string ret=FormParam(Param,TrimFlag);
+	if (ret=="") { ret=UrlParam(Param,TrimFlag); }
+	return ret;
+  }
+  
+public void SetLoginCache() {
+	if (this.LoginCache=="") { this.LoginCache=this.World; }
+  }
+
+  public void SessionLogout() {
+		SetLoginCache();
+		this.Session["World"]="";
+		this.User=null;
+		this.Session[this.LoginCache + "-User"]="";
+		this.GetUserFields(); // This will clear the fields
+		// LEGACY - CLEAR INDIVIDUAL USER FIELDS IN SESSION
+		this.Session[this.LoginCache + "-UserNo"]="";
+		this.Session[this.LoginCache + "-uID"]="";
+		this.Session[this.LoginCache + "-uObjID"]="";
+		this.Session[this.LoginCache + "-UserName"]="";
+		this.Session[this.LoginCache + "-UserLevel"]="0";
+		this.Session[this.LoginCache + "-LoginFlag"]="";
+		this.Session[this.LoginCache + "-uWorld"]="";
+		// DOES NOT call Custom -> SessionLogout  (that should be done in the Admin SessionLogout() or elsewhere)
+
+//		Session["GotoPage"]=""; // Clear the 'goto' page so there is no crossover between websites.  YIKES! THIS KEEPS GotoPage from working at all.  FUTURE: put this back and check for crossover between domains/folders?
+	}
+
+  // GetUserFromSession()
+  // If User Record has been stored, read it from the Session.  If not, we clear the User Info (fields)
+  // NOTE: MUST set World or LoginCache prior to calling this routine. 
+  public void GetUserFromSession() {
+	SetLoginCache();
+	// Read USER record from SESSION (if it is missing, we get a null or error
+	this.User=null;
+	try {
+		this.User=(iesJSON)this.Session[this.LoginCache + "-User"];
+		}
+	catch(Exception e21) { this.User=null; }
+	if (this.User==null) {
+		SessionLogout();  // NEED TO BE CAREFUL HERE for global cache credentials that we do not clear the GLOBAL login (see Excel Health as an example)
+		//Custom.Exec("sessionlogout",null);  // DO NOT CALL THIS BECAUSE WE CANNOT CLEAR GLOBAL CREDENTIALS!
+		}
+	else {
+		GetUserFields();
+		}
+  }
+
+  // StoreUserInSession()
+  // NOTE: Must call GetUserFields before calling this routine.
+  public void StoreUserInSession() {
+	SetLoginCache();
+	this.Session[this.LoginCache + "-User"]=this.User;
+	// LEGACY - STORE INDIVIDUAL USER FIELDS IN SESSION  (FUTURE: REMOVE THIS?)
+	this.Session[this.LoginCache + "-UserNo"]=this.UserNo;
+	this.Session[this.LoginCache + "-uID"]=this.UserID;
+	this.Session[this.LoginCache + "-uObjID"]=this.UserObjID;
+	this.Session[this.LoginCache + "-UserName"]=this.UserName;
+	this.Session[this.LoginCache + "-UserLevel"]=this.UserLevel;
+	this.Session[this.LoginCache + "-LoginFlag"]=this.LoginFlag;
+  }
+
+  // GetUserFields()
+  // NOTE: this.User should be set to a User Record (iesJSON) prior to calling this method
+  public void GetUserFields() {
+    if (this.User==null) {
+		// If not filled in, then we have a problem.
+		this.UserNo=-1;
+		this.UserObjID=-1;
+		this.UserLevel=0;
+		this.UserID="";
+		this.UserName="";
+		this.LoginFlag="";
+		return;
+		}
+	this.UserNo=this.User["UserNo"].ToInt(); // DB IDX of User Record
+	this.UserObjID=this.User["ObjID"].ToInt(); // wObjects IDX of User Record
+	this.UserLevel=this.User["Level"].ToInt(); // Security Level of user
+	this.UserID=this.User["uID"].CString(); // Login ID
+	this.UserName=this.User["uName"].CString();
+
+	if ((this.UserNo>=0) && (this.UserID!="")) {
+		this.LoginFlag="Y"; }
+	else {
+		this.LoginFlag=""; }
+  }
+  
+  	// The follow routine(s) were created to mimmick the wObj routines in the old VB.Net CMS
+	// Eventually an equivalent wObj library should be created and these routines should be reworked to use that library
+	public string GlobalParam(string param) {
+		string jParam=null;
+		string sql="SELECT * FROM wobjects WHERE ObjName='Global' AND WorldID='" + SITE.World + "' AND Status='Active'";
+		jParam=db.QueryField(sql,param);
+		return jParam;
+	} // end function
+	
+} // End Class - cms
+
+public class cmsReturn
+{
+	public string Tag="";
+	public string Param1="";
+	public string Param2="";
+	public string Param3=""; // These are needed for new code in CustomFunctions
+	public string Param4=""; // These are needed for new code in CustomFunctions
+	public string ReturnContent="";
+	public bool AllowRecursiveCall=true; // Default=true
+	public bool Processed;
+}
+
+public class cmsAdmin
+{
+	public cmsInfo cms;
+	//EDITLIST
+	string editlistconfig="", editlisterror=""; // editlistconfig is only filled in when config has been loaded successfully 
+	iesJSON editlistj=null;
+	
+	/* ALLOW ADMIN TO CALL cmsCustom directly. */
+	public cmsCustom Custom;
+	
+	//public void setCustom(cmsCustom newCustom) {
+	//	Custom=newCustom;
+	//	Custom.cms=cms;  // cmsCustom and cmsAdmin will share the same cmsInfo object.
+	//	}
+	
+    public void AdminTags(cmsReturn ret)
+    {
+		//cms.Response.Write("DEBUG: userlevel=" + cms.UserLevel + "<br>"); // DEBUG
+        ret.Processed = true;
+        StringBuilder Content = new StringBuilder();
+		//Content.Append("DEBUG: Tag=" + ret.Tag + "(" + ret.Param1 + "," + ret.Param2 + " )<br>");  //DEBUG
+		try {
+          switch (ret.Tag) {
+			case "brand":
+			case "brandid":
+				string b=SITE.BrandID;
+				if (String.IsNullOrEmpty(b)) { b=SERVER.BrandID; }
+				Content.Append(b);
+				break;
+			case "v":
+				Content.Append(SITE.ScriptVersion);
+				break;
+			case "expirepage":
+				cms.Response.Cache.SetExpires(DateTime.Now.AddSeconds(1));
+				cms.Response.Cache.SetCacheability(HttpCacheability.Public);
+				cms.Response.Cache.SetValidUntilExpires(true);
+				cms.Response.Expires = -1;
+				break;
+				
+			case "js":
+			case "javascript":
+				// *** Include the main javascript file or link (or multiple if needed)
+				// *** NOTE: Including the js directly is done so that we can replace [[Tags]] - otherwise use a <script> tag in the html for efficiency.
+				Content.Append(ReadJavascript(ret.Param1));
+				break;
+			
+			case "logged_in":
+				// *** Display User Logged-In info
+				if (UserLoggedIn()) {
+					Content.Append("<span class='user'>User: " + cms.UserName + "&nbsp;&nbsp;</span><a href='/" + cms.World + "/" + SITE.LOGIN_Page + ".ashx?logout=true' class='logout'>Logout</a>");
+				} else {
+					Content.Append("<a href='/" + cms.World + "/" + SITE.LOGIN_Page + ".ashx?logout=true' class='login'>Login</a>");
+				}
+				break;
+			case "menu":
+				// Leave ret.Processed=true - Even if the below fails, we do not want this parameter to fall through to another layer because we matched the tag.
+				string MenuName=ret.Param1.Trim();
+				if (MenuName=="") { MenuName=SITE.DefaultMenu; }
+				if (MenuName=="") { MenuName="main"; }
+				// Look for menu in the template folder.
+				try {
+					string menuPath=SITE.TemplateFolder + "\\menu_" + MenuName + ".cfg";
+					if (!File.Exists(menuPath)) { menuPath=SERVER.TemplateFolder + "\\menu_" + MenuName + ".cfg"; }
+					Content.Append(File.ReadAllText(menuPath));
+					} catch { }
+				break;
+			
+			case "wikipage": // wiki page link
+			case "page": 
+			case "p":
+				// First version of wiki - param1=pageid, param2 (optional)=alias text for link
+				string param1=ret.Param1.Trim();
+				string param2=ret.Param2.Trim();
+				string href1="#";
+				if (param2=="") { param2=param1; }
+				if (param1!="") {
+					href1=param1 + ".ashx?wiki=main"; // FUTURE: modify this to include actual wiki name.
+				}
+				Content.Append("<a href='" + href1 + "'>" + param2 + "</a>");
+				break;
+				
+			case "wikilink":
+			case "link":
+			case "l":
+				// First version of wiki - param1=URL, param2 (optional)=alias text for link
+				string prm1=ret.Param1.Trim();
+				string prm2=ret.Param2.Trim();
+				if (prm2=="") { prm2=prm1; }
+				if (prm1=="") { prm1="#"; prm2="#"; }
+				//FUTURE: way to specify 'do not open in new window'
+				Content.Append("<a target='_blank' href='" + prm1 + "'>" + prm2 + "</a>");
+				break;
+				
+			case "pageid":
+				Content.Append(cms.PageID);
+				break;
+
+			case "domain":
+				Content.Append(SITE.Domain);
+				break;
+	
+			case "forwardto":
+				string fwdto = ret.Param1;
+				if (ret.Param2.Trim()!="") {
+					fwdto += ":" + ret.Param2;
+					}
+				cms.Response.Redirect(fwdto);
+				break;
+
+			case "formparam":
+				Content.Append(cms.FormParam(ret.Param1.Trim()));
+				break;
+				
+			case "urlparam":
+				Content.Append(cms.UrlParam(ret.Param1.Trim()));
+				break;
+				
+			case "formorurlparam":
+				Content.Append(cms.FormOrUrlParam(ret.Param1.Trim()));
+				break;
+				
+			case "subpage":
+				// Leave ret.Processed=true - Even if below fails, we matched tag...
+				// FUTURE: Handle ability to read Wiki objects here, too (currently, subpage must be a file)
+				// NOTE: 3rd parameter can be a flag "noE" to indicate not to display the "e" button
+				string subPage="", subFileName;
+				string editButton="";
+				subFileName=SITE.PageFolder + "\\" + ret.Param1 + ".cfg";
+				bool noE=false;
+				if (ret.Param2.ToLower().IndexOf("noe") >=0) { noE=true; }
+				//Content.Append("DEBUG: subFileName=" + subFileName + "<br>");  // DEBUG
+				if (!File.Exists(subFileName)) { subFileName=SERVER.PageFolder + "\\" + SITE.BrandID + "\\" + ret.Param1 + ".cfg"; }
+				if (!File.Exists(subFileName)) { subFileName=SERVER.PageFolder + "\\" + ret.Param1 + ".cfg"; }
+				if (File.Exists(subFileName)) {
+					try {	
+						subPage=File.ReadAllText(subFileName);
+						// quick and dirty... remove [[{ ... }]]
+						int p=subPage.IndexOf("}]]");
+						if (p>0) { 
+							string AdminEditMode="";
+							try { AdminEditMode=cms.Session["AdminEditMode"].ToString().ToLower(); } catch { }
+							
+							AdminEditMode="edit"; //debug FUTURE remove this line
+							
+							if (AdminEditMode=="edit") {
+								// If we are in edit mode - we need to check the MinEditSubpageLevel to determine if we should create an edit button for this subpage
+								try {
+								  int p0=subPage.IndexOf("[[{");
+								  if (p0>=0) {
+									string subHeader=subPage.Substring(p0+2,p-p0-1);
+									iesJSON jHead=new iesJSON(subHeader);
+									jHead.UseFlexJson=true;
+									jHead.Deserialize(subHeader);
+
+									int MinEditSubpageLevel=jHead["MinEditLevel"].ToInt(999);
+									string objID = (ret.Param1.Trim()); //jHead["objid"].CString().Trim();
+									
+									//Content.Append("here1: " + cms.UserLevel + ":" + MinEditSubpageLevel + ", " + objID); //debug
+									//Content.Append("here2: " + jHead.jsonString + "<br>");
+								
+									if (MinEditSubpageLevel<999 && cms.UserLevel>=MinEditSubpageLevel && objID!="" && noE==false) {
+										// User has edit permissions (and EDIT MODE is turned on)
+										
+										editButton=File.ReadAllText(SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+										editButton=editButton.Replace("[[objID]]",objID);
+									}
+								  }
+								} catch { }
+							}
+							subPage=substr(subPage,p+3,subPage.Length); }  // NOTE: if length is longer than what is needed, substr returns entire remainder of string.
+						}
+					  catch { }
+					}
+                else
+                    {
+                        if (cms.UserLevel >= SITE.MinEditLevel && ret.Param1 != "" && noE==false)
+                        {
+                            // User has edit permissions - even though this page does not exist... lets allow the admin to create it by adding an 'e' edit button
+                            subPage = "&nbsp;"; // Edit button needs some text to associate with
+                            editButton = File.ReadAllText(SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+                            editButton = editButton.Replace("[[objID]]", ret.Param1);
+                        }
+                    }
+				Content.Append(subPage);
+				Content.Append(editButton);
+				if (ret.Param2.Trim().ToLower()=="notrecursive") { 
+					ret.AllowRecursiveCall=false;  // Do NOT replace [[tags]] recursively for this web form.
+					}
+				break;
+			case "e":
+		        	if (cms.UserLevel >= SITE.MinEditLevel && ret.Param1 != "") {
+					// User has edit permissions - create 'e' edit button
+					string btnTxt = "&nbsp;"; // Edit button needs some text to associate with
+ 					btnTxt += File.ReadAllText(SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+					btnTxt = btnTxt.Replace("[[objID]]", ret.Param1);
+					Content.Append(btnTxt);
+   				}
+				break;
+			case "track":
+				// Look for track.cfg in the template folder.
+				try {
+					string filePath=SITE.TemplateFolder + "\\track.cfg";
+						Content.Append(File.ReadAllText(filePath));
+					} catch { }
+				
+				break;
+			case "imageviewercollection":
+				//iesJSON imageList=new iesJSON("[]");
+				//imageList.AddToArrayBase("scott");
+				//imageList.AddToArrayBase("Ted");
+				//Content.Append(imageList.jsonString);
+				break;
+			case "admin_block":
+				string sBlockPath="", GenAdminBlock="", sName="";
+				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+					//*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page.  (future, check if page is editable?!)
+					//*** Here we reference admin_main.cfg  (or if [[admin_block:alias]] specified then admin_alias.cfg)	
+					sName=ret.Param1.Trim();
+					if (sName=="") { sName="block"; }
+					sBlockPath= SITE.TemplateFolder + "\\admin_" + sName + ".cfg";
+					//Content.Append("DEBUG: Looking for [" + sBlockPath + "]");
+					if (File.Exists(sBlockPath)) {
+						Content.Append(File.ReadAllText(sBlockPath));
+					} else {
+						sBlockPath=SERVER.TemplateFolder + "\\admin_" + sName + ".cfg";
+						if (File.Exists(sBlockPath)) {
+							Content.Append(File.ReadAllText(sBlockPath));
+						}
+					}
+				} // end if (cms.UserLevel>=SITE.MinAdminLevel)
+				break;
+			case "admin_edit_page":
+				string sBlockPath2="";
+				//int MinEditLevel=cms.wiki["header.mineditlevel"].ToInt(999);  // This is now done in default.aspx
+				//the theory is that this variable is actually not defined somehow? remove above if edit page on 215sports is fixed outside of this DSchwab 
+				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+					//Content.Append("DEBUG: UserLevel: " + cms.UserLevel + ", MinEditLevel: " + cms.MinEditLevel + "<br>");
+					//Content.Append("DEBUG: wiki[header]=" + cms.wiki["Header"].jsonString + "<br>");
+					if (cms.UserLevel>=cms.MinEditLevel) { 
+						sBlockPath2= SITE.TemplateFolder + "\\admin_edit_page.cfg";
+						if (File.Exists(sBlockPath2)) {
+							Content.Append(File.ReadAllText(sBlockPath2));
+						} else {
+							sBlockPath2=SERVER.TemplateFolder + "\\admin_edit_page.cfg";
+							//Content.Append("DEBUG: Looking for [" + sBlockPath2 + "]");
+							if (File.Exists(sBlockPath2)) {
+								Content.Append(File.ReadAllText(sBlockPath2));
+							}
+						}
+					}
+				} // end if (cms.UserLevel>=SITE.MinAdminLevel)
+				break;
+			case "admin-createpagelink":
+				// FUTURE: MOVE THIS TO AdminFunctions.cs ONCE SITE.MinCreateLevel is added to every config
+				if (cms.UserLevel >= SITE.MinCreateLevel) {
+					Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
+				}
+				break;
+			case "admin_menulink_flag":
+				string adminMenuLink=cms.wiki["Header.ShowAdminMenuLink"].CString().Trim(); 
+				if (adminMenuLink=="") { adminMenuLink="true"; } // default=true
+				Content.Append(adminMenuLink);
+				break;
+			case "admin_editpage_flag":
+				// Future: only show if in edit mode and user has high enough permissions to edit the page.
+				string editFlag="false";
+				int minedit=cms.wiki["Header.MinEditLevel"].ToInt(999);
+				if (minedit<=cms.UserLevel) { editFlag="true"; }
+				Content.Append(editFlag);
+				break;
+			case "edit_page_link":
+				//*** This tag is to be used in the admin_block
+				//*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
+				//*** FUTURE: Check if page is editable
+				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+					string EditURL="", LinkTitle="",tsWiki="";
+					tsWiki="admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
+
+					if (cms.wikiNotFound>0) {
+						//*** Wiki Page is missing - link to CREATE it...
+						EditURL=tsWiki + "&obj=*new*&saveas=" + cms.RequestedPage;
+						LinkTitle="Create Page";
+					} else {
+						//*** Wiki Page exists - link to UPDATE it
+						EditURL=tsWiki + "&id=" + cms.wiki["objid"].CString() + "&obj=" + cms.RequestedPage;
+						LinkTitle="Edit Page";
+					}
+
+				// FUTURE: check if this is a PRODUCT page
+				//if ((Product_Page<>"") && (PageID==Product_Page)) { EditURL=EditProductsURL; }
+
+				Content.Append("<a hRef=\"#\" onClick=\"Javascript:pup=window.open('" + EditURL + "','WObjEditor','menubar=no,status=no,width=950,height=700,toolbar=no,scrollbars=yes,location=no,directories=no,resizable=yes');pup.focus();return false;\" >" + LinkTitle + "</a>");
+
+				}
+				break;
+			case "admin_menu_link":
+				//*** This tag is to be used in the admin_block
+				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+					Content.Append("<a hRef='" + SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
+				}
+				break;
+			case "err_block":
+			case "error_block":
+				string errText=cms.Session["errmsg"].ToString().Trim();
+				if (errText=="") { errText=cms.ErrMsg; }
+				if (errText!="") {
+					Content.Append("<div class='error_block'>" + errText + "<div>");
+				}
+				break;
+			case "admin-get-editlistconfig":
+				Content.Append(editlistconfig);
+				break;
+			case "admin-load-editconfig":
+				// This tag will load the editor config file if needed.  A response will be generated if there is an error.
+				// This tag is not mandatory, but it enables the display of a user-friendly response and it allows
+				// an override of the eclass config file name (Param1)
+				LoadEditListIfNeeded(ret.Param1);
+				if (editlisterror!="") {
+					Content.Append("<div id='adminerror'>ERROR: " + editlisterror + "</div>");
+				}
+				break;
+			case "admin-editlist-param":
+				LoadEditListIfNeeded();
+				try {
+					Content.Append(editlistj[ret.Param1].CString());
+				} catch (Exception errelp) { }
+				break;
+			case "admin-editlist-table": 
+				try {
+					string filePath2,tableHtml;
+					string cols="",colsHtml="",jsCols="";
+					iesJSON rTags=new iesJSON("{}");
+
+					// Look for editlist table HTML config file in the SERVER src folder.
+					try {
+						filePath2=SERVER.SourceFolder + "\\admin-editlist-table.cfg";
+						tableHtml=File.ReadAllText(filePath2);
+						} catch { tableHtml="<br><br>ERROR: Failed to load table config.  [err3498]<br><br>"; }
+					LoadEditListIfNeeded();
+					if (editlisterror!="") { tableHtml="<br><br>ERROR: " + editlisterror + "<br><br>"; }
+					else {
+						GetColumns(ref cols,ref colsHtml,ref jsCols); // gets json columns
+						
+						// Insert data into HTML
+						rTags["eclass"].Value=cms.UrlParam("eclass");
+						//rTags["editlist-header"].Value=colsHtml;
+						
+						rTags["editlist-columns"].Value=jsCols;
+						rTags["editlist-primarykey"].Value=editlistj["PrimaryKey"].CString();
+						string orderby2=editlistj["OrderBy2"].CString().Trim();
+						if (orderby2!="") { rTags["editlistorderby"].Value=",order: " + orderby2; }
+					}
+					Content.Append(Util.ReplaceTags(tableHtml,rTags,true,"{{","}}"));
+				} catch { }
+				break;
+			case "admin-editlist-data": 
+				// Return item/record data in JSON form
+				GenerateJsonData(Content);
+				break;
+			case "admin-editlist-buttons": 
+				// Create the Save/Close buttons, but only if specified in the eclass config
+				// Values that can be specified in SpecialFlags: SaveButton, CancelButton, SaveCloseButton, DeleteButton
+				GenerateFormButtons(Content);
+				break;
+			case "admin-editlist-form": {
+				ret.AllowRecursiveCall=false; // Do NOT replace [[tags]] recursively for this web form.
+				GenerateForm(Content);
+				} break;
+			case "admin-edit-row": {
+				// Used to edit a single record (usually not when selected from a list - always edit SAME record)
+				ret.AllowRecursiveCall=false; // Do NOT replace [[tags]] recursively for this web form.
+				GenerateForm(Content);
+				} break;
+			case "admin-editlist-save": {
+				SaveEditForm(Content);
+				} break;
+			case "admin-editconfig": {
+				GenerateEditConfig(Content);
+				} break;
+			case "admin-editrecord": { // FUTURE: Why are we using this and not admin-editlist-form?
+				GenerateEditRecord(Content);
+				} break;
+			case "admin-saveconfig": {
+				SaveConfig(Content);
+				} break;
+            case "admin_autofill":
+                string autofillTable = cms.FormOrUrlParam("table");
+                string autofillField = cms.FormOrUrlParam("field");
+                string autofillType = cms.FormOrUrlParam("type");
+                string autofillSubField = cms.FormOrUrlParam("subfield");
+                iesJSON autofill = new iesJSON("{}");
+                autofill["success"].Value = "false";
+                autofill["data"].Value = "";
+
+                string autoFillData = GenerateAutofillForm(autofillTable,autofillField,autofillType,autofillSubField);
+                if (!String.IsNullOrWhiteSpace(autoFillData)){
+                    autofill["success"].Value = "true";
+                    autofill["data"].Value = autoFillData;
+                }
+                Content.Append(autofill.jsonString);
+                break;
+			case "photogallery":
+				// Get template
+				try {
+					string photogalleryPath=SITE.TemplateFolder + "\\block_photogallery.cfg";
+					if (!File.Exists(photogalleryPath)) { 
+						photogalleryPath=SERVER.TemplateFolder + "\\block_photogallery.cfg";
+						}
+					Content.Append(File.ReadAllText(photogalleryPath));
+					} catch { }
+				break;
+			case "photolist":
+//Content.Append("DEBUG: photo gallery list<br>");
+					// FUTURE: TODO: Specify GalleryFolder in the SITE class
+					string ThisGallery=cms.FormOrUrlParam("gallery");
+					string ThisGalleryFolder=SITE.ContentFolder + "\\images\\Galleries\\" + ThisGallery;
+//Content.Append("DEBUG ThisGallery=" + ThisGallery + "<br>");
+//Content.Append("DEBUG ThisGalleryFolder=" + ThisGalleryFolder + "<br>");
+
+					// Get config file (if it exists)
+
+					// Get list of photos (each image can have multiple versions based on the config file)
+
+					// Detemrine if there are any new photos in the folder
+					DirectoryInfo d = new DirectoryInfo(ThisGalleryFolder);
+					foreach (string suffix in new string[] {"jpg","png","gif"}) {
+						FileInfo[] Files = d.GetFiles("*." + suffix); //Getting cfg files
+						foreach (FileInfo ThisFile in Files) {
+							Content.Append("<img border=0 src='/" + SITE.World + "/content/images/galleries/" + ThisGallery + "/" + ThisFile.Name + "'>"); 
+							}
+					}
+					// Make/Return the list of photos
+				break;
+			case "ifuserlevel": 
+			case "ifnotuserlevel":
+				bool pFlag=false;
+				int paramLvl = 999;
+				try { paramLvl=Int32.Parse(ret.Param1); } catch {paramLvl=999;}
+				if (cms.UserLevel>=paramLvl) { pFlag=true; }
+				if (ret.Tag=="ifnotuserlevel") { pFlag=!pFlag; } // invert true/false
+				if (pFlag) { Content.Append(ret.Param2); }
+				//cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+				break;
+			case "ifuserisadmin": 
+			case "ifnotuserisadmin":
+				bool admFlag=false;
+				if (cms.UserLevel>=SITE.MinAdminLevel) { admFlag=true; }
+				if (ret.Tag=="ifnotuserisadmin") { admFlag=!admFlag; } // invert true/false
+				if (admFlag) { Content.Append(ret.Param1); }
+				break;
+			case "runcmd":
+				string cmd=cms.FormOrUrlParam("cmd");
+				//cms.Response.Write("DEBUG:cmd=" + cmd + "<br>");
+				RunCmd(cmd,Content);
+				break;
+			case "errmsg":
+				try { Content.Append(cms.Session["errmsg"].ToString()); } catch { }
+				break;
+			case "captcha":
+				//variables that IDK where they came from:
+				//	baseFOLDER <- replaced with SERVER.BaseFolder
+				//	wWorld <- made SITE.World
+				//	SERVER_FOLDER <- made SITE.WorldFolder
+				//	Captcha <- defined as a string
+				//	cSelect
+				string CaptchaID = "";
+				int MAX_CAPTCHAS = 9999;
+				string CaptchaFolder = "";
+				string CaptchaURL = "";
+				string CaptchaPrefix = "c";
+				string CaptchaSuffix = ".gif";
+
+				if(CaptchaFolder=="") //looks for captcha files in the specifically for this site
+				{
+					CaptchaFolder=SITE.WorldFolder + "\\captcha";
+					CaptchaURL="/" + SITE.World + "/captcha";
+					if(Directory.Exists(CaptchaFolder)==false) //if it doesn't find them, use generic captcha files
+					{
+						CaptchaFolder=SERVER.BaseFolder + "\\captcha";
+						CaptchaURL="/captcha";
+					}
+				}
+				string f; //the file
+				if(CaptchaID=="")
+				{
+					Random r = new Random();
+					double Rnd = r.NextDouble();
+					double n=((MAX_CAPTCHAS * Rnd) + 1);
+					int i = Convert.ToInt32(n); //This used to round, now it truncates
+					int cLast=MAX_CAPTCHAS+99;
+					int c=MAX_CAPTCHAS;
+					int safety = 999;
+					
+					while(true)  
+					{
+						//The program cannot know how many captcha files there are. This while loop searches for
+						//an existing file in a speedy (O(lgN)) manner
+						if(i<cLast)
+						{
+							//*** Check for captcha 
+							f=CaptchaFolder + "\\" + CaptchaPrefix + i + CaptchaSuffix;
+							//Response.Write("Check for " & f & "<br>")
+							if(File.Exists(f))
+							{
+								CaptchaID=i.ToString();
+								break;
+							}
+							cLast=i;
+						}
+
+						//*** Photo not found (move # down to lower 50% - thus looking for a lower number photo)
+						c=c/2;
+						if(c<=1)
+							break;
+						if(i>c)
+							i=i-c;
+
+						safety=safety-1;
+						if(safety<=0)
+							break;
+					}
+				}
+				
+				//*** Check one last time for CaptchaID=1
+				if(CaptchaID=="")
+				{
+					f=CaptchaFolder + "\\" + CaptchaPrefix + "1" + CaptchaSuffix;
+					if(File.Exists(f))
+						CaptchaID="1";
+				}
+				
+				//*** Must have selected a Captcha in order to continue...
+				if(CaptchaID=="") {}
+					//Then Exit Function //?
+					//throw an exception here?
+				
+				//*** Generate the HTML that was requested...
+				string Captcha="";
+				//can you put more information in tags and access it here, to get cSelect?
+				switch(((ret.Param1).Trim()).ToLower())
+				{
+				case "":
+					Captcha="<table id='captchatable' border=0 cellpadding=0 cellspacing=0><tr><td>Please type the characters in the image:&nbsp;</td><td colspan=2><img border=0 src='" + 
+						CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix + "'></td></tr>" +
+						"<tr><td><input type='text' name='captcha' id='captcha'><input type='hidden' name='captchaid' id='captchaid' value='" + CaptchaID + "'></td></tr></table>";
+					break;
+				case "title":
+					Captcha="Please type the characters in the image:";
+					break;
+				case "field":
+					Captcha="<input type='text' name='captcha' id='captcha'>";
+					break;
+				case "hidden":
+					Captcha="<input type='hidden' name='captchaid' id='captchaid' value='" + CaptchaID + "'>";
+					break;
+				case "img":
+					Captcha="<img border=0 src='" + CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix + "'>";
+					break;
+				case "imgurl":
+					Captcha=CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix;
+					break;
+				case "id":
+					Captcha=CaptchaID;
+					break;
+				default:
+					Captcha="";
+					break;
+				}
+				//what do I do with Captcha that I created? content.append it?
+				Content.Append(Captcha);
+				break;
+			default:
+				// First check to see if the parameter is found in the wiki object
+				// ... if not, then check the header object within the wiki
+				// ... if still not found then we did not 'process' the tag
+				if(cms.wiki.Contains(ret.Tag)) {
+					Content.Append(cms.wiki[ret.Tag].CString());
+				} else if (cms.wiki["Header"].Contains(ret.Tag)) {
+					Content.Append(cms.wiki["Header"][ret.Tag].CString());
+				}
+				else { ret.Processed=false; }
+				// else we replace the tag with "" string - which is already in Content, so there is nothing to do here.
+				break;
+          } // End switch
+		} // End Try
+		catch (Exception tagEx) { 
+			// Error occurred processing Tag.  FUTURE: Flag Error/Record Error
+			ret.Processed=false; 
+			// DEBUG
+			Content.Append("ERROR: " + tagEx.ToString() + "<br>");
+			}  
+        if (ret.Processed == true) { ret.ReturnContent = Content.ToString(); }
+
+    }  // End AdminTags()
+	
+	public void RunCmd(string cmd, StringBuilder Content) {
+		iesJSON jContent=null;
+		string fileName="";
+		switch(cmd.Trim().ToLower()) {
+			case "listcontentfiles": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+				//jContent=listContentFiles();
+				//OutputJSON(jContent);
+				break;
+			case "listallfiles": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+				//jContent=listAllFiles();
+				//OutputJSON(jContent);
+				break;
+			case "editfile": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+				//fileName = cms.FormOrUrlParam("filename");
+				//jContent=editFile(fileName);
+				//OutputJSON(jContent);
+				break;
+			case "savefile": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+				//iesJSON jObj=new iesJSON();
+				//jObj.Serialize(cms.Request.Form); // Reads all FORM parameters
+				//jObj.RemoveFromBase("cmd");
+				//jObj.RemoveFromBase("rtype");
+				//jContent=saveFile(jObj);
+				OutputJSON(jContent);
+				break;
+		}		
+	}
+	
+	static public string substr(string tStr,int nStart,int len) {
+		string s="";
+		if ((len<=0) || (nStart>=tStr.Length)){ return(""); }
+		if (tStr.Length<(nStart+len)) {return(tStr.Substring(nStart));}
+		try { s=tStr.Substring(nStart,len); return(s); } catch { }
+		return ("");
+		}
+		
+	static public string substr(string tStr,int nStart) {
+		string s="";
+		if (nStart>=tStr.Length) { return(""); }
+		try { s=tStr.Substring(nStart); return(s); } catch { }
+		return ("");
+		}
+		
+	/* ******************************************** SUPPORT ROUTINES *********************************** */
+	public string ReadJavascript(string subTag) {
+	// *** This script find the specified .js file and returns its content
+	// *** (to be included in the HTML response stream)
+	// *** .js file may be in the Template Folder or the Root folder.
+	string ret="";
+	string strFile=subTag;
+	if (strFile.Trim()=="") { strFile=SITE.DefaultJS; }  //FUTURE: Put "main" as a parameter Default_JS in config file
+	strFile=strFile + ".js";
+	
+	Util.ReadFileFrom(strFile,
+		new string[] {SITE.SourceFolder,SITE.ConfigFolder,SITE.WorldFolder,SERVER.SourceFolder,SERVER.ConfigFolder},  
+		ref ret);
+		
+	if (ret!="") {
+		ret="<SCRIPT type=\"text/javascript\" LANGUAGE=\"JavaScript\">\n" + 
+			"<!" + "--\n" + ret + "// --" + ">\n" + "<" + "/SCRIPT>\n";
+		}
+		
+	return ret;
+	
+	} // End Function
+   
+    // LoadJsonConfig()
+    // storeInApplication: Indicates that we should first see if the item is already loaded in the Application collection.  If not, load from file and store in Application for next time.
+	// forceLoad: Causes us to ignore previously loaded configs and always load from the file.
+    public iesJSON LoadJsonConfig( string cfgFileName, bool forceLoad=false, bool storeInApplication=true ) {
+		iesJSON cfg=null;
+		// Check if there is a config already loaded in the APPLICATION library
+		bool ReportConfigured=false;
+		string cfgAppTag = "cfg_" + cfgFileName;
+		string cfgFilePath = SITE.ConfigFolder + "\\" + cfgFileName + ".cfg";
+		string loaded=null;
+		
+		if (forceLoad==false && storeInApplication==true) {
+			loaded=(string)cms.Application[cfgAppTag + "_loaded"] ?? String.Empty;
+			if (loaded!=SITE.ScriptVersion) { loaded=null; }
+		}
+		
+		if (!String.IsNullOrEmpty(loaded)) {
+			// This indicates that the config for this report is already loaded into the APPLICATION space
+			cfg=(iesJSON)cms.Application[cfgAppTag];
+		} else {
+		  // Check if there is a report config file for this report
+		  try {
+			if (File.Exists(cfgFilePath)) {
+			  cfg=new iesJSON();
+			  cfg.UseFlexJson=true;
+			  cfg.DeserializeFile(cfgFilePath);
+			  if (cfg.Status!=0) {
+					//if (SITE.DebugMode>0) { Content.Append("WARNING: Config failed to load. [err1914][" + cfgFileName + "," + cfg.Status + "]<br>"); }
+					cfg=iesJSON.CreateErrorObject();
+					return cfg;
+				}
+			  }else{
+			    //if (SITE.DebugMode>0) { Content.Append("WARNING: Config failed to load. [err1915][" + cfgFileName + "," + cfg.Status + "]<br>"); }
+                cfg=iesJSON.CreateErrorObject();
+                return cfg;
+			  }
+		  } catch (Exception exsp){
+			cfg=iesJSON.CreateErrorObject();
+			//if (SITE.DebugMode>0) { Content.Append("WARNING: Config failed to load. [err1916][" + cfgFileName + "]<br>" + exsp.ToString() ); return;}
+			return cfg;
+			}
+		  if (!(cfg==null) && storeInApplication) {
+			// Store config for next time
+			cms.Application[cfgAppTag]=cfg;
+			cms.Application[cfgAppTag + "_loaded"]=SITE.ScriptVersion;
+			}
+		}
+		if (cfg==null) { cfg=iesJSON.CreateErrorObject(); }  // Last minute safety check.
+		return cfg;
+	}
+	
+	public void LoadHtmlFile( string cfgFilePath, string ContentField, out iesJSON htmlFile, out bool success, out string errMsg) {
+			success=false; // default
+			errMsg="";
+			htmlFile=new iesJSON("{}");
+			string fileContent="";
+			
+			try {
+				if (File.Exists(cfgFilePath)) {
+				 fileContent = File.ReadAllText(cfgFilePath);  //Read the file
+				}
+			} catch (Exception e2) { }
+	
+			if (!String.IsNullOrEmpty(fileContent)) {
+				int start = 0;
+				int end = 0;
+				int jsonLength = 0;
+				iesJSON pageJSON=null;
+				if (fileContent.IndexOf("[[{") != -1)
+				{
+					start = fileContent.IndexOf("[[{") + 2;
+					end = fileContent.IndexOf("}]]") - 1;
+
+					string jSON = fileContent.Substring(start, end);
+					jsonLength = jSON.Length + 4;
+
+					bool pageJsonOK=false;
+					if (!String.IsNullOrEmpty(jSON)) {
+						pageJSON = new iesJSON();
+						pageJSON.UseFlexJson=true;
+						try {
+							pageJSON.Deserialize(jSON);
+							pageJsonOK=true;
+						}
+						catch (Exception e) {
+							//Unable to find it...Let's just move on?
+							// Below we will create an empty Header object
+							errMsg=errMsg + "JSON Header missing or corrupt: " + cfgFilePath;
+							success=false;
+						}
+					}
+					if (pageJsonOK && (pageJSON != null)) {
+						htmlFile=pageJSON;
+						pageJSON=null;
+					}
+				} // End if (fileContent.IndexOf("[[{")
+				
+				//Let's remove the json from the content
+				if (!String.IsNullOrEmpty(fileContent) && jsonLength > 0) {
+					fileContent = fileContent.Substring(jsonLength);
+				}
+				htmlFile.AddToObjBase(ContentField,fileContent);
+				if (errMsg=="") {success=true;}
+			} // End if (!String.IsNullOrEmpty(fileContent))
+			else {
+				// Failed to get page content.
+				errMsg=errMsg + "Failed to load page content: " + cfgFilePath;
+				success=false;
+			}
+	}
+			
+
+	
+	/* ******************************************** LOGIN SESSION ************************************** */
+	
+	public bool UserLoggedIn() {
+		bool ret=false;
+		if (cms.World.Trim()!="") {
+			// Even though the LoginFlag should be a good enough indicator, here we check that there is a UserNo set as well.
+			if ((cms.LoginFlag=="Y") && (cms.UserNo>=0)) { ret=true; }
+		}
+		return ret;
+	}
+	
+	public bool UserIsAdmin() {
+		if (cms.UserLevel>=SITE.MinAdminLevel) { return true; }
+		else { return false; }
+	}
+	
+	// Get UserNo (unique index identifier of User).  If not found, return -99  (Note: -2 is a valid admin userno)
+	// FUTURE: THIS ROUTINE IS OBSOLETE NOW THAT WE GET THE USER INFO AT THE START OF DEFAULT.ASPX
+	public int GetUserNo() {
+		// First lets see if our cms has been initialized with the user info
+		// (if not, then call cms.GetUserFromSession()
+		int ret=cms.UserNo;
+		if (ret<=0) {
+			// FUTURE: Remove this and force each use of cms to call cms.GetUserFromSession()?
+			// For now we get the UserNo from the session variable (old methodogy)
+			ret=-99;
+			try { ret=Util.ToInt(cms.Session[cms.LoginCache + "-UserNo"].ToString(),-99); } catch {ret=-99;}
+		}
+		return ret;
+	}
+	
+	// LEGACY - THIS SHOULD NOW BE CALLED AS PART OF THE cms OBJECT
+	// Left the method here for legacy compatibility
+	public void SessionLogout() {
+		cms.SessionLogout(); // CustomFunctions Logout - specific to each website
+	}
+	
+	public void SessionLogin(string Login_ID, string Login_Pwd, string worldToken="") {
+		string wToken=worldToken.Trim();
+		if (wToken=="") { wToken=cms.World; }
+
+		// Login Request - User: admin
+		// FUTURE: REMOVE THIS BACKDOOR LOGIN?
+		if ((Login_ID.Trim().ToLower()=="dev") && (Login_Pwd.Trim()=="clay999J") ) {
+			cms.Session["World"]=cms.World;
+			// Create a fake user record...
+			cms.User=new iesJSON("{\"UserNo\":0,\"ObjId\":-2,\"uID\":\"dev\",\"Level\":9,\"UserName\":\"" + Login_ID.Trim() + "\"}");
+			cms.GetUserFields();
+			cms.StoreUserInSession();
+			
+			//cms.SetLoginCache();  // FUTURE: Is this still needed?
+			//cms.Session[cms.LoginCache + "-uWorld"]="bdadmin";  // FUTURE: Is this still needed?
+		}
+		
+        // LOOK UP DATABASE MEMBERS...
+		string sql, sLevel, Login_ID2;
+	  
+		sLevel="Level";
+		sLevel="`Level`"; // if (db.DBClass=="mysql") { sLevel="`Level`"; } // FUTURE: Get this check working in case in the future we are using SQLserver
+		Login_ID2="'" + Login_ID.Replace("'","''") + "'";
+	  
+		// *** FIRST ATTEMPT TO LOGIN USING uID (For large lists, make sure there is a key on Members(uID))
+		// Use * to select from the members table because some versions contain a field "expiration" and others do not
+		sql="SELECT * FROM members " +
+			" WHERE uID=" + Login_ID2 + " AND Status='Active'" +
+			" AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
+//cms.Response.Write("DEBUG: SQL=" + sql + " [" + Login_Pwd + "]<br>");
+//cms.Response.Flush();
+		if (SessionLogin2(sql,Login_Pwd)==true) {
+			// Successful Login
+			return;
+		}
+	  
+		// *** SECOND ATTEMPT TO LOGIN USING UserEmail (No index - make take a little time for large tables)
+		// Use * to select from the members table because some versions contain a field "expiration" and others do not
+		sql="SELECT * FROM members " +
+			" WHERE UserEmail=" + Login_ID2 + " AND Status='Active'" +
+			" AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
+
+		if (SessionLogin2(sql,Login_Pwd)==true) {
+			// Successful Login
+			return;
+		}
+
+		// check for BackDoor login (bdadmin)
+		//sql="SELECT UserNo, uID, ObjID, uName, PWD, WorldID, Expiration, " + sLevel + " FROM members " +
+		sql="SELECT * FROM members " +
+			" WHERE uType='bdadmin' AND (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
+			" AND WorldID='bdadmin' AND uID IS NOT NULL";
+
+		SessionLogin2(sql,Login_Pwd);  // *** Don't need to check for success... Session variables are set
+
+} // End SessionLogin()
+
+public bool SessionLogin2(string sql, string Login_Pwd) {
+		bool ret;
+		iesJSON pwdRS;
+		int cnt=0; string n_Pwd="";
+		string expiration="";
+		DateTime AllowDate;
+
+		ret=false;
+		cms.db.Open();
+		pwdRS=cms.db.GetDataReaderAll(sql);
+		//FUTURE: check for DB Errors
+//cms.Response.Write("DEBUG: pwdRS=" + pwdRS.jsonString + "<br>");
+//cms.Response.Flush();
+		//if (ErrMsg=="") {  // **** and wOK=True
+		if (!(pwdRS==null)) {
+		  foreach (iesJSON pwd in pwdRS) {
+			n_Pwd="";
+			// *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
+			n_Pwd=pwd["PWD"].CString();
+			expiration=pwd["Expiration"].CString();
+			if (String.IsNullOrWhiteSpace(expiration)){
+                AllowDate = DateTime.Now.AddDays(7);
+			}else{
+			    if (!DateTime.TryParse(expiration, out AllowDate))
+                {
+                    //Invalid Date, let's make allow date our normal
+                    AllowDate = DateTime.Now.AddDays(7);
+                }
+			}
+
+			//CheckDBerr(ErrMsg)
+//cms.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
+//cms.Response.Flush();
+			if ((n_Pwd!="") && (n_Pwd==Login_Pwd.Trim()) && (DateTime.Now < AllowDate)) {
+//cms.Response.Write("DEBUG: MATCH! [World=" + cms.World + "]<br>");
+//cms.Response.Flush();
+				cms.Session["World"]=cms.World;
+				cms.User=pwd; // Store USER record.
+				cms.GetUserFields();
+				cms.StoreUserInSession();
+				// LEGACY - STORE INDIVIDUAL USER FIELDS IN SESSION  (FUTURE: REMOVE THIS?)
+				//cms.Session[cms.World + "-UserNo"]=pwd["UserNo"].CString();
+				//cms.Session[cms.World + "-uID"]=pwd["uID"].CString();
+				//cms.Session[cms.World + "-uObjID"]=pwd["ObjID"].CString();
+				//cms.Session[cms.World + "-UserName"]=pwd["uName"].CString();
+				//cms.Session[cms.World + "-UserLevel"]=pwd["Level"].CString();
+				//cms.Session[cms.World + "-LoginFlag"]="Y";
+				//Session[cms.World + "-uWorld"]=pwd["WorldID"].CString();  // *** For admin users, the User WorldID may be different than the World we are logging into
+
+				try {
+					Custom.SessionLogin();
+				}catch(Exception e){
+				
+				}
+			
+				if (cms.LoginFlag=="Y") {
+					ret=true;
+					break;
+				} // End if
+			}  // *** n_Pwd!="" && n_Pwd==Login_Pwd
+			//CheckDBerr(ErrMsg)
+
+			cnt=cnt+1;
+			if (cnt>999) { break; } // *** Safety
+			//if (ErrMsg!="") { break; } // *** Saftey - FUTURE
+		  } // end for each
+		} // if !pwdRS==null
+	  // } // End if ErrMsg==""
+
+	  cms.db.Close();
+	  return ret;
+	  
+} // End SessionLogin2
+		
+	/* ******************************************** REMEMBER ME ************************************** */
+	
+	public void RememberMe() {
+		// Check if we already have the RememberMe token
+		if (((string)cms.Session["RememberMe"] + "").Trim() != "") { return; }
+		// Check if we are already logged in
+		if (UserLoggedIn()) { return; }
+		// Get RememberMe token if needed (used later when secure page is accessed)
+		if (! (cms.Request.Cookies[SITE.WPL_COOKIE] == null)) {
+			cms.Session["RememberMe"] = (cms.Request.Cookies[SITE.WPL_COOKIE].Value + "").Trim();
+		}
+	}
+/*
+Public Sub RememberMeLogin()
+	Dim ecRS as Object, ecDate as Object, uName as String, uPwd as String
+	
+	'*** Check if we are already logged in
+	If UserLoggedIn() Then Exit Sub
+	'*** Check if the token was retrieved or not (in RememberMe() call which should have happened already)
+	If Trim(Session("RememberMe") & "")="" Then Exit Sub
+
+	'*** Use RememberMe token to lookup record in the database
+	SetPEnv()
+	ecRS=pEnv.dbSrc.GetRS("SELECT UserID, Pwd, Expires, WorldID FROM wCookies WHERE Cookie='" & Session("RememberMe") & "' AND Status='Active'") 
+	If not(ecRS.Read()) Then Exit Sub
+	
+	'*** Check expiration date
+	ON ERROR RESUME NEXT
+	ecDate=pEnv.wFldDate(ecRS.fGetS("Expires") & "")
+	If ecDate IS Nothing Then Exit Sub  '*** Invalid Expiration Date = invalid record
+	If Now() > ecDate Then Exit Sub  '*** Expired
+	Err.Clear
+	ON ERROR GOTO 0
+	
+	'*** Use database record to login
+	uName=ecRS.fGetS("UserID")
+	uPwd=ecRS.fGetS("Pwd")
+	pEnv.SessionLogin(uName,uPwd,Session)
+	wLevel=CInt2(Session(wWorld & "-UserLevel"),0)  '*** THIS IS A GLOBAL PARAMETER
+End Sub
+
+Public Sub SetRememberMe(uID as String, pwd as String)
+	Dim eCookie as String, userIP as String, sid as String, sql as String, expires as Object
+	'Dim uAgent as String
+	
+	'*** Make sure we are logged in (must be logged in before setting the RememberMe cookie)
+	If Not(UserLoggedIn()) Then Exit Sub  '*** Future: indicate that this failed
+	
+	'*** Get details...
+	userIP=Request.Servervariables("REMOTE_ADDR")
+	sid=Session.SessionID
+	'uAgent=LCase(Trim(Request.ServerVariables("HTTP_USER_AGENT") & ""))
+	
+	'*** Create the cookie on the client machine for future RememberMe usage
+	expires=DateTime.Now.AddDays(365)
+	eCookie=WPL_COOKIE & "-" & wDateStamp() & "-" & userIP & "-" & sid
+	Response.Cookies(WPL_COOKIE).Value = eCookie
+	Response.Cookies(WPL_COOKIE).Expires = expires
+	'Response.Cookies(WPL_COOKIE).Domain =
+
+	'*** Store cookie in the database
+	SetPEnv()
+	If Trim(uID & "")="" Then Exit Sub
+	If Trim(pwd & "")="" Then Exit Sub
+	If Trim(Session(wWorld & "-uWorld") & "")="" Then Exit Sub
+	sql="INSERT INTO wCookies (WorldID,Cookie,UserID,Pwd,Status,Expires) VALUES ('" & Session(wWorld & "-uWorld") & "','" & eCookie & "','" & uID & "','" & pwd & "','Active'," & pEnv.dbDateTime(expires,"d",true) & ")"
+	ON ERROR RESUME NEXT
+	pEnv.dbSrc.ExecSQL(sql)
+	err.Clear
+	ON ERROR GOTO 0
+End Sub
+*/
+public void RemoveRememberMe() {
+  cms.Response.Cookies[SITE.WPL_COOKIE].Value = "";
+  cms.Response.Cookies[SITE.WPL_COOKIE].Expires = DateTime.Now.AddDays(-1);
+}
+
+	// ******************************************** ReadFormFields *******************************************
+    public void ReadFormFields(iesJSON FormInfo, bool CreateNewFieldList=true) {
+//FUTURE : Add email generation below...
+        // Read FORM fields/parameters (Fields should all have the prefix 'fld_')
+ //       Dim fld As Object
+//	Dim fldList as Object
+	string pFld, pVal, sBold="", sBold2="", form_w="";
+	const string chkBox =  "_CHECKBOX";
+	StringBuilder emailOut=new StringBuilder();
+	
+//	SetPEnv()
+
+//	If FORM_IsHTML=True Then 
+//		sBold="<B>"
+//		sBold2="</B>"
+//	End If
+
+//	emailOut.Append("********************************************************************" & vbNewLine & _
+//		    "********************************************************************" & vbNewLine & _
+//		    "*** " & SiteTitle & " - Web Form Submission" & vbNewLine & _
+//		    "*** " & sBold & Request.Form("form_id") & sBold2 & vbNewLine & _
+//		    "********************************************************************" & vbNewLine & _
+//		    "********************************************************************" & vbNewLine & vbNewLine
+
+	iesJSON objFields;
+	if (CreateNewFieldList) { objFields=iesJSON.CreateEmptyObject(); }
+	else { 
+		// Use existing Fields object if it exists...
+		objFields=FormInfo["fields"]; 
+		if (objFields.jsonType!="object") { objFields=iesJSON.CreateEmptyObject(); }  // If 'fields' did not exist, create a new object (ie. list of field values)
+		}
+	
+	// First process list of specified fields.
+//        string fields=FormInfo["readfields"].CString().Trim();
+//		if (fields!="") {
+//	  fldList=SPlit(FORM_Fields,",")
+/*
+	  For Each fld in fldList
+		'pVal = cms.Request.Form.Item("fld_" & fld) & ""
+		pVal = cms.Request.Form.Item(fld) & ""
+
+		'*** WORK AROUND FOR CHECK BOX!!!  (should have suffix "_CHECKBOX")
+                If UCase(Right(fld, len(chkBox))) = chkBox Then
+                    fld = Left(fld, len(fld) - len(chkBox))
+                    If pVal <> "" Then
+                        pVal = "Yes"
+                    Else
+                        pVal = ""
+                    End If
+                End If
+
+		If LCase(fld)<>"form_id" and LCase(fld)<>"form_w" Then    '**** form_id/form_w is already included in the header/footer
+		  If (Len(fld) + Len(pVal)) > 100 Then
+                    '*** LONG STRING VALUE
+                    strDefMsg = strDefMsg & vbNewLine & sBold & fld & sBold2 & ":" & vbNewLine & pVal & vbNewLine & vbNewLine
+                  Else
+                    strDefMsg = strDefMsg & sBold & fld & sBold2 & ": " & pVal & vbNewLine
+                  End If
+		End If
+		If strFieldList<>"" Then strFieldList=strFieldList & ","
+		strFieldList=strFieldList & fld
+		If strParams<>"" Then strParams=strParams & "|"
+		strParams=strParams & fld & "=" & pEnv.wPakSafe(pVal)
+
+                ''*** Also put the fields into the frmObj
+                'oForm.Param(pFld) = "" '*** just in case the next line fails, don't want left-over data.
+                'oForm.Param(pFld) = Request.Form(pVal)
+
+		objFields(fld)=pVal
+	  Next
+	} //end if (fields!="")
+*/
+	if (FormInfo["includeotherfields"].CString().ToLower()=="true") {
+        foreach (string fld in cms.Request.Form.Keys) {
+			string fld2=fld.ToLower();
+			if ((fld2!="submit") && (fld2!="reset") && (fld2!="x") && (fld2!="y")) {
+				pFld = fld;
+                pVal = cms.Request.Form[fld].ToString();
+
+                // *** WORK AROUND FOR CHECK BOX!!!  (should have suffix "_CHECKBOX")
+                if ((substr(pFld, pFld.Length - chkBox.Length)).ToUpper() == chkBox) {
+                    pFld = substr(pFld,0, pFld.Length - chkBox.Length - 1);
+                    if (pVal != "") { pVal = "yes"; }
+                    else { pVal = ""; }
+                }
+
+                if (!(objFields.Contains(pFld))) {
+
+					if ((fld2!="form_id") && (fld2!="form_w")) {   // form_id/form_w is already included in the header/footer
+						if ((pFld.Length + pVal.Length) > 100) {
+							// LONG STRING VALUE
+							emailOut.Append("<br>" + sBold + pFld + sBold2 + ":<br>" + pVal + "<br><br>"); }
+						else {
+							emailOut.Append(sBold + pFld + sBold2 + ": " + pVal + "<br>"); }
+                   } //end if ((fld2!="form_id") && (fld2!="form_w"))
+
+//		 			If strFieldList<>"" Then strFieldList=strFieldList & ","
+//		 			strFieldList=strFieldList & pFld
+//		 			If strParams<>"" Then strParams=strParams & "|"
+//		 			strParams=strParams & pFld & "=" & pEnv.wPakSafe(pVal)
+
+					objFields[pFld].Value=pVal;
+
+				} //end if (!(objFields.ContainsKey(pFld)))
+			} //end if ((fld2!="submit") && (fld2!="reset") && (fld2!="x") && (fld2!="y"))
+        } //next foreach
+	} //end if (FormInfo["includeotherfields"].CString().ToLower()=="true")
+	
+
+	
+//	Add Footer... Indicates in the email which "World ID" this page submit came from.
+	emailOut.Append("<br><br>");
+	form_w=cms.FormParam("form_w");
+	if (form_w.Trim().ToLower() != cms.World.Trim().ToLower()) {
+		emailOut.Append("(w:" + form_w + ":" + cms.World + ")<br><br>"); 
+	} else {
+		emailOut.Append("(w:" + form_w + ")<br><br>");
+	}
+
+	FormInfo["fields"]=objFields;
+	FormInfo["emailBody"].Value=emailOut.ToString();
+	
+    } //end ReadFormFields()
+	
+	// ******************************************** ReadFormFields *******************************************
+    public string CheckCaptcha(string cpID,string cpPWD,string strWorld) {
+		// FUTURE: Develop this functionality
+		return "true";
+		}
+
+	// EDITLIST - future:indicate success/failure
+	public void LoadEditListIfNeeded(string eClassOverride="") {
+		string eclass=eClassOverride;
+		editlisterror="";
+		if (String.IsNullOrWhiteSpace(eclass)) { eclass=cms.UrlParam("eclass"); }
+		string eclassfile="eclass-" + eclass + ".cfg";
+		if (eclass!=editlistconfig) {
+			//Need to load config file
+			string configpath=SITE.ConfigFolder + "\\" + eclassfile;
+			if (! File.Exists(configpath)) { 
+				configpath=SERVER.ConfigFolder + "\\" + eclassfile;
+				if (! File.Exists(configpath)) {
+					editlisterror="Config file not found: " + eclassfile + " [err7971]";
+					return;
+					}
+				}
+			editlistj=new iesJSON();
+			editlistj.UseFlexJson=true;
+			editlistj.DeserializeFlexFile(configpath,false,0,0); // 0,0 does not keep Comments or Spacing
+			if (editlistj.Status == 0) { // no JSON errors
+				editlistconfig=eclass;
+			}
+		}	
+		if (editlistconfig == "" &&  editlisterror == "") {
+				editlisterror="Failed to load config file: " + eclassfile + " [" + editlistj.Status + "][err7972]";
+		}
+	}
+	
+	// Get a list of columns (string) from an editclass config file (JSON)
+	// Three output formats:
+	//   outCols=csv (comma separated list)
+	//   outColsHtml=html table header row
+	//   jsCols=Javascript list of data field names (for jquery.datatables)
+	public void GetColumns(ref string outCols, ref string outColsHtml, ref string outColsJS) {
+		string sField,sTitle,sWidth,sAs,sClass,sFlags;
+		bool noPrimaryKey=true;
+		StringBuilder cols=new StringBuilder();
+		//StringBuilder colsHtml=new StringBuilder();
+		iesJSON jsCols=new iesJSON("[]");
+		iesJSON node;
+		try {
+			foreach (iesJSON fld in editlistj["SearchList"]) {
+				sWidth=fld["Width"].CString().Trim();
+				sField=fld["Field"].CString().Trim();
+				sTitle=fld["Alias"].CString().Trim();
+				sClass=fld["Class"].CString().Trim();
+				sFlags=fld["Flags"].CString();
+				sAs=fld["As"].CString().Trim();  // If field is a sub-query "(SELECT...) as Foo" then set As:Foo
+				if(sAs=="") {sAs=sField;}  // If no AS then set AS to the field name.
+				if (sTitle=="") {sTitle=sAs;}  // If no alias then set alias title to the field name.
+				if (sField==editlistj["primaryKey"].CString().Trim()) noPrimaryKey=false; //check if the field is a primary key
+				if (cols.Length>0) {cols.Append(",");}
+				cols.Append(sField);
+				if (sWidth!="" && sWidth!="0") { 
+					//colsHtml.Append("<td>" + sTitle + "</td>"); 
+					node=new iesJSON("{}");
+					node["sTitle"].Value=sTitle.Replace("`","");   // DEBUG: + "[" + sWidth + "]";
+					if (sFlags.IndexOf("l")>=0) {node["class"].Value="editRow";}
+					node["data"].Value=sAs.Replace("`","");
+				if (sClass!="")  {node["class"].Value=node["class"].Value + " " + sClass;}
+					jsCols.AddToArrayBase(node);
+					}
+				}
+			
+			if (noPrimaryKey) { //if there is still no primary key in the columns, then add one.
+				cols.Append("," + editlistj["primaryKey"].CString().Trim());
+				}
+		} catch { }
+		outCols=cols.ToString();
+		//outColsHtml=colsHtml.ToString();
+		outColsJS=jsCols.jsonString;
+	}
+	
+    public string GenerateAutofillForm(string formTable, string formField, string formType, string formSubField){
+        string configpath           = "";
+        iesJSON config              = null;
+
+        string Query                = "";
+        iesJSON Results             = null;
+
+        string cfgHolder            = "";
+        string cfgHandler           = "";
+        string cfgField             = "";
+
+        StringBuilder FormContent   = null;
+
+        ArrayList uniques           = null;
+
+        FormContent = new StringBuilder();
+
+        if (String.IsNullOrWhiteSpace(formTable) || String.IsNullOrWhiteSpace(formField) || String.IsNullOrWhiteSpace(formType)){
+            return FormContent.ToString();
+        }
+
+        Query = "SELECT `" + formField + "` FROM `" + formTable + "` WHERE `" + formField + "` IS NOT NULL AND `" + formField + "` <> ''";
+
+        cms.db.Open();
+        Results = cms.db.GetDataReaderAll(Query);
+
+        if (Results.Length == 0){
+            return FormContent.ToString();
+        }
+
+        uniques = new ArrayList();
+        FormContent.Append("<ul id='autofill_list' class='selectable'>");
+        switch(formType){
+            case "json":
+                if (String.IsNullOrWhiteSpace(formSubField)){
+                    return "";
+                }
+
+                foreach(iesJSON singleItem in Results){
+                    iesJSON tempJson = singleItem[formField];
+                    if (!uniques.Contains(tempJson[formSubField].jsonString)){
+                        uniques.Add(tempJson[formSubField].jsonString);
+                        FormContent.Append("<li class='fieldvalue'>" + tempJson[formSubField].jsonString + "</li>");
+                    }
+                }
+                break;
+        }
+        FormContent.Append("</ul>");
+        cms.db.Close();
+
+        return FormContent.ToString();
+	}
+	
+	public void GenerateJsonData(StringBuilder Content,string idOverride="",string eClassOverride="",bool includeHeader = true) {
+		string sql3="", acols="",acolsHtml="",ajsCols="",errmsg;
+		string id=idOverride;
+		if (String.IsNullOrWhiteSpace(id)) {id=cms.UrlParam("id");}
+		//if (id=="") { Content.Append("<br><br>ERROR: Record ID not specified. [err4336]"); return; }
+		
+		iesJSON jret=new iesJSON("{}");
+
+		LoadEditListIfNeeded();
+		if (editlistconfig=="") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+		if (editlistj["MasterFiles"].Length >= 1) {
+			// If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
+			GenJsonFromMasterFiles(Content,idOverride,eClassOverride,includeHeader);
+			return;
+		}
+		string flags=editlistj["SpecialFlags"].CString().ToLower();
+		GetColumns(ref acols,ref acolsHtml,ref ajsCols);
+
+		// CHECK SECURITY LEVEL
+		int Permit=EditFormSecurityLevel();  // Default=No Access
+		bool bViewOnly=(Permit<=1) ? true : false;
+		cms.db.Open();
+		if (Permit<=0) {
+			Content.Append("ERROR: Permission denied.");
+			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+			return;
+			}
+		  else {
+		   try {
+			string w = "WorldID='" + cms.World + "'";
+			if (flags.IndexOf("noworldid")>=0) { w=""; }
+			string w2=editlistj["Where"].CString().Trim();
+			if (w2!="") { if (w!="") { w+=" AND ";} w+=w2; }
+			if (w.Trim()!="") { w=" WHERE " + w; }
+			string o = editlistj["OrderBy"].CString().Trim();  // For datatables this does nothing - Try OrderBy2="[ [5, 'desc' ] ]"
+			if (o!="") { o=" ORDER BY " + o + " "; }
+			sql3="SELECT " + acols + " FROM " + editlistj["SearchTable"].CString() + " " + w + o;
+			/* DEBUG
+			using (StreamWriter writer = new StreamWriter(SITE.ConfigFolder + "\\temp-SQL.txt"))
+			{
+				writer.Write(sql3);
+			} 
+			*/
+			//cms.Response.Write("DEBUG: connect=" + cms.db.ConnectString + "<br><br>"); //DEBUG 
+			iesJSON rData=cms.db.GetDataReaderAll(sql3);
+			jret["msg"].Value="success";
+			jret["data"]=rData;
+			jret["sql"].Value=sql3; //DEBUG
+			Content.Append(jret.jsonString);
+			}
+		catch { 
+			errmsg="ERROR: Failed to get data records. [err4995]";
+			if (SITE.DebugMode>0) {errmsg+=" SQL=" + sql3;}
+			jret["msg"].Value=errmsg;
+			jret["data"]=new iesJSON("[]");
+			Content.Append(jret.jsonString);
+			}
+		 } // end if-else (Permit<=0)
+		cms.db.Close();
+    } // end function
+	
+	public void GenJsonFromMasterFiles(StringBuilder Content,string idOverride="",string eClassOverride="",bool includeHeader = true) {
+		iesJSON MstrFiles=editlistj["MasterFiles"];
+		iesJSON rData=new iesJSON("[]");
+		iesJSON tTags=new iesJSON("{}");
+		iesJSON jjFile;
+		int fileCount=0;
+
+		// This loop allows for multiple MaterFile folders - which is why the MasterFiles is an array
+		foreach(iesJSON MstrFile in MstrFiles) {
+			// Get a list of files in the specified folder
+			string readPath="",prefix="",ext="",FileNameField="";
+			bool hasHeader=false;
+			readPath=MstrFile["FolderPath"].ToStr();
+			prefix=MstrFile["FilePrefix"].ToStr().Trim();
+			ext=MstrFile["FileExt"].ToStr().Trim().ToLower();
+			FileNameField=MstrFile["FileNameField"].ToStr().Trim();
+			hasHeader=MstrFile["IncludeJsonHeader"].ToBool();
+			tTags["contentFolder"].Value=SITE.ContentFolder;
+			tTags["templateFolder"].Value=SITE.TemplateFolder;
+			readPath=Util.ReplaceTags(readPath,tTags,true,"{{","}}");
+			//Content.Append("DEBUG: path=" + readPath + "\\" + prefix + "*" + ext + "  ");
+			
+			if (readPath!="") { if (Directory.Exists(readPath)) {
+				DirectoryInfo d = new DirectoryInfo(readPath);
+				FileInfo[] Files = d.GetFiles(prefix + "*" + ext); //Getting cfg files	
+				foreach(FileInfo file in Files)
+				{
+					//Content.Append("DEBUG:" + rData.jsonString);
+					if (file.Extension.ToLower() == ext){
+						fileCount++;
+						//Content.Append("DEBUG:[" + file.Name + "]");
+						//we need the title without the prefix/ext
+						string fileNameNoExtension = Path.GetFileNameWithoutExtension(file.Name);
+						if (prefix.Length > 0) {
+							if (Util.Left(fileNameNoExtension,prefix.Length).ToLower() == prefix.ToLower()) {
+								fileNameNoExtension=Util.Mid(fileNameNoExtension,prefix.Length+1);
+							}
+						}
+						// Read [[header]] from file (if files contain headers)
+						// FUTURE: add this back in
+						//if (hasHeader) {
+						//  iesJSON fileHeader=Util.ReadJsonHeader(FullPath);
+						//}
+						
+						// FUTURE: use SearchList to create fields in jjFile.
+						
+						// Add file to list
+						jjFile=new iesJSON("{}");
+						jjFile["pageid"].Value=fileNameNoExtension;
+						jjFile["type"].Value="webpage";
+						jjFile["Title"].Value="title";
+						jjFile["Status"].Value="status";
+						jjFile["PageIdx"].Value="pageIDX";
+						rData.AddToArrayBase(jjFile);
+						jjFile=null;
+					}
+				}
+			}} // readPath is not missing
+		} // foreach MasterFiles
+		//Content.Append("DEBUG +++++++++" + rData.jsonString + "++++++++");
+		iesJSON jret=new iesJSON("{}");
+		if(fileCount==0) { 
+			jret["msg"].Value="no files found";
+		} else {
+			jret["msg"].Value="success";
+		}
+		jret.AddToObjBase("data",rData);
+		Content.Append(jret.jsonString);
+		return;
+	}
+	
+	public void GenerateFormButtons(StringBuilder Content) {
+		LoadEditListIfNeeded();  // This loads editlistj
+		if (editlistconfig=="") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+		
+		string flags=editlistj["SpecialFlags"].CString().ToLower();
+		StringBuilder buttons = new StringBuilder();
+
+		//Add Buttons to the form
+		if ((flags.IndexOf("savebutton")>=0) || (flags.IndexOf("allbuttons")>=0)) {
+			buttons.Append("<input class='adminbutton adminsavebutton' type='button' name='Save' value='Save' onclick='SaveItem(false);return false;'>");
+		}
+		if ((flags.IndexOf("saveclosebutton")>=0) || (flags.IndexOf("allbuttons")>=0)) {
+			buttons.Append("<input class='adminbutton adminsaveclosebutton' type='button' name='SaveClose' value='Save/Close' onclick='SaveItem(true);return false;'>");
+		}
+		if ((flags.IndexOf("cancelbutton")>=0) || (flags.IndexOf("allbuttons")>=0)) {
+			buttons.Append("<input class='adminbutton admincancelbutton' type='button' name='Cancel' value='Cancel/Close' onclick='CloseForm(false);return false;'>");
+		}
+		if ((flags.IndexOf("deletebutton")>=0) || (flags.IndexOf("allbuttons")>=0)) {
+			buttons.Append("<input class='adminbutton admindeletebutton' type='button' name='Delete' value='Delete' onclick='DeleteItem();return false;'>");
+		}
+		if (buttons.Length>0) {
+			buttons.Insert(0,"<div class='adminbuttoncontainer'>");
+			buttons.Append("</div>");
+			Content.Append(buttons.ToString());
+		}
+	}
+	
+	public void GenerateForm(StringBuilder Content,string idOverride="",string eClassOverride="",bool includeHeader = true) {
+		string id=idOverride;
+		string autoFillInfo = "";
+        try
+        {
+            if (String.IsNullOrWhiteSpace(id)) { id = cms.UrlParam("id"); }
+            // Moved check that ID is not blank below (so we can check if it is needed first)
+
+            // Set the CKEditor Upload folder based on the WORLD (DEFAULT VALUES)
+            // see below where this may be overridden by the Edit Class (FUTURE)
+            cms.Session["CKFinder_BaseUrl"] = "/" + cms.World + "/content/";
+
+            LoadEditListIfNeeded(eClassOverride);  // This loads editlistj
+            if (editlistconfig == "") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+            string title = editlistj["Title"].CString();
+            if (includeHeader) { Content.Append("<h1>EDIT FORM: " + title + "</h1>"); }
+            string table = editlistj["Table"].CString();
+            string pk = editlistj["PrimaryKey"].CString();
+            string pknumeric = editlistj["PrimaryKeyNumeric"].CString().ToLower();
+
+            // If Edit Class contains CKEditor Parameters... use them...
+            string sVal = "";
+            sVal = editlistj["UserFilesPath"].CString().Trim();
+            if (sVal != "") { cms.Session["CKFinder_BaseUrl"] = sVal; }
+            sVal = "";
+            sVal = editlistj["UserFilesDirectory"].CString().Trim();
+            if (sVal != "") { cms.Session["CKFinder_BaseDir"] = sVal; }
+
+            // CHECK SECURITY LEVEL
+            int Permit = EditFormSecurityLevel();  // Default=No Access
+            bool bViewOnly = (Permit <= 1) ? true : false;
+
+            if (Permit <= 0)
+            {
+                Content.Append("<br><br>ERROR: Permission denied.");
+                if (SITE.DebugMode > 0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+                return;
+            }
+            Content.Append("<div class='msgBox' id='msgBox'></div>");
+
+            // Get Object/Record from the database
+            iesJSON jRec = null;
+            string id2 = id;
+            string flags = editlistj["SpecialFlags"].CString().ToLower();
+            bool create = false, fromFile = false;
+            if (id.ToLower() == "*new*") { create = true; }
+            
+            if (id == "")
+            {
+                if (!(flags.IndexOf("norecordid") >= 0))
+                { // Ignore Record ID if it is not needed
+                    Content.Append("<br><br>ERROR: Record ID not specified. [err4337]"); return;
+                }
+            }
+           
+            if (editlistj["MasterFiles"].Length >= 1)
+            {
+                fromFile = true;
+                // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
+                iesJSON MstrFiles = editlistj["MasterFiles"];
+                iesJSON tTags = new iesJSON("{}");
+                iesJSON jjFile;
+                int fileCount = 0;
+
+                // This loop allows for multiple MaterFile folders - which is why the MasterFiles is an array
+                if (!create)
+                {
+                    foreach (iesJSON MstrFile in MstrFiles)
+                    {
+                        // Find specified file in the folder
+                        string readPath = "", prefix = "", ext = "", FileNameField = "", FileNamePath = "", ContentField = "";
+                        bool hasHeader = false;
+                        readPath = MstrFile["FolderPath"].ToStr();
+                        prefix = MstrFile["FilePrefix"].ToStr().Trim();
+                        ext = MstrFile["FileExt"].ToStr().Trim().ToLower();
+                        FileNameField = MstrFile["FileNameField"].ToStr().Trim();
+                        ContentField = MstrFile["Field"].ToStr().Trim();
+                        hasHeader = MstrFile["IncludeJsonHeader"].ToBool();
+                        tTags["contentFolder"].Value = SITE.ContentFolder;
+                        tTags["templateFolder"].Value = SITE.TemplateFolder;
+                        readPath = Util.ReplaceTags(readPath, tTags, true, "{{", "}}");
+
+                        //Content.Append("DEBUG: path=" + readPath + "  <br>");
+                        if (readPath != "")
+                        {
+                            FileNamePath = readPath + "\\" + prefix + id.Trim() + ext;
+                            //Content.Append("DEBUG: path=" + FileNamePath + "  <br>");
+                            if (File.Exists(FileNamePath))
+                            {
+                                // Load file into jRec
+                                int flagStatus = 0;
+                                Util.GetMasterFile(FileNamePath, ref jRec, ref flagStatus, ContentField);
+                                fileCount += 1;
+                                // FUTURE: check return value (values <0 indicate error)
+                            }
+                        } // if (readPath != "")
+                    }     // foreach
+                } // if (!create)
+
+                if (fileCount<=0 && (!create))
+                {
+                    if ((cms.UrlParam("AllowCreate").ToLower() == "true") && (cms.UserLevel > SITE.MinCreateLevel))
+                    {
+                        // Even though the object was not found, we are allowed to create it
+                        create = true;
+                    } else
+                    {
+                        // File was not found AND we are not allowed to create it
+                        Content.Append("ERROR: Item not found. [err1393]<br>\n");
+                        return;
+                    }
+                }
+
+            } // [MasterFiles].Length >=1
+            else
+            {
+                if (!create)
+                {
+                    if (pknumeric != "true") { id2 = "'" + id + "'"; }
+                    string w = " AND WorldID='" + cms.World + "' ";
+                    string w2 = editlistj["Where"].CString().Trim();
+                    string where = "";
+                    if (w2 != "") { w2 = " AND " + w2; }
+                    if (flags.IndexOf("noworldid") >= 0) { w = ""; }
+                    if (!(flags.IndexOf("norecordid") >= 0))
+                    {
+                        where = " WHERE " + pk + "=" + id2 + w + w2;
+                    }
+                    else
+                    {
+                        where = " WHERE 1=1 " + w + w2;
+                    }
+                    string sql = "SELECT * FROM " + table + " " + where;
+
+                    try
+                    {
+                        cms.db.Open();
+                        jRec = cms.db.GetFirstRow(sql);
+                        cms.db.Close();
+                    }
+                    catch (Exception e) { Content.Append("ERROR: Query record failed. [err4646]<br>"); if (SITE.DebugMode > 0) { Content.Append(e.ToString()); } return; }
+                    //Content.Append("SQL=" + sql + "<br>");//DEBUG
+                    string thisErr = "";
+                    if (jRec == null) { thisErr = "ERROR: Query failed. [err4663]<br>"; }
+                    if (jRec.jsonType == "null") { thisErr = "ERROR: Query failed. [err4664]<br>"; }
+                    if (jRec.Status != 0) { thisErr = "ERROR: Query failed. [err4668]<br>"; }
+  
+                    if (thisErr != "")
+                    {
+                        if ((cms.UrlParam("AllowCreate").ToLower() == "true") && (cms.UserLevel > SITE.MinCreateLevel))
+                        {
+                            // Even though the object was not found, we are allowed to create it
+                            create = true;
+                            thisErr = "";
+                        }
+                    }
+
+                    if (thisErr != "")
+                    {
+                        Content.Append(thisErr);
+                        if (SITE.DebugMode > 0) { Content.Append("SQL=" + sql + "<br>"); }
+                        return;
+                    }
+                }
+            }
+
+            if (!create)
+            {
+                //jRec=jRec[0]; // Get first row of returned recordset (there should only be one row)  - NO LONGER NEEDED - CHANGE TO iesDB Library TKT 5/13/2016
+                if (jRec["StorFormat"].CString().ToLower() == "parampak") { UnpakParamPak(jRec); }
+                if (flags.IndexOf("norecordid") >= 0)
+                {
+                    // Even thought 'norecordid' means we do not select the record by means of a record id, we still need the primary key to know which
+                    // record we are updating.
+                    id = jRec[pk].CString();
+                }
+                //Content.Append("JSON=" + jRec.jsonString + "<br>");//DEBUG		
+            }
+            else
+            {
+                jRec = new iesJSON("{}");
+                iesJSON rTags = new iesJSON("{}");
+                rTags["now"].Value = DateTime.Now.ToString();
+                rTags["world"].Value = cms.World;
+                rTags["worldid"].Value = cms.World;
+                rTags["userno"].Value = cms.UserNo;
+                rTags["userid"].Value = cms.UserID;
+
+                // NOTE: These values could come from the Edit Config Defaults below - ie. they can get overwritten.  Here we set overall defaults in case they are not set below.
+                jRec["MinViewLevel"].Value = SITE.MinEditLevel;
+                jRec["MinEditLevel"].Value = SITE.MinEditLevel;
+
+                // Load default values into jRec
+                iesJSON Defaults = editlistj["Defaults"];
+                if (Defaults != null)
+                {
+                    if (Defaults.Status == 0 && Defaults.jsonType != "null")
+                    {
+                        foreach (iesJSON df in Defaults)
+                        {
+                            string dfValue = Util.ReplaceTags(df.CString(), rTags, false, "{{", "}}");
+                            jRec.AddToObjBase(df.Key, dfValue);
+                        } // end foreach
+                    } // end if
+                } // end if
+            }
+
+            // Apply Override values to jRec  (these should be applied before being displayed (so user sees them if visible) and before save (to make sure they are always set)
+            iesJSON Override = editlistj["Override"];
+            if (Override != null)
+            {
+                if (Override.Status == 0 && Override.jsonType != "null")
+                {
+                    foreach (iesJSON ovr in Override)
+                    {
+                        jRec.AddToObjBase(ovr.Key, ovr);
+                    } // end foreach
+                } // end if
+            } // end if
+
+            if (id != "" && id.ToLower() != "*new*")
+            {
+                jRec["pageid"].Value = id;
+            }
+            // MinViewLevel should not be missing.  Add it if it is missing (even if this is not a new record)
+            if (!jRec.Contains("MinViewLevel"))
+            {
+                int defViewLevel = editlistj["Defaults"]["MinViewLevel"].ToInt(-1);
+                if (defViewLevel >= 0) { jRec["MinViewLevel"].Value = defViewLevel; }
+                else { jRec["MinViewLevel"].Value = SITE.MinEditLevel; }
+            }
+            // MinEditLevel should not be missing.  Add it if it is missing (even if this is not a new record)
+            if (!jRec.Contains("MinEditLevel"))
+            {
+                int defEditLevel = editlistj["Defaults"]["MinEditLevel"].ToInt(-1);
+                if (defEditLevel >= 0) { jRec["MinEditLevel"].Value = defEditLevel; }
+                else { jRec["MinEditLevel"].Value = SITE.MinEditLevel; }
+            }
+
+            string neededEclass = "";
+            neededEclass = eClassOverride;
+            if (String.IsNullOrWhiteSpace(neededEclass)) { neededEclass = cms.UrlParam("eclass"); }
+            string pkHidden = "<input type='hidden' id='fld_" + pk + "' name='fld_" + pk + "' value='" + id + "'/>";
+            Content.Append("<form id='editlistform'><input type='hidden' id='eClass' name='eClass' value='" + neededEclass + "'/>" +
+                "<TABLE border=0 width=1050 cellpadding=0><TBODY>");
+
+            // DISPLAY NEW RECORD BANNER if specified
+            if (create && (editlistj["ShowNewBanner"].CString().Trim().ToLower() == "true"))
+            {
+                Content.Append("<tr><td colspan=2 align=left><Font size=3 color=#309040><B>*** NEW RECORD ***</B></td></tr>");
+            }
+
+            // *** FIELD SET #1 - wObject RECORD fields **********************************
+
+            bool ShowField;
+            string sType, sWidth, sHeight, sNote, sFlags, dValue, dFieldName, sAlias, sClass;
+            StringBuilder HiddenFields = new StringBuilder();
+            int cnt = 0;
+
+            string gSpecialFlags = editlistj["SpecialFlags"].CString().ToLower();
+            string ShowAllParams = editlistj["ShowAllParams"].CString().ToLower();
+            string UserEntersNewKey = editlistj["ShowAllParams"].CString().ToLower();
+            foreach (iesJSON field in editlistj["EditFields"])
+            {
+                dValue = "";
+                ShowField = true;
+                dFieldName = Util.NoBracket(field["Field"].CString());
+                sAlias = field["Alias"].CString().Trim();
+                if (sAlias == "") { sAlias = dFieldName; }
+
+                sFlags = field["Flags"].CString();
+                sType = field["Type"].CString();
+                sClass = field["Class"].CString();
+                sWidth = field["Width"].CString();
+                sHeight = field["Height"].CString();
+                sNote = field["Note"].CString();
+
+                autoFillInfo = field["Autofill"].jsonString;
+
+                if (autoFillInfo == "null")
+                {
+                    autoFillInfo = "";
+                }
+                if (Util.Left(sType, 5).ToLower() == "json_")
+                {
+                    dValue = jRec[dFieldName].jsonString;
+                }
+                else
+                {
+                    dValue = jRec[dFieldName].CString();
+                }
+                //if (sType.Trim().ToLower()=="json") { dValue=jRec[dFieldName].jsonString; }  // FUTURE: THIS DID NOT WORK
+                if (create)
+                {
+                    if (sFlags.IndexOf("p") >= 0 && (UserEntersNewKey != "true"))
+                    {
+                        ShowField = false;
+                        if (gSpecialFlags.IndexOf("shownew") >= 0) { ShowField = true; }
+                    }
+                }
+                if ((ShowAllParams == "true") && jRec.Contains(dFieldName)) { jRec.RemoveFromBase(dFieldName); }
+                //cms.Response.Write("DEBUG: Field=" + dFieldName + ", Flags=" + sFlags + ", Value=" + dValue);
+
+                if (dFieldName.ToLower() == pk.ToLower()) { pkHidden = ""; }
+                dFieldName = "fld_" + dFieldName;  // Add fld_ prefix
+                if (ShowField == true) { Content.Append(MakeEditRow(sAlias, dFieldName, sType, sClass, sFlags, sWidth, sHeight, dValue, sNote, cms, create, bViewOnly, HiddenFields, autoFillInfo)); }
+
+                cnt++;
+                if (cnt > 99999) { break; }  //*** Safety
+            } // End foreach
+
+            // Display the remaining fields in jRec - if specified
+            if (ShowAllParams == "true")
+            {
+                foreach (iesJSON field2 in jRec)
+                {
+                    dValue = "";
+                    if (!create) { dValue = field2.CString(); }
+                    if (field2.Key.ToLower() == pk.ToLower()) { pkHidden = ""; }
+                    Content.Append(MakeEditRow("fld_" + field2.Key, field2.Key, "text", "", "", "160", "", dValue, "", cms, create, bViewOnly, HiddenFields));
+                    cnt++;
+                    if (cnt > 99999) { break; }  //*** Safety
+                }
+            }
+
+            // FUTURE: Display second set of fields if high enough UserLevel
+            // FUTURE: If SHOWALL then show remaining fields in jRec (as text box)
+            Content.Append("</TABLE>" + pkHidden + HiddenFields.ToString());
+            //Add Buttons to the form
+            //if (!bViewOnly){
+            //	Content.Append("<input type='button' name='Save2' value='Save' onclick='SaveItem(false);return false;'>");
+            //}
+            Content.Append("</form>");
+            if (cnt <= 0) { Content.Append("<br><br><span style='color:#C04040;'>Record not found.</span><br><br><br>"); }
+
+        }
+        catch (Exception e99)
+        {
+            // If we are an admin, then display the error message
+            if (cms.UserLevel >= SITE.MinAdminLevel)
+            {
+                Content.Append("ERROR: AdminFunctions.CreateForm: " + e99.ToString() + "<br>\n");
+            } 
+        }
+	}
+	
+	public string MakeEditRow(string fAlias, string fID, string fType, string sClass, string fFlags, string fWidth, string fHeight, string fValue, string sNote, cmsInfo cms,bool IsNew, bool bViewOnly,StringBuilder HiddenFields, string AutoFillInfo = "") {
+		string sRet="",bld="";
+		bool Processed=false;
+		bool meViewOnly=bViewOnly;
+		bool meRequired=false;
+		
+		//Custom.MakeEditRow(ref fAlias,ref fID,ref fType,ref fFlags, ref fWidth, ref fValue, cms, ref meViewOnly, ref sRet, ref Processed);
+		if (Processed) { return sRet; }
+		
+		string fTypeLower=fType.ToLower();
+		string fFlagsLower=fFlags.ToLower();
+		if (fFlagsLower.IndexOf("b")>=0) { bld=" class='bold' "; }
+		if (fFlagsLower.IndexOf("r")>=0) { meRequired=true; } // Required field
+		if (fFlagsLower.IndexOf("l")>=0) { meViewOnly=true; } // Lock field
+		if (IsNew && (fFlagsLower.IndexOf("a")>=0)) { meViewOnly=false; } // UNlock field when ADDING a record
+		string sNote2=sNote.Trim();
+		if (sNote2!="") { sNote2="<span class='FieldNote'>" + sNote2 + "</span>"; }
+		string mEditRow="<tr><td width=200 valign=top" + bld  + ">" + fAlias + ":</td><td>";
+		string mEditRow2=sNote2 + "</td></tr>";
+		
+		if (Util.Left(fTypeLower,5)=="list-") {
+			switch (Util.Mid(fTypeLower,5,999)) {
+				case "status":
+					// FUTURE: NEED TO MAKE THIS LIST DYNAMIC - AND SET VALUE BASED ON dValue
+					/*
+					sRet = "<select id='" + fID + "' name='"+ fID + "'";
+					if (meViewOnly){ sRet += " disabled"; }					
+					sRet += "><option value='Active' selected>Active</option><option value='Inactive'>Inactive</option><option value='Deleted'>Deleted</option></select>";
+					*/
+					iesJSON pListJson3=new iesJSON("[[\"Active\",\"Active\"],[\"Inactive\",\"Inactive\"],[\"Deleted\",\"Deleted\"]]");
+					sRet=GenerateDD(pListJson3,fID,fWidth,fValue,meViewOnly,meRequired,sClass,true,"");
+					break;
+			}
+			fTypeLower="list";
+		}
+		
+		if (Util.Left(fTypeLower,6)=="plist-") {
+			iesJSON pList=editlistj[fType];
+			if ((pList.Status==0) && (pList.jsonType!="null")) {
+				string pListType=pList["ListType"].CString();
+				bool IncludeCurrent=true;
+				if (pList.Contains("IncludeCurrent")) {
+					if (pList["IncludeCurrent"].CString().ToLower()=="false") { IncludeCurrent=false; }
+					}
+				string AddNull=null;  
+				if (pList.Contains("AddBlank")) {  // AddBlank is the old method - to be replaced by AddNull
+					if (pList["AddBlank"].CString().ToLower()=="true") { AddNull=""; }
+					}
+				if (pList.Contains("AddNull")) {  // AddNull indicates a string/value to display in place of Null (for blank, set this to "")
+					AddNull=pList["AddNull"].CString();
+					}
+				switch (pListType.ToLower()) {
+					case "sql":
+						iesJSON pListData=cms.db.GetDataReaderAll(pList["sql"].CString());
+						if ((pListData.Status==0) && (pListData.jsonType!="null")) {
+							sRet=GenerateDD(pListData,fID,fWidth,fValue,meViewOnly,meRequired,sClass,IncludeCurrent,AddNull);
+							}
+						break;
+					case "json":
+						iesJSON pListJson=pList["data"];
+						if ((pListJson.Status==0) && (pListJson.jsonType!="null")) {
+							sRet=GenerateDD(pListJson,fID,fWidth,fValue,meViewOnly,meRequired,sClass,IncludeCurrent,AddNull);
+							}
+							break;
+					default:
+						sRet="Invalid pList type encountered: " + pListType + ", " + pList + " [err1331]";
+						break;
+				}
+			}
+			fTypeLower="plist";
+		}
+		
+		switch (fTypeLower) {
+			case "text":
+				sRet=mkTextBox(fID,fWidth,fValue,meViewOnly,meRequired,false,sClass);
+				break;
+			case "note":
+			case "textarea":
+				sRet=mkTextArea(fID,fWidth,fHeight,fValue,meViewOnly,meRequired,sClass);
+				break;
+			case "json_list":  // FUTURE: THIS DID NOT WORK
+				sRet=mkTextBox(fID,fWidth,fValue,meViewOnly,meRequired,false,sClass,AutoFillInfo);
+				break;		
+			case "richtext":
+				sRet=mkTextArea(fID,fWidth,fHeight,fValue,meViewOnly,meRequired,sClass + " richtext");
+				// We also need this to be on one row...
+				mEditRow="<tr><td colspan='2' width=200 valign=top" + bld  + ">" + fAlias + ":<br>";
+				break;
+			case "password":
+				sRet=mkTextBox(fID,fWidth,"*******",meViewOnly,meRequired,false,sClass);
+				break;
+			case "hidden":
+				sRet=mkHidden(fID,fWidth,fValue,meViewOnly,sClass);
+				HiddenFields.Append(sRet);
+				return ""; //Exit without creating a row
+				break;
+			case "date": 
+				sRet=mkDateBox(fID,fWidth,fValue,meViewOnly,meRequired,true,sClass);
+				break;
+			case "datetime":
+				sRet=mkDateBox(fID,fWidth,fValue,meViewOnly,meRequired,false,sClass);
+				break;
+			case "list":
+			case "plist":
+				break;  // No error - this was handled above.
+			default:
+				sRet="Invalid field type encountered: " + fType + " [err1321]";
+				break;
+		}
+		
+		return mEditRow + sRet + mEditRow2;
+	}
+	
+	public static string mkDateBox(string fID,string nWidth,string fValue,bool bViewOnly,bool isRequired,bool isDateField=false,string cssClass="") {
+    		string w="", fc="class='", d="";
+    		string[] valueParts;
+    		if (nWidth.Trim()!="") { w="width:" + nWidth + ";"; }
+    		if (bViewOnly) { fc+=" locked"; d=" readonly ";}  // do not use 'disabled' because the field is excluded from the submit
+    		if (isRequired) { fc+=" required"; }
+    		if (isDateField){
+    			if (!String.IsNullOrWhiteSpace(fValue)) {
+    				valueParts = fValue.Split(' ');
+    				fValue = valueParts[0];
+    			}
+    		}
+    		fc += "'";
+    		return "<input type='text' class='datepicker' id='" + fID + "' name='" + fID + "' value='" + fValue + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + "><a href='#' class='cleardate' id='" + fID + "'>reset</a>";
+    	}
+		
+	public static string mkTextBox(string fID,string nWidth,string fValue,bool bViewOnly,bool isRequired,bool isDateField=false,string cssClass="", string AutoFillInfo = "") {
+		string w="", fc="class='", d="";
+		StringBuilder returnString = new StringBuilder();
+		string[] valueParts;
+		fc+=cssClass;
+		if (nWidth.Trim()!="") { w="width:" + nWidth + ";"; }
+		if (bViewOnly) { fc+=" locked"; d=" readonly ";}  // do not use 'disabled' because the field is excluded from the submit
+		if (isRequired) { fc+=" required"; }
+		if (isDateField){
+			if (!String.IsNullOrWhiteSpace(fValue)) { 
+				valueParts = fValue.Split(' '); 
+				fValue = valueParts[0];
+			}
+		}	
+		fc += "'";
+		returnString.Append("<input type='textbox' id='" + fID + "' name='" + fID + "' value='" + fValue + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + ">");
+		if (!String.IsNullOrWhiteSpace(AutoFillInfo)){
+		    iesJSON autoFillDetails = new iesJSON();
+		    try {
+                autoFillDetails.Deserialize(AutoFillInfo);
+                returnString.Append("<a ");
+                foreach (iesJSON fillField in autoFillDetails){
+                    returnString.Append(fillField.Key + " = '" + fillField.CString() + "' ");
+                }
+                returnString.Append("configname='" + fID + "' href='#' class='autofill'><span class='ui-icon ui-icon-circle-plus'></span></b>");
+		    }catch(Exception e){
+		        //Do nothing
+		    }
+        }
+		return returnString.ToString();
+	}
+	
+	public static string mkTextArea(string fID,string nWidth,string nHeight,string fValue,bool bViewOnly,bool isRequired,string cssClass="") {
+		string w="", fc="class='", cssClasses = "", d="";
+		if (!String.IsNullOrWhiteSpace(nWidth)) { w=w+"width:" + nWidth + ";"; }
+		if (!String.IsNullOrWhiteSpace(nHeight)) { w=w+"height:" + nHeight + ";"; }
+		if (!String.IsNullOrWhiteSpace(cssClass)){ fc += " " + cssClass;}
+		if (bViewOnly) { fc+= " locked"; d=" disabled ";}
+		if (isRequired) { fc+=" required"; }
+		fc += "'";
+		
+		return "<textarea id='" + fID + "' name='" + fID + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + ">" + fValue + "</textarea>";
+	}
+	
+	public static string mkHidden(string fID,string nWidth,string fValue,bool bViewOnly,string sClass) {
+		return "<input type='hidden' id='" + fID + "' name='" + fID + "' class='" + sClass + "' value='" + fValue + "'>";
+	}
+	
+	public static string GenerateDD(iesJSON ddJson,string fID,string nWidth,string fValue,bool bViewOnly,bool isRequired,string sClass="",bool includeCurrent=true,string AddNull=null) {
+		string fValLower=fValue.ToLower();
+		StringBuilder oOpt=new StringBuilder();
+		string oSelected="";
+		foreach (iesJSON jRow in ddJson) {
+			string jValue=jRow[0].CString();
+			string jTitle=jRow[1].CString();
+			//if ((jValue.ToLower()==fValLower) && (fValLower!="")) {  // If the dropdown contains a blank, then we need to match it here (if the fValue is also blank)
+			if (jValue.ToLower()==fValLower) {
+				oSelected="<option value='" + jValue + "' selected>" + jTitle + "</option>";
+			}
+			else {
+				oOpt.Append("<option value='" + jValue + "'>" + jTitle + "</option>");
+			}
+		}
+		if ((fValue!="") && (oSelected=="")) {
+			// Selected value fValue was provided, but not found in the list.  Make a row so that the dropdown does not wipeout this value.
+			// But ONLY IF includeCurrent==true
+			if (includeCurrent) { oSelected="<option value='" + fValue + "' selected>" + fValue + "</option>"; }
+		}
+		string w="", fc="class='", blank="", d="";
+		if (nWidth.Trim()!="") { w="width:" + nWidth + ";"; }
+		if (bViewOnly) { fc+=" locked"; d=" disabled ";}
+		if (isRequired) { fc+=" required"; }
+		if (AddNull != null) { blank="<option value=''>" + AddNull + "</option>"; }
+		fc += "'";
+		string ret="<select id='" + fID + "' name='" + fID + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + ">" + blank + oSelected + oOpt.ToString() + "</select>";
+		return ret;
+	}
+	
+	iesJSON CreateErrorJson(int ErrNum, string ErrMsg, string ErrStatus="ERROR") {
+		iesJSON ret=new iesJSON("{}");
+		ret["status"].Value=ErrStatus;
+		ret["errmsg"].Value=ErrMsg;
+		ret["errnum"].Value=ErrNum.ToString();
+		return ret;
+	}
+	
+	void SaveEditForm(StringBuilder Content) { 
+		string retErr="";
+		int retErrNum=0;
+		iesJSON ret=null;
+		LoadEditListIfNeeded();
+		if ( editlistj == null ) { 
+			retErrNum=6719;
+			retErr="ERROR: Edit class not found. [err6719]";
+			if (SITE.DebugMode>0) { retErr += " [" + cms.UrlParam("eclass") + "]"; }
+			ret=CreateErrorJson(retErrNum,retErr);
+			Content.Append(ret.jsonString);
+			return; 
+			}
+		
+		string table=editlistj["Table"].CString();
+		string pk=editlistj["PrimaryKey"].CString();
+		bool pknumeric=editlistj["PrimaryKeyNumeric"].ToBool();
+		bool userenterspk=editlistj["UserEntersNewKey"].ToBool();
+		string flags=editlistj["SpecialFlags"].CString().ToLower();
+		
+		// CHECK SECURITY LEVEL
+		int Permit=EditFormSecurityLevel();  // Default=No Access
+		bool bViewOnly=(Permit<=1) ? true : false;
+		
+		if (Permit<=0) {
+			Content.Append("ERROR: Permission denied.");
+			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+			return;
+			}
+			
+		iesJSON FormData;
+		try {
+			FormData=ReadEditParams(editlistj,ref retErr, ref retErrNum);
+			// FUTURE: check for problems with FormData?  Null?  Error?
+			// FUTURE: Call Custom function to allow custom edits of data prior to saving.
+			if (retErr!="") { 
+				retErr += "\n" + "ERROR: Form parameters invalid. [err1132]"; 
+				ret=CreateErrorJson(retErrNum,retErr);
+				Content.Append(ret.jsonString);
+				return; }
+			}
+		catch (Exception e1) { 
+			retErrNum=1133;
+			retErr="ERROR: Read parameters failed. [err1133]";
+			if (SITE.DebugMode>0) { retErr += "<br>" + e1.ToString(); }
+			ret=CreateErrorJson(retErrNum,retErr);
+			Content.Append(ret.jsonString);
+			return; 
+			}
+		
+		// Force record to use SITE.World - FUTURE: Allow admin to edit other World records?
+		//Let's remove some pieces
+		if (flags.IndexOf("noworldid")<0) { FormData["WorldID"].Value=SITE.World; }
+		//Content.Append("DEBUG: Table=" + table + ", pk=" + pk + ", JSON=" + FormData.jsonString); return;  //DEBUG
+	
+		// Override values...
+		iesJSON Override=editlistj["Override"];
+		if (Override!=null) {
+		  if (Override.Status==0 && Override.jsonType!="null") {
+			foreach(iesJSON ovr in Override) {
+				FormData.AddToObjBase(ovr.Key,ovr);
+			} // end foreach
+		  } // end if
+		} // end if
+		
+		// If NOT(UserEntersNewKey) then check if this is a new record...
+		int newrec=-1;  // check
+		if (FormData[pk].CString()=="*new*" && userenterspk==false) { newrec=1; }
+		
+		// Fill in Lookup values
+		if (retErr=="") {
+			if (editlistj.Contains("Lookup")) { LookupFields(FormData,editlistj["Lookup"],ref retErr); }
+		}
+		
+		// UniqueCheck
+		if (retErr=="") {
+			if (editlistj.Contains("UniqueCheck")) { UniqueCheck(FormData,editlistj["UniqueCheck"],newrec,pk,ref retErr); }
+		}
+		
+		if (retErr=="") {
+		try {
+		/*
+		//zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz DEBUG
+		string tblColNames="";
+		List<string> columnNames=new List<string>();
+		string ret="";
+		cms.db.Open();
+		//ret = iesDBlib.iesDB.SaveRecordSQL(cms.db.iesConnection,FormData,table,pk,newrec,pknumeric,userenterspk,ref tblColNames,ref columnNames);
+		ret=cms.db.SaveRecordSQL(FormData,table,pk.Split(','),newrec,pknumeric,userenterspk);
+		cms.db.Close();
+		Content.Append(ret + "+++" + FormData.jsonString);
+		return;
+		//zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz DEBUG
+		*/
+		
+			cms.db.Open();
+
+			//We need to get the original record first - FUTURE: Do we need this or can we always log current?
+			iesJSON eventData=null, eventReturn=null;
+			iesJSON OldData = new iesJSON("{}");
+			if (newrec == -1){
+				string originalRecordSQL = "SELECT * FROM " + table + " WHERE " + pk + " = " + FormData[pk].CString() +  " LIMIT 1";
+				OldData=cms.db.GetFirstRow(originalRecordSQL);		
+			}
+			
+
+			if ((flags.IndexOf("beforesaveevent")>=0) || (flags.IndexOf("aftersaveevent")>=0)) {
+				try {
+					eventData=new iesJSON("{}");
+					eventData["oldrecord"]=OldData;
+					eventData["newrecord"]=FormData;
+					eventData["config"]=editlistj;
+
+					if (flags.IndexOf("beforesaveevent")>=0) {
+						eventReturn=Custom.Exec("beforesaveevent",eventData);
+						// FUTURE: check return for success?
+					} // end if beforesaveevent
+				} catch {}// end try
+			}
+			bool GetNewPK=true;
+			if (userenterspk==true) {GetNewPK=false;}
+			if (!cms.db.SaveRecord(FormData,table,pk,newrec,pknumeric,userenterspk,GetNewPK)) {
+				// Was not successful...
+				retErrNum=1144;
+				retErr="ERROR: Save record failed. [err1144]<br>";
+				if (SITE.DebugMode>0) { retErr += "<br>Status=" + cms.db.CmdStatus + ", Msg=" + cms.db.CmdStatusMessage; }
+				ret=CreateErrorJson(retErrNum,retErr);
+				Content.Append(ret.jsonString);
+				return; 
+				}
+			else { // Successful save
+				try {
+				  // WriteToFiles (if specified)
+				  iesJSON WriteToFiles=editlistj["WriteToFiles"];
+				  if (WriteToFiles.jsonType=="array") {
+				    foreach (iesJSON WriteToFile in WriteToFiles) {
+						string writeField=WriteToFile["Field"].ToStr();
+						string writePath=WriteToFile["FilePath"].ToStr();
+						string fileData=FormData[writeField].ToStr();
+						string fileHeader="";
+						// Check if we need to include a Header...
+						if (WriteToFile["IncludeJsonHeader"].ToStr().ToLower()=="true") {
+						  // Here we copy the FormData object without the HeaderExcludes fields
+						  string [] exclude=WriteToFile["headerExcludes"].ToStr().ToLower().Split(',');
+						  iesJSON fileHead=new iesJSON("{}");
+						  foreach (iesJSON jj in FormData) {
+						    if (!exclude.Contains(jj.Key.ToLower())) {
+							  fileHead[jj.Key].Value=jj.ToStr();
+							  }
+						    }
+						  fileHeader="[[" + fileHead.jsonString + "]]";
+						  }
+						// Replace tags in FilePath - Only a few valid tags at the moment.  FUTURE: Expand this list of valid tags
+						iesJSON tTags=new iesJSON("{}");
+						tTags["pageid"].Value=FormData["pageid"].ToStr();
+						tTags["contentFolder"].Value=SITE.ContentFolder;
+						tTags["templateFolder"].Value=SITE.TemplateFolder;
+						writePath=Util.ReplaceTags(writePath,tTags,true,"{{","}}");
+						
+						// Write file
+						try {
+							using (StreamWriter sw = File.CreateText(writePath))
+							{
+								sw.WriteLine(fileHeader);
+								sw.WriteLine(fileData);
+							}
+						} catch { } // FUTURE: Log error?
+						
+						} // end foreach
+				  } // end if (WriteToFiles.jsonType="array")
+				} catch { } // FUTURE: Warn the user that the after processing failed?
+				if (flags.IndexOf("aftersaveevent")>=0) {
+					try {
+							//Custom.AfterSaveEvent(OldData,FormData,table,pk,newrec);
+							eventReturn=null;
+							eventReturn=Custom.Exec("aftersaveevent",eventData);
+							// FUTURE: check return for success?
+					} catch { } // FUTURE: Warn the user that the after processing failed?
+			} // end if
+		} // end else - successful save
+	} // end try
+		catch (Exception e2) { 
+			Content.Append("ERROR: Save record failed. [err1134]<br>"); 
+			if (SITE.DebugMode>0) { Content.Append("<br>" + e2.ToString());} 
+			try { cms.db.Close(); } catch {}
+			return; }
+		}
+		try { cms.db.Close(); } catch {}
+		
+		// Update AFTER
+		if (retErr=="") {
+			if (editlistj.Contains("UpdateAfter")) { UpdateAfter(FormData,editlistj["UpdateAfter"],ref retErr); }
+		}
+		
+		//Content.Append(FormData.jsonString);
+		if (retErr=="") {
+			Content.Append("success:"+ pk + ":"+FormData[pk].Value);
+		} else {
+			Content.Append("ERROR: " + retErr);
+			}
+	}
+	
+	void GenerateEditConfig(StringBuilder Content) { 
+		// Get URL Parameters
+		string urlClass="eclass-edit-" + cms.UrlParam("class");
+		string urlFile=cms.UrlParam("file");
+		string urlFile2=SITE.ConfigFolder + "\\" + urlFile;
+		if (Util.Right(urlFile2,4).ToLower() != ".cfg") { urlFile2+=".cfg"; }
+		
+		// Load CLASS JSON
+		iesJSON editClass=LoadJsonConfig(urlClass,true);
+		
+		// Check permissions
+		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
+		if (cms.UserLevel<EditSecLevel) {
+			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err4444] [" + urlClass + "]<br><br><br>");
+			return;
+			}
+			
+		// Load Config File (as one large block of text)
+		string configData="";
+		if (!System.IO.File.Exists(urlFile2)) {
+			Content.Append("<br><br><b>File not found [err4447]:</b> " + urlFile2 + " <br><br><br>");
+			return;
+			}
+		Util.ReadFile(urlFile2, ref configData);
+		if (configData=="") {
+			Content.Append("<br><br><b>No config data [err4448]:</b> " + urlFile2 + " <br><br><br>");
+			return;
+			}
+			
+		// Make Page Header
+		Content.Append("<HTML><BODY>\n");
+		Content.Append("<h2>Admin Edit Config: " + urlFile + "</h1>\n");
+
+		// Make Page Edit Area
+		Content.Append("<input type='button' id='Save' value='Save' onClick='btnSave(false);' /> &nbsp; <input type='button' id='SaveClose' value='Save/Close' onClick='btnSave(true);' /> &nbsp; <input type='button' id='Close' value='Cancel/Close' onClick='btnClose();' /><br>\n");
+		Content.Append("<div id='EditArea' style='background:#FFFFFF;'></div>\n");
+		Content.Append("</BODY></HTML>\n");
+		
+		// NOTE: In order to send [[ symbols to the web page, the configData needs to have [[+ each place there is a [[
+		configData=configData.Replace("[[","[[+");
+		
+		// Append Class/Config
+		editClass.UseFlexJson=false;
+		editClass.InvalidateJsonString();
+		Content.Append("<script>\n\n");
+		Content.Append("var editClass='" + urlClass + "';\n");
+		Content.Append("var editFile='" + urlFile + "';\n\n");
+		Content.Append("var cfgClass=" + editClass.jsonString + ";\n\n");
+		Content.Append("var cfgData=\"" + editClass.EncodeString(configData) + "\";\n\n");
+		Content.Append("<" + "/" + "script>\n");
+	}
+	
+	void SaveConfig(StringBuilder Content) { 
+		// Get URL Parameters
+		string urlClass=cms.UrlParam("class");
+		string urlFile=cms.UrlParam("file");
+		string urlFile2=SITE.ConfigFolder + "\\" + urlFile;
+		string configData=cms.FormParam("cfgData");
+		
+		if (Util.Right(urlFile2,4).ToLower() != ".cfg") { urlFile2+=".cfg"; }
+		
+		// Load CLASS JSON
+		iesJSON editClass=LoadJsonConfig(urlClass,true);
+		
+		// Check permissions
+		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
+		if (cms.UserLevel<EditSecLevel) {
+			Content.Append("ERROR: Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err5555]");
+			return;
+			}
+		
+		// Save Config File (as one large block of text) - overwrite if already exists (which it should)
+		// FUTURE: Create a backup of the previous config file first!
+		try {
+			bool writeSuccess=Util.WriteFile(urlFile2,ref configData,true);
+			if (writeSuccess==true) {
+				Content.Append("success");
+			} else {
+				Content.Append("ERROR: Failed to save config data. [err3901]");
+			}
+			return;
+		} catch { }
+		Content.Append("ERROR: Failed to save config data. [err3902]");
+	}
+	
+	void GenerateEditRecord(StringBuilder Content) { // FUTURE: Why are we using this and not admin-editlist-form?
+		// Get URL Parameters
+		string urlClass="eclass-edit-" + cms.UrlParam("class");
+		string urlKey=cms.UrlParam("key");
+		string urlFile2="";
+		string urlFile="";
+		
+		// Load CLASS JSON
+		iesJSON editClass=LoadJsonConfig(urlClass,true);
+		
+		// Check permissions
+		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
+		if (cms.UserLevel<EditSecLevel) {
+			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err4444]<br><br><br>");
+			return;
+			}
+			
+		// Build the data form...
+		iesJSON fields=editClass["EditFields"];
+		
+		string getSQL="SELECT * FROM ";
+		if (!System.IO.File.Exists(urlFile2)) {
+			Content.Append("<br><br><b>File not found [err4447]:</b> " + urlFile2 + " <br><br><br>");
+			return;
+			}
+			/*
+		Util.ReadFile(urlFile2, ref configData);
+		if (configData=="") {
+			Content.Append("<br><br><b>No config data [err4448]:</b> " + urlFile2 + " <br><br><br>");
+			return;
+			}
+			*/
+			
+		// Make Page Header
+		Content.Append("<HTML><BODY>\n");
+		Content.Append("<h2>Admin Edit Config: " + urlFile + "</h1>\n");
+
+		// Make Page Edit Area
+		Content.Append("<input type='button' id='Save' value='Save' onClick='btnSave(false);' /> &nbsp; <input type='button' id='SaveClose' value='Save/Close' onClick='btnSave(true);' /> &nbsp; <input type='button' id='Close' value='Cancel/Close' onClick='btnClose();' /><br>\n");
+		Content.Append("<div id='EditArea' style='background:#FFFFFF;'></div>\n");
+		Content.Append("</BODY></HTML>\n");
+		
+		// NOTE: In order to send [[ symbols to the web page, the configData needs to have [[+ each place there is a [[
+		//configData=configData.Replace("[[","[[+");
+		
+		// Append Class/Config
+		editClass.UseFlexJson=false;
+		editClass.InvalidateJsonString();
+		Content.Append("<script>\n\n");
+		Content.Append("var editClass='" + urlClass + "';\n");
+		Content.Append("var editFile='" + urlFile + "';\n\n");
+		Content.Append("var cfgClass=" + editClass.jsonString + ";\n\n");
+		//Content.Append("var cfgData=\"" + editClass.EncodeString(configData) + "\";\n\n");
+		Content.Append("<" + "/" + "script>\n");
+	}
+	
+	void LookupFields(iesJSON FormData, iesJSON Lookups, ref string retErr) {
+		string sql="";
+		foreach (iesJSON Lookup in Lookups) {
+		  string sSelect=Lookup["select"].CString();
+		  iesJSON flds=Lookup["fields"];
+		  // build query
+		  try {
+		  sql=Util.ReplaceTags(sSelect,FormData,true,"[[","]]");
+		  iesJSON rec=cms.db.GetFirstRow(sql);
+		  //rec=rec[0];  // Get first row (if none, then rec will = null)  // NO LONGER NEEDED - CHANGE TO LIBRARY - TKT 5/13/2016
+		  if (rec.jsonType=="object") {
+			// Found lookup row
+			foreach (iesJSON fld in flds) {
+				string v=fld.CString();
+				if (v.IndexOf("[[")<0) {
+					v=rec[v].CString();
+				} else {
+					v=Util.ReplaceTags(v,rec,true,"[[","]]");
+				}
+				FormData[fld.Key].Value=v;
+			}
+		  } else {
+			retErr="ERROR: Failed to perform Lookup [err4919] (" + sql + ")";
+			}
+		} catch (Exception e12) { 
+				retErr="ERROR: Lookup query failed. [err4917]";
+				if (SITE.DebugMode>0) { retErr=retErr + " (" + sql + ") " + e12.ToString(); }
+				}
+		}
+	}
+	
+	void UpdateAfter(iesJSON FormData, iesJSON UpdateList, ref string retErr) {
+		string sql="";
+		foreach (iesJSON updRec in UpdateList) {
+		  string sPreSQL=updRec["sql"].CString();
+		  
+		  // build query
+		  try {
+			sql=Util.ReplaceTags(sPreSQL,FormData,true,"[[","]]");
+			cms.db.ExecuteSQL(sql);
+		  } catch (Exception e18) { 
+				retErr="ERROR: UpdateAfter script failed. [err4933]";
+				if (SITE.DebugMode>0) { retErr=retErr + " (" + sql + ") " + e18.ToString(); }
+				}
+		}
+	}
+	
+	void UniqueCheck(iesJSON FormData, iesJSON Unique, int newrec, string pk, ref string retErr) {
+		string w="";
+		int k=0;
+		//string pk=editlistj["PrimaryKey"].CString();
+		string tbl=editlistj["Table"].CString();
+		foreach (iesJSON Fld in Unique) {
+			string sFld=Fld.CString();
+			if (k>0) { w=w + " AND "; }
+			w=w + " " + sFld + "=" + iesDBlib.iesDB.dbStr(FormData[sFld].CString());
+			k++;
+		}
+		string sWhere=editlistj["WHERE"].CString().Trim();
+		if (sWhere!="") { sWhere=" AND " + sWhere; }
+		if (newrec==1) {
+			w="WHERE " + w + sWhere;
+		} else {
+			w="WHERE " + pk + " != " + iesDBlib.iesDB.dbStr(FormData[pk].CString()) + " AND " + w + sWhere; 
+		}
+		int rCount=cms.db.GetCount(tbl,w);
+		if (rCount>0) { retErr="Unique check failed. [err4199]"; }
+		if (rCount<0) { retErr="Failed too execute unique check. [err4198]"; }
+	}
+	
+	iesJSON ReadEditParams(iesJSON editclass,ref string retErr,ref int retErrNum) {
+		iesJSON Bucket=new iesJSON("{}");
+		bool ReadAllParams=false;
+		if (editclass["ShowAllParams"].CString().Trim().ToLower()=="true") {ReadAllParams=true;}
+		iesJSON pkField = new iesJSON("{}");
+		pkField.AddToObjBase("Field",editclass["PrimaryKey"]);
+		pkField.AddToObjBase("Type","text");
+		pkField.AddToObjBase("Width",60);
+		pkField.AddToObjBase("Height",null);
+		pkField.AddToObjBase("Flags","b");
+		pkField.AddToObjBase("Alias",editclass["PrimaryKey"]);
+		pkField.AddToObjBase("FieldType",null);
+	
+		iesJSON AdjustedField = editclass["EditFields"];
+		AdjustedField.AddToArrayBase(pkField);
+		
+		retErr=ReadEditParamsInto(AdjustedField,editclass["EditFields2"],Bucket,ReadAllParams);
+		if (retErr!="") { retErrNum=7979; } // err7979 - indicates a collection of errors from ReadEditParamsInto()
+		return Bucket;
+	}
+	
+	string ReadEditParamsInto(iesJSON FieldList1, iesJSON FieldList2, iesJSON Bucket, bool ReadAllParams) {
+	
+		iesJSON AlreadyProcessed=new iesJSON("{}");
+		string dbField, dbField2, dbAlias, sFlags, zFld;
+		string sFldName, sFldValue, sFieldType;
+		StringBuilder ret=new StringBuilder();
+		// FUTURE: Error Trapping?
+
+		// *** GET SPECIFIED FIELDS...
+		foreach (iesJSON iField in FieldList1) {
+			dbField=Util.NoBracket(iField["Field"].CString()).Trim();
+			dbAlias=iField["Alias"].CString().Trim();
+			if (dbAlias=="") { dbAlias=dbField; }
+			dbField2=dbField.Trim().ToLower();
+			sFldName="fld_" + dbField;
+			
+			sFlags=iField["Flags"].CString();
+			sFieldType=iField["Type"].CString().Trim().ToLower();
+			
+			//if (sFieldType=="richtext" || sFieldType=="richtext2") { sFldName="rt_fld" + dbField; }  // Lets base the RichText on a class instead.
+			try {
+				sFldValue=cms.Request.Form[sFldName].ToString(); // CleanFieldHtml(cms.Request.Form[sFldName].ToString());
+				}
+			catch (Exception e3) {
+				sFldValue="";
+				ret.Append("Field not found. [" + sFldName + "]\n");
+				}
+				
+			if (sFlags.IndexOf("t")>=0) { sFldValue=sFldValue.Trim(); }
+			if (sFlags.IndexOf("r")>=0) { // Required Field
+				if (String.IsNullOrWhiteSpace(sFldValue)) {ret.Append("Required field missing: " + dbAlias + "\n");} 
+				}
+			
+			// FUTURE: Do we need to do something if this is a NEW items and the user did not enter a Primary Key value?
+			//    or do something if they must enter a primary key and did not?
+			
+			// *** USER CANNOT SET THE USER LEVEL TO A VALUE HIGHER THAN THEIR USER LEVEL!
+			if (dbField2=="level") {
+				int lvl=0;
+				lvl=Util.ToInt(sFldValue);
+				if (lvl.ToString()!=sFldValue) { lvl=0; } // SAFETY!  FUTURE: Also need to flag an error here!
+				if (lvl<=cms.UserLevel) { Bucket.AddToObjBase(dbField,lvl); }
+						  
+				} // if (dbField2=="level")
+			else {
+				bool fldOK=false, isJson=false, isJsonString=false;
+				string jsonObjName="", jsonParam="";
+				int ptr=0;
+				ptr=dbField2.IndexOf(".");
+				if (ptr>0) {
+					// Field within JSON parameter - make sure parameter is set as JSON
+					isJson=true;
+					jsonObjName=Util.Left(dbField2,ptr);
+					jsonParam=Util.Mid(dbField2,ptr+1);
+					iesJSON jCheck=Bucket[jsonObjName];
+					if (jCheck.jsonType.ToLower()!="object") { 
+						// Create an empty Object to collect the JSON values
+						Bucket.AddToObjBase(jsonObjName,iesJSON.CreateEmptyObject()); 
+					}
+				}
+				string v="";
+				switch (sFieldType) {
+					case "password":
+						// *** PASSWORDS MUST BE AT LEAST 3 CHARACTERS AND CANNOT BE ALL "*" SYMBOLS
+						if ((sFldValue.Length >= 3) && (sFldValue.Replace("*","")!="")) { v=sFldValue; fldOK=true; }
+						break;
+					case "date":
+						v=ValidateDateField(sFldValue);
+						if (v=="" && sFldValue!="") { break; }  // FUTURE: We need to flag this as an error!
+						else { fldOK=true; }
+						break;
+					case "datetime":
+						v=ValidateDateTimeField(sFldValue);
+						if (v=="" && sFldValue!="") { break; }  // FUTURE: We need to flag this as an error!
+						else { fldOK=true; }
+						break;
+					case "richtext":
+						//Util.LogToFile(HttpUtility.HtmlDecode(sFldValue),"DEBUG-HtmlDecode"); //DEBUG
+						v=HttpUtility.HtmlDecode(sFldValue);
+						Util.ReplaceUnicode(true,ref v); // Replace things such as left-single-quote with HTML equivalent
+						fldOK=true;
+						//Bucket.AddToObjBase(dbField,HttpUtility.HtmlDecode(sFldValue));
+						//Util.LogToFile(Bucket.jsonString,"DEBUG-json"); //DEBUG
+						break;
+					case "json_list":
+						v=sFldValue;
+						fldOK=true;
+						isJsonString=true;
+						break;
+					default:
+						v=sFldValue;
+						fldOK=true;
+						break;
+					} // switch
+					if (fldOK) { 
+					 if (!isJson) {
+					  Bucket.AddToObjBase(dbField,v); 
+					 } else {
+					  if (!isJsonString) {
+						//zzz=zzz+"(" + dbField2 + "~" + v + ")";
+						Bucket[dbField2].Value=v;
+					  } else {
+						Bucket[dbField2]=new iesJSON(v);
+					  }
+					 }
+					}
+				} // else
+
+			if (ReadAllParams) { AlreadyProcessed.AddToObjBase(dbField,""); }
+
+		} // foreach
+
+// *** FUTURE: Process zFields2
+
+if (ReadAllParams) {
+
+  // *** GET ALL FIELDS...
+  foreach (string dbFld in cms.Request.Form) {
+		dbField2=dbFld.Trim().ToLower();
+		if (!AlreadyProcessed.Contains(dbFld) && Util.Left(dbField2,4)=="fld_" ) {  // Only process if not already processed above AND if field name begins with "fld"
+      		// *** We do NOT DISPLAY Params/rParams/_json as a field!  (Params becomes broken out into separate fields)
+			if (dbField2!="params" && dbField2!="rparams" && dbField2!="_json") {
+				sFldName=dbFld.Substring(4);
+				sFldValue=cms.Request.Form[dbFld].ToString(); // CleanFieldHtml(Request.Form(dbFld).ToString());
+
+				Bucket.AddToObjBase(dbFld,sFldValue);
+			} // if (dbField2!="params" && dbField2!="rparams" && dbField2!="_json")
+		} // if (!AlreadyProcessed.Contains(dbFld))
+  } // foreach
+} // if (ReadAllParams)
+
+/* FUTURE: 
+
+   '*** If AddDelFields exists - we must process the AddDel feature
+   '*** It contains a comma separated list of fields to add (or delete)
+   '*** Fields preceeded by a minus sign will be DELETED instead of added.
+   'Dim sAddDel as String, aAddDel as Object, nAddDel as Object, sOneFld as String
+
+   sAddDel=Request.Form("AddDelFields") & ""
+
+   Err.Clear
+   If sAddDel<>"" Then
+	aAddDel=Split(sAddDel,",")
+	For Each nAddDel in aAddDel
+	  sOneFld=Trim(nAddDel & "")
+	  If Left(sOneFld,1)="-" Then
+		'*** DELETE FIELD
+		sOneFld=Trim(Mid(sOneFld,2))
+		If sOneFld<>"" Then 
+
+			zwObj.baselist.Remove(sOneFld)
+			Err.Clear
+
+		End If
+	  Else
+	    If Left(sOneFld,1)="+" Then sOneFld=Trim(Mid(sOneFld,2))  '*** Just incase there is a + symbol
+	    '*** Add Field
+	    If sOneFld<>"" and Not(zwObj.baselist.ContainsKey(sOneFld)) Then zwObj.Param(sOneFld)=""
+	  End If
+	Next
+   End If
+   
+*/
+	return ret.ToString();
+	
+	} // end function
+	
+	/* FUTURE: Is this not needed?!?!
+string CleanFieldHtml(ref string sStr) {
+	StringBuilder newStr=new StringBuilder(sStr);
+	Dim sMatch as Object, k as Integer, safety as Integer, iPtr as Integer
+	sMatch=SPLIT("&ldquo;|""|&rdquo;|""|&lsquo;|'|&rsquo;|'","|")
+	safety=99999
+	For k=0 To sMatch.Length-1 Step 2
+		Do While true=true
+			iPtr=newStr.ToString().IndexOf(sMatch(k), 0, StringComparison.CurrentCultureIgnoreCase)
+			If iPtr<0 Then Exit Do
+			newStr.Remove(iPtr,sMatch(k).Length)
+			newStr.Insert(iPtr,sMatch(k+1))
+			safety=safety-1
+			If safety<0 Then Exit Do
+		Loop
+		safety=safety-1
+		If safety<0 Then Exit For
+	Next
+	return newStr.ToString();
+} // end function
+*/
+
+	
+	string ValidateDateField(string sVal) {
+	try {
+		DateTime d=DateTime.Parse(sVal);
+		string ret=d.ToString("yyyy-MM-dd");
+		return ret;
+		}
+		catch (Exception e) { return ""; }
+	}
+	
+	string ValidateDateTimeField(string sVal) {
+	try {
+		DateTime d=DateTime.Parse(sVal);
+		string ret=d.ToString("yyyy-MM-dd HH:mm:ss");
+		return ret;
+		}
+		catch (Exception e) { return ""; }
+	}
+
+	int EditFormSecurityLevel() {
+		int Permit=0;  //Default=No Access
+		int ViewSecLevel=editlistj["ViewSecLevel"].ToInt(99);
+		int EditSecLevel=editlistj["EditSecLevel"].ToInt(99);
+		int AdminSecLevel=editlistj["AdminSecLevel"].ToInt(99);
+		// FUTURE: If flag OwnerCanEdit, then check the owner of the object and if that is this user, allow edit.
+		if (cms.UserLevel>=ViewSecLevel) { Permit=1; }   //Allow VIEW ONLY Mode
+		if (cms.UserLevel>=EditSecLevel) { Permit=3; }   //Allow Edit Mode
+		if (cms.UserLevel>=AdminSecLevel) { Permit=7; }  //Allow Admin Mode
+		return Permit;
+	}
+	
+	// UnpakParamPak - TEMPORARY ROUTINE - used to unpack the old wObject format and put it into the new JSON format
+	public static void UnpakParamPak(iesJSON jRec) {
+		if (jRec["StorFormat"].CString().ToLower()!="parampak") { return; } // Only unpak "ParamPak" records
+		string Params=jRec["Params"].CString();
+//		if (Params!="") {
+//		}
+		jRec.RemoveFromBase("Params");
+		jRec.RemoveFromBase("rParams");
+		jRec["StorFormat"].Value="json";
+	}
+	
+	//Begin OutputJSON Function (AYO)
+	public void OutputJSON(iesJSON output)
+        {
+            HttpContext.Current.Response.Clear();
+            HttpContext.Current.Response.ContentType = "application/json; charset=utf-8";
+            HttpContext.Current.Response.Write(output.jsonString);
+            HttpContext.Current.Response.End();
+        }
+
+	public void SaveFormToLog(iesJSON FormFields) {
+		// Save FormFields as is (should already have FormID and WorldID specified)
+		// FUTURE: Verify WorldID? Or overwrite so it is never wrong?
+		FormFields.AddToObjBase("WorldID",cms.World);
+		// Save to wlog table
+		cms.db.Open();  // FUTURE: Does iesDB open/close for us?
+		cms.db.SaveRecord(FormFields,"wlog","wLogID",1,true,false,false);
+		cms.db.Close(); // FUTURE: Does iesDB open/close for us?
+
+	} // end SaveFormToLog()
+	
+	public void WriteTrakClick(iesJSON TrakClickFields,string cmd, bool FillWorld=true, bool FillPage=true, bool FillTimestamp=true, bool FillHTTP=true, bool FillUser=true) {
+		try {
+			iesJSON trackClickRecord = TrakClickFields.Clone();
+			if (cmd != "") { trackClickRecord.Add("cmd",cmd); }
+			if (FillWorld) { trackClickRecord.Add("WorldID",cms.World); }
+			if (FillTimestamp) { trackClickRecord.Add("tstamp",iesDB.dbDateTime(DateTime.Now,"DT")); }
+			if (FillPage) { trackClickRecord.Add("WebPage",cms.PageID); }
+			if (FillHTTP) {
+				trackClickRecord.Add("HTTP_USER_AGENT",cms.Request.ServerVariables["HTTP_USER_AGENT"]);
+				trackClickRecord.Add("REMOTE_ADDR",cms.Request.ServerVariables["REMOTE_ADDR"]);
+				trackClickRecord.Add("REMOTE_HOST",cms.Request.ServerVariables["REMOTE_HOST"]);
+				trackClickRecord.Add("URL",cms.Request.ServerVariables["URL"]);
+			}
+			// Track User/Email if the user is logged into the portal
+			if (FillUser) {
+				if (UserLoggedIn()) {
+					trackClickRecord.Add("UserNo",cms.UserNo + "");
+					trackClickRecord.Add("uID",cms.UserID);
+					trackClickRecord.Add("UserName",cms.UserName);
+					//FUTURE: TODO: Get/Track User Email?
+				}
+			}
+			cms.db.Open();
+			cms.db.SaveRecord(trackClickRecord, "trakclicks", "TrakKey", 1, true, false, false);
+			cms.db.Close();
+		} catch (Exception errTrak) {
+			cms.Response.Write("ERROR-DEBUG: err4945: WriteTrakClick failed: " + errTrak.ToString()); 
+		}
+	}
+
+
+
+/******************************************** MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+	// FUTURE - MOVE THESE TO SITE CLASS
+	string logTable="debuglog";
+	string logTablePrimaryKey="DebugKey";
+	
+	//Begin ManageData Functions (AYO)
+	
+	//Begin Log Function  (AYO)
+        private void LogInformation(string type, iesJSON details){
+            //return if our data is empty
+            if (String.IsNullOrWhiteSpace(type)){
+                return;
+            }
+
+            if (details.Length == 0){
+                return;
+            }
+
+            //Set our time to EST
+            DateTime timeUtc = DateTime.UtcNow;
+            TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
+
+
+            iesJSON logInfo = new iesJSON("{}");
+			logInfo["WorldID"].Value = cms.World;
+            logInfo["DebugCode"].Value = type;
+            logInfo["Details"].Value = details.jsonString;
+            logInfo["Created"].Value = easternTime.ToString("yyyy-MM-dd HH:mm:ss");
+            cms.db.Open();
+            cms.db.SaveRecord(logInfo,logTable,logTablePrimaryKey,-1,true,false, true);
+            cms.db.Close();
+        }
+        //End Log Function
+	
+        //Begin Import Files - (AYO)
+        public iesJSON listContentFiles(){
+            string oldRecordQuery;
+
+            oldRecordQuery = string.Empty;
+
+            ArrayList existingPages  = new ArrayList();
+
+            iesJSON reportResults   = new iesJSON("{}");
+            iesJSON oldRecords      = new iesJSON("{}");
+            iesJSON fileResults     = new iesJSON("[]");
+            iesJSON header          = new iesJSON("[]");
+
+            iesJSON firstLineJSON   = new iesJSON();
+
+            string[] neededColumns = {"title", "page_title"};
+
+            reportResults["success"].Value = "false";
+
+            //we should look through the content folder and get all the files
+            DirectoryInfo d = new DirectoryInfo(SITE.ContentFolder);
+            FileInfo[] Files = d.GetFiles("*.cfg"); //Getting cfg files
+
+            //we should compare this list to what's in the db,
+            oldRecordQuery = "SELECT `pageid` FROM `wikipages` WHERE `worldid` = '" + SITE.World + "'";
+            oldRecords = cms.db.GetDataReaderAll(oldRecordQuery);
+
+            foreach (iesJSON singleOldRecord in oldRecords){
+                existingPages.Add(singleOldRecord["pageid"].CString());
+            }
+
+            //TODO: Compare paged id
+            foreach(FileInfo file in Files)
+            {
+                if (file.Extension.ToLower() == ".cfg"){
+                    //we need the title
+                    string fileNameNoExtension = Path.GetFileNameWithoutExtension(file.Name);
+
+                    iesJSON singleFile = new iesJSON("{}");
+                    if (existingPages.Contains(fileNameNoExtension)){
+                        singleFile["File Status"].Value = "<span class='existingFile'>*Existing*</span>";
+                    }else{
+                        singleFile["File Status"].Value = "<span class='newFile'>*New*</span>";
+                    }
+                    singleFile["Page ID"].Value = fileNameNoExtension;
+
+                    foreach(string thisColumn in neededColumns){
+                        singleFile[thisColumn].Value = "";
+                    }
+
+                    //Get the title of the files
+                    string firstLine = "";
+                    using (StreamReader reader = new StreamReader(file.FullName)) {
+                        firstLine = reader.ReadLine();
+                    }
+
+                    if (!String.IsNullOrWhiteSpace(firstLine)){
+                        int endFind = firstLine.IndexOf("]]");
+                        if (endFind > 0){
+                            endFind = endFind - 2;
+                            firstLine = firstLine.Substring(2, endFind);
+                        }else{
+                            firstLine = firstLine.Substring(2, firstLine.Length - 2);
+                        }
+
+                        try {
+                            firstLineJSON.UseFlexJson=true;
+                            firstLineJSON.Deserialize(firstLine);
+                        }catch(Exception ex){
+                            iesJSON details = new iesJSON("{}");
+                            details["exception_type"].Value =  ex.GetType();
+                            details["exception_message"].Value =  ex.Message;
+                            details["stack_trace"].Value =  ex.StackTrace;
+                            LogInformation("listContentFiles",details);
+                        }
+
+                        if (firstLineJSON.Length > 0){
+                            foreach (iesJSON pageDetail in firstLineJSON){
+                                if (neededColumns.Contains(pageDetail.Key.ToLower())){
+                                    singleFile[pageDetail.Key].Value = pageDetail.CString();
+                                }
+                            }
+                        }
+                    }
+
+                    fileResults.AddToArrayBase(singleFile);
+                }
+            }
+
+            List<string> columnHeaders = new List<string>(new string[] {"Select All","File Status","Page ID","title","page_title"});
+
+            foreach (string singleHead in columnHeaders){
+                iesJSON columnHead = new iesJSON("{}");
+                TextInfo textInfo = new CultureInfo("en-US",false).TextInfo;
+                string tempTitle = singleHead.Replace('_',' ');
+                columnHead["title"].Value = textInfo.ToTitleCase(tempTitle);
+                columnHead["data"].Value = singleHead;
+                header.AddToArrayBase(columnHead);
+            }
+
+            reportResults["success"].Value      = "true";
+            reportResults["columns"]            = header;
+            reportResults["data"]               = fileResults;
+
+            return reportResults;
+        }
+		
+		// BEGIN EDIT FILES - (AYO) 
+		public iesJSON listAllFiles(){
+            iesJSON reportResults = new iesJSON("{}");
+            iesJSON fileResults = new iesJSON("[]");
+            iesJSON header = new iesJSON("[]");
+            iesJSON firstLineJSON = new iesJSON();
+
+            string[] neededColumns = {"title", "page_title"};
+
+            reportResults["success"].Value = "false";
+
+            //we should look through the content folder and get all the files
+            DirectoryInfo d = new DirectoryInfo(SITE.ContentFolder);
+            FileInfo[] Files = d.GetFiles("*.cfg"); //Getting cfg files
+
+            //TODO: Compare paged id
+            foreach(FileInfo file in Files)
+            {
+                if (file.Extension.ToLower() == ".cfg"){
+                    string fileNameNoExtension = Path.GetFileNameWithoutExtension(file.Name);
+
+                    iesJSON singleFile = new iesJSON("{}");
+                    singleFile["Page ID"].Value = fileNameNoExtension;
+
+                    foreach(string thisColumn in neededColumns){
+                        singleFile[thisColumn].Value = "";
+                    }
+
+                    //Get the title of the files
+                    string firstLine = "";
+                    using (StreamReader reader = new StreamReader(file.FullName)) {
+                        firstLine = reader.ReadLine();
+                    }
+
+                    if (!String.IsNullOrWhiteSpace(firstLine)){
+                        int endFind = firstLine.IndexOf("]]");
+                        if (endFind > 0){
+                            endFind = endFind - 2;
+                            firstLine = firstLine.Substring(2, endFind);
+                        }else{
+                            firstLine = firstLine.Substring(2, firstLine.Length - 2);
+                        }
+
+                        try {
+                            firstLineJSON.UseFlexJson=true;
+                            firstLineJSON.Deserialize(firstLine);
+                        }catch(Exception ex){
+                            iesJSON details = new iesJSON("{}");
+                            details["exception_type"].Value =  ex.GetType();
+                            details["exception_message"].Value =  ex.Message;
+                            details["stack_trace"].Value =  ex.StackTrace;
+                            LogInformation("listContentFiles",details);
+                        }
+
+                        if (firstLineJSON.Length > 0){
+                            foreach (iesJSON pageDetail in firstLineJSON){
+                                if (neededColumns.Contains(pageDetail.Key.ToLower())){
+                                    singleFile[pageDetail.Key].Value = pageDetail.CString();
+                                }
+                            }
+                        }
+                    }
+
+                    fileResults.AddToArrayBase(singleFile);
+                }
+            }
+
+            List<string> columnHeaders = new List<string>(new string[] {"Edit","Page ID","title","page_title"});
+
+            foreach (string singleHead in columnHeaders){
+                iesJSON columnHead = new iesJSON("{}");
+                TextInfo textInfo = new CultureInfo("en-US",false).TextInfo;
+                string tempTitle = singleHead.Replace('_',' ');
+                columnHead["title"].Value = textInfo.ToTitleCase(tempTitle);
+                columnHead["data"].Value = singleHead;
+                header.AddToArrayBase(columnHead);
+            }
+
+            reportResults["success"].Value      = "true";
+            reportResults["columns"]            = header;
+            reportResults["data"]               = fileResults;
+
+            return reportResults;
+        } // END EDIT FILES
+		
+		public iesJSON editFile(string fileName){
+
+            iesJSON fileResults = new iesJSON("{}");
+            iesJSON fileDetails = new iesJSON("{}");
+            iesJSON tagHolder = new iesJSON("{}");
+            iesJSON firstLineJSON = new iesJSON();
+
+            string templateFileName, templatePath, templateFileHolder, filePath, fileHolder, firstLine, restOfFile;
+            templateFileName = templatePath = templateFileHolder = filePath = fileHolder = firstLine = restOfFile = string.Empty;
+
+            List<string> matches = new List<string>();
+
+            string[] ignoreUs = {"world","origpageid","pageid","firstline","wikihtml"};
+
+            StringBuilder firstLineHTML = new StringBuilder();
+            StringBuilder contentHTML = new StringBuilder();
+
+            //Sanitize filename
+            fileName = Util.Sanitize(fileName);
+
+            fileResults["success"].Value = "false";
+
+            if (String.IsNullOrWhiteSpace(fileName)){
+                fileResults["errors"].Value = "No File Selected";
+                return fileResults;
+            }
+			
+			templateFileName = "template_edit_file.cfg";
+            templatePath = SITE.ConfigFolder + @"\" + templateFileName;
+			if (!File.Exists(templatePath)) { templatePath = SERVER.ConfigFolder + @"\" + templateFileName; }
+
+            //check for the template
+            if (File.Exists(templatePath)){
+                templateFileHolder = File.ReadAllText(templatePath);
+            }else{
+                fileResults["errors"].Value = "Unable to find template.";
+                return fileResults;
+            }
+
+            if (String.IsNullOrWhiteSpace(templateFileHolder)){
+                fileResults["errors"].Value = "Template is empty";
+                return fileResults;
+            }
+
+            //try to find the selected file
+            filePath = SITE.ContentFolder + "/" + fileName + ".cfg";
+
+            if (!File.Exists(filePath)){
+                fileResults["errors"].Value = "Unable to find selected file.";
+                return fileResults;
+            }
+
+            / *
+                if the file is empty that's ok we don't care
+                TODO: if the file is in the db what should we do
+                Currently ignoring db file and just dismantling the file and displaying it
+                Taking the first line of the file and separating it
+                some of the older files have weird notation so creating a separate line so those can be edited
+            * /
+
+            string regexPattern = @"\[\[(.*?)\]\]";
+            Regex re = new Regex(regexPattern);
+
+            foreach (Match m in re.Matches(templateFileHolder))
+            {
+                matches.Add(m.Value.Replace("[[","").Replace("]]",""));
+            }
+
+            //get the first line of the file and break it up
+            using (StreamReader reader = new StreamReader(filePath)) {
+                firstLine = reader.ReadLine();
+                restOfFile = reader.ReadToEnd();
+            }
+
+            //World
+            tagHolder["world"].Value = SITE.World;
+            tagHolder["origpageid"].Value = fileName;
+
+            //Pageid
+            tagHolder["pageid"].Value = "<input type='text' class='form-control' id='pageid' name='pageid' value='" + fileName + "'>";
+
+            if (!String.IsNullOrWhiteSpace(firstLine)){
+                int endFind = firstLine.IndexOf("]]");
+                if (endFind > 0){
+                    endFind = endFind - 2;
+                    firstLine = firstLine.Substring(2, endFind);
+                }else{
+                    firstLine = firstLine.Substring(2, firstLine.Length - 2);
+                }
+
+                try {
+                    firstLineJSON.UseFlexJson=true;
+                    firstLineJSON.Deserialize(firstLine);
+                }catch(Exception ex){
+                    iesJSON details = new iesJSON("{}");
+                    details["exception_type"].Value =  ex.GetType();
+                    details["exception_message"].Value =  ex.Message;
+                    details["stack_trace"].Value =  ex.StackTrace;
+                    LogInformation("listContentFiles",details);
+                }
+
+                if (firstLineJSON.Length > 0){
+                    foreach (iesJSON pageDetail in firstLineJSON){
+                        fileDetails[pageDetail.Key].Value = pageDetail.CString();
+                    }
+                }
+            }
+
+            //First line
+            //firstLineHTML.Append("<label for='firstline'>First Line</label>");
+            //firstLineHTML.Append("<input type='text' class='form-control' id='firstline' name='firstline' value='" + firstLine + "'>");
+            //tagHolder["firstline"].Value = firstLineHTML.ToString();
+
+            //wikihtml
+            contentHTML.Append("<label for='content'>Content</label>");
+            contentHTML.Append("<textarea class='form-control richtext' id='content' name='content' rows='20' cols='300'>");
+            contentHTML.Append(restOfFile);
+            contentHTML.Append("</textarea>");
+            tagHolder["wikihtml"].Value = contentHTML.ToString();
+
+            //put the pieces together
+            foreach (string match in matches){
+                //we should ignore some field
+                if (!ignoreUs.Contains(match.ToLower())){
+                    StringBuilder singleObject = new StringBuilder();
+                    //clean up title case the words for labels
+                    TextInfo textInfo = new CultureInfo("en-US",false).TextInfo;
+                    singleObject.Append("<input type='text' class='form-control' id='" + match.ToLower() + "' name='" + match.ToLower() + "' value='" + fileDetails[match].CString() + "'>");
+
+                    //add it to our tag holder
+                    tagHolder[match].Value = singleObject.ToString();
+                }
+            }
+
+            //Put it all together
+            foreach(iesJSON singleTag in tagHolder){
+                //try capital and lowercase
+                templateFileHolder = templateFileHolder.Replace("[[" + singleTag.Key.ToLower() + "]]", singleTag.CString());
+                templateFileHolder = templateFileHolder.Replace("[[" + singleTag.Key.ToUpper() + "]]", singleTag.CString());
+            }
+
+            //return results
+            fileResults["success"].Value = "true";
+            fileResults["form_title"].Value = "Edit " + fileName;
+            fileResults["form"].Value = templateFileHolder;
+
+            return fileResults;
+        }
+	
+		public iesJSON saveFile(iesJSON formData){
+            string oldRecordQuery, newFilePath, archiveFilePath, htmlContent, oldFileNoExtension;
+            oldRecordQuery = newFilePath = archiveFilePath = htmlContent = oldFileNoExtension = string.Empty;
+
+            iesJSON saveResults = new iesJSON("{}");
+
+            iesJSON saveObject = new iesJSON("{}");
+
+            iesJSON oldRecords = new iesJSON("{}");
+
+            saveResults["success"].Value = "false";
+
+            //parse the formData
+            string[] fixUs = {"title","page_title","content"};
+            string[] removeUs = {"worldid","pageid","tab","wiki","wikihtml","origpageid","content"};
+
+            foreach (iesJSON entry in formData){
+                //we need to fix some of the data
+                if (fixUs.Contains(entry.Key.ToLower())){
+                    saveObject[entry.Key].Value = HttpUtility.UrlDecode(entry.CString());
+                }else{
+                    saveObject[entry.Key].Value = Util.Sanitize(entry.CString());
+                }
+            }
+
+            //we need certain info like the pageid
+            if (String.IsNullOrWhiteSpace(saveObject["pageid"].CString())){
+                saveObject["pageid"].Value = "newfile" + Util.RandomString(5);
+            }
+
+            if (String.IsNullOrWhiteSpace(saveObject["origpageid"].CString())){
+                saveObject["origpageid"].Value = "new";
+            }
+
+            FileInfo oldFile = new FileInfo(SITE.ContentFolder + "/" + saveObject["origpageid"].CString());
+            oldFileNoExtension = Path.GetFileNameWithoutExtension(oldFile.Name);
+
+            archiveFilePath = SITE.ContentFolder + "/" + saveObject["origpageid"].CString().Replace(".cfg",".cfgdel");
+
+            newFilePath = SITE.ContentFolder + "/" + saveObject["pageid"].CString() + ".cfg";
+
+            if (saveObject["pageid"].CString() != saveObject["origpageid"].CString() && saveObject["origpageid"].CString() != "new"){
+                SaveFileToHistory(oldFile,true);
+
+                //we need to rename the page now
+                try {
+                    System.IO.File.Move(oldFile.FullName, archiveFilePath);
+                }catch(Exception ex){
+                    iesJSON details = new iesJSON("{}");
+                    details["exception_type"].Value =  ex.GetType();
+                    details["exception_message"].Value =  ex.Message;
+                    details["stack_trace"].Value =  ex.StackTrace;
+                    LogInformation("saveFile",details);
+                }
+            }
+
+            //Save File first then use our savetodb function
+            htmlContent = saveObject["content"].CString();
+            foreach (string removeMe in removeUs){
+                saveObject.RemoveFromBase(removeMe);
+            }
+
+            //Write to file
+            try {
+                //convert saveObject to flexJson
+                saveObject.UseFlexJson=true;
+                using (StreamWriter sw = File.CreateText(newFilePath))
+                {
+                    sw.WriteLine("[[" + saveObject.jsonString + "]]");
+                    sw.WriteLine(htmlContent);
+                }
+            }catch(Exception ex){
+                iesJSON details = new iesJSON("{}");
+                details["exception_type"].Value =  ex.GetType();
+                details["exception_message"].Value =  ex.Message;
+                details["stack_trace"].Value =  ex.StackTrace;
+                LogInformation("saveFile",details);
+            }
+
+            //Now we save the file to the db
+            FileInfo newFile = new FileInfo(newFilePath);
+            SaveFileToDB(newFile);
+
+            saveResults["success"].Value = "true";
+            saveResults["message"].Value = "File Saved Successfully";
+
+            return saveResults;
+        }
+	
+	string wikiTable           = "wikipages"; // FUTURE: Move this to SERVER config?
+	string wikiHistory         = "wikihistory"; // FUTURE: Move this to SERVER config?
+	string wikiTableKey        = "pageidx"; // FUTURE: Move this to SERVER config?
+	
+	private void SaveFileToHistory(FileInfo importFile, bool deleteOLD = false){
+            string wholeFile, firstLine, oldRecordQuery, fileNoExtension, deleteOldRecordQuery;
+            wholeFile = firstLine = oldRecordQuery = fileNoExtension = deleteOldRecordQuery = string.Empty;
+
+            iesJSON singleFile = new iesJSON("{}");
+            iesJSON firstLineJSON = new iesJSON();
+            iesJSON oldRecords = new iesJSON("{}");
+
+            fileNoExtension = Path.GetFileNameWithoutExtension(importFile.Name);
+
+            singleFile["worldid"].Value = SITE.World;
+            singleFile["pageid"].Value = fileNoExtension;
+
+            using (StreamReader reader = new StreamReader(importFile.FullName)) {
+                wholeFile = reader.ReadToEnd();
+
+                reader.BaseStream.Position = 0; //reset reader
+                firstLine = reader.ReadLine();
+            }
+
+            if (!String.IsNullOrWhiteSpace(firstLine)){
+                int endFind = firstLine.IndexOf("]]");
+                if (endFind > 0){
+                    endFind = endFind - 2;
+                    firstLine = firstLine.Substring(2, endFind);
+                }else{
+                    firstLine = firstLine.Substring(2, firstLine.Length - 2);
+                }
+
+                //try to parse the firstline
+                try {
+                    firstLineJSON.UseFlexJson=true;
+                    firstLineJSON.Deserialize(firstLine);
+                }catch(Exception ex){
+                    iesJSON details = new iesJSON("{}");
+                    details["exception_type"].Value =  ex.GetType();
+                    details["exception_message"].Value =  ex.Message;
+                    details["stack_trace"].Value =  ex.StackTrace;
+                    LogInformation("SaveFileToHistory",details);
+                }
+
+                if (firstLineJSON.Length > 0){
+                    foreach (iesJSON pageDetail in firstLineJSON){
+                        singleFile[pageDetail.Key].Value = pageDetail.CString();
+                    }
+                }
+            }
+
+            //add in the html content
+            singleFile["wikihtml"].Value = wholeFile;
+
+            cms.db.Open();
+            if (deleteOLD){
+                oldRecordQuery = "SELECT * FROM `wikipages` WHERE `worldid` = '" + SITE.World + "' AND `pageid` = '" + fileNoExtension + "'";
+                oldRecords = cms.db.GetDataReaderAll(oldRecordQuery);
+
+                if (oldRecords.Length > 0){
+                    foreach(iesJSON singleOldRecord in oldRecords){
+                        deleteOldRecordQuery = "DELETE FROM `wikipages` WHERE `worldid` = '" + SITE.World + "' AND `pageidx` = '" + singleOldRecord[wikiTableKey].CString() + "'";
+                        cms.db.ExecuteSQL(deleteOldRecordQuery);
+
+                        singleOldRecord.RemoveFromBase(wikiTableKey);
+                        cms.db.SaveRecord(singleOldRecord, wikiHistory, wikiTableKey, -1, true,false, true);
+                    }
+                }
+            }
+
+            cms.db.SaveRecord(singleFile,wikiHistory,wikiTableKey,-1,true,false, true);
+            cms.db.Close();
+        }
+
+	private void SaveFileToDB(FileInfo importFile){
+
+            string wholeFile, firstLine, oldRecordQuery, fileNoExtension, deleteOldRecordQuery;
+            wholeFile = firstLine = oldRecordQuery = fileNoExtension = deleteOldRecordQuery = string.Empty;
+
+            iesJSON singleFile = new iesJSON("{}");
+            iesJSON oldRecords = new iesJSON("{}");
+            iesJSON firstLineJSON = new iesJSON();
+
+            fileNoExtension = Path.GetFileNameWithoutExtension(importFile.Name);
+
+            singleFile["worldid"].Value = SITE.World;
+            singleFile["pageid"].Value = fileNoExtension;
+
+            using (StreamReader reader = new StreamReader(importFile.FullName)) {
+                wholeFile = reader.ReadToEnd();
+
+                reader.BaseStream.Position = 0; //reset reader
+                firstLine = reader.ReadLine();
+            }
+
+            //remove the brackets
+            if (!String.IsNullOrWhiteSpace(firstLine)){
+                int endFind = firstLine.IndexOf("]]");
+                if (endFind > 0){
+                    endFind = endFind - 2;
+                    firstLine = firstLine.Substring(2, endFind);
+                }else{
+                    firstLine = firstLine.Substring(2, firstLine.Length - 2);
+                }
+
+                //try to parse the firstline
+                try {
+                    firstLineJSON.UseFlexJson=true;
+                    firstLineJSON.Deserialize(firstLine);
+                }catch(Exception ex){
+                    iesJSON details = new iesJSON("{}");
+                    details["exception_type"].Value =  ex.GetType();
+                    details["exception_message"].Value =  ex.Message;
+                    details["stack_trace"].Value =  ex.StackTrace;
+                    LogInformation("SaveFileToHistory",details);
+                }
+
+                if (firstLineJSON.Length > 0){
+                    foreach (iesJSON pageDetail in firstLineJSON){
+                        singleFile[pageDetail.Key].Value = pageDetail.CString();
+                    }
+                }
+            }
+
+            //add in the html content
+            singleFile["wikihtml"].Value = wholeFile;
+
+            cms.db.Open();
+            //we should check is another copy of the file exists
+            oldRecordQuery = "SELECT * FROM `wikipages` WHERE `worldid` = '" + SITE.World + "' AND `pageid` = '" + fileNoExtension + "' LIMIT 1";
+            oldRecords = cms.db.GetDataReaderAll(oldRecordQuery);
+
+            //An old record exists, we should put it in the history table
+            if (oldRecords.Length > 0){
+                foreach(iesJSON singleOldRecord in oldRecords){
+                    //We should compare the data'
+                    bool deleteME = false;
+                    foreach (iesJSON singleRow in singleOldRecord){
+                        if (singleRow.Key != wikiTableKey){
+                            if (singleFile[singleRow.Key].CString() != singleOldRecord[singleRow.Key].CString()){
+                                deleteME = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (deleteME){
+                        deleteOldRecordQuery = "DELETE FROM `wikipages` WHERE `worldid` = '" + SITE.World + "' AND `pageidx` = '" + singleOldRecord[wikiTableKey].CString() + "'";
+                        cms.db.ExecuteSQL(deleteOldRecordQuery);
+                        cms.db.SaveRecord(singleOldRecord, wikiHistory, wikiTableKey, -1, true,false, true);
+                    }
+                }
+            }
+
+            cms.db.SaveRecord(singleFile,wikiTable,wikiTableKey,-1,true,false, true);
+            cms.db.Close();
+        }
+	*******************************************************************************************/
+	
+} // End Class cmsAdmin
+
+public static class Util {
+
+	// ******************************************** Utilities ************************************************
+
+public static string MakeSearch(string oFields, string oSearch, cmsInfo cms, bool mysqlDate = false) {
+		SortedList FieldList, SearchList, DatePiece;
+		int p1cnt, p2cnt;
+		StringBuilder qry=new StringBuilder();
+		FieldList=SplitStr(oFields,",");
+		SearchList=SplitStr(oSearch, ", *%");
+		// **** Search Criteria
+		if (SearchList.Count > 0) {
+			p1cnt=0;
+			if (qry.Length>0) { qry.Append(") AND ("); }
+			foreach (string p1b in SearchList.Values) {
+				string p1 = p1b;
+				if (mysqlDate) {
+					DatePiece = SplitStr(p1,"/");
+					string strMonth="";
+					string strDay="";
+					if((DatePiece.Count >= 2) && (DatePiece.Count <= 3)) {
+						strDay=DatePiece[2].ToString().Trim();
+						if(strDay.Length==1){ strDay= "0" + strDay; }
+						strMonth=DatePiece[1].ToString().Trim();
+						if(strMonth.Length==1) { strMonth="0" + strMonth; }
+						p1 = strMonth + "-" + strDay;
+					}
+					if(DatePiece.Count == 3) {
+						p1 = DatePiece[3] + "-" + p1;
+					}
+				}
+				if (p1cnt>0) { qry.Append(") AND ("); }
+				else { qry.Append("("); }
+				p1cnt=p1cnt + 1;
+				// *** Fields....
+				p2cnt=0;
+				foreach (string p2 in FieldList.Values) {
+					if (p2cnt>0) { qry.Append(" OR "); }
+					p2cnt = p2cnt + 1;
+					qry.Append(p2 + " LIKE '%" + p1.Replace("'","''") + "%'");
+				} // End foreach (p2 in FieldList)
+			} // End foreach (p1 in SearchList)
+			qry.Append(")");
+			} // End if (SearchList.Length > 0)
+		return qry.ToString();
+	} // End Function
+	
+	// *** SplitStr()
+	// *** NOTE: NEEDED BECAUSE WE SPLIT BASED ON MORE THAN 1 CHARACTER
+	public static SortedList SplitStr(string nString, string CharList) {
+	  int cnt, LastF, ListLen, px, f, s, safety;
+	  string newStr="";
+	  SortedList ret;
+	  
+	  ret = new SortedList(new CaseInsensitiveComparer());
+	  cnt=0;
+	  safety=9999;
+	  LastF=0;
+	  ListLen=CharList.Length;
+	  if (nString.Length<=0) { return ret; }
+	  do {
+	    f=999999;
+	    for (px=0;px<ListLen;px++) {		
+	      s=nString.IndexOf(CharList.Substring(px,1),LastF);
+	      if ((s>0) && (s<f)) { f=s; } 
+	      } // End for
+	    if (f>=999999) { break; }
+	    newStr = nString.Substring(LastF,f-LastF);
+	    if (newStr.Trim()!="") {
+	      cnt=cnt+1;  
+	      ret.Add(cnt, newStr);
+		  }
+	    LastF=f+1;
+		if (safety--<=0) { break; }
+	  } while (true);
+	  if (LastF<nString.Length) { newStr = nString.Substring(LastF,(nString.Length)-LastF); }
+	  if (newStr.Trim()!="") {
+	    cnt=cnt+1;
+	    ret.Add(cnt, newStr);
+		}
+	  return ret;
+	} //End Function
+	
+	// *** Split()
+	// *** SPLIT BASED ON MORE THAN 1 CHARACTER
+	// *** Note: The above routine returns a SortedList (Dictionary object)... not sure why	
+	public static string[] Split(string nString, string CharList) {
+	  int cnt, LastF, ListLen, px, f, s, safety;
+	  string newStr="";
+	  List<string> ret = new List<string>();
+	  
+	  cnt=0;
+	  safety=9999;
+	  LastF=0;
+	  ListLen=CharList.Length;
+	  if (nString.Length<=0) { return ret.ToArray(); }
+	  do {
+	    f=999999;
+	    for (px=0;px<ListLen;px++) {		
+	      s=nString.IndexOf(CharList.Substring(px,1),LastF);
+	      if ((s>0) && (s<f)) { f=s; } 
+	      } // End for
+	    if (f>=999999) { break; }
+	    newStr = nString.Substring(LastF,f-LastF);
+	    if (newStr.Trim()!="") {
+	      cnt=cnt+1;  
+	      ret.Add(newStr);
+		  }
+	    LastF=f+1;
+		if (safety--<=0) { break; }
+	  } while (true);
+	  if (LastF<nString.Length) { newStr = nString.Substring(LastF,(nString.Length)-LastF); }
+	  if (newStr.Trim()!="") {
+	    cnt=cnt+1;
+	    ret.Add(newStr);
+		}
+	  return ret.ToArray();
+	} //End Function
+	
+  // ************************************************************************************************************
+  // **************** ReplaceTags()
+  // **************** Replaces [[Tags]] with values from a iesJSON object.
+  // **************** If a [[Tag]] is not found in tagValues then...
+  // ****************   If SetNoMatchBlank=true Then the tag is replaced with ""
+  // ****************   If SetNoMatchBlank=false Then the tag is left in the string.
+  // ****************
+  public static string ReplaceTags(string inputString, iesJSON tagValues, bool SetNoMatchBlank=true, string startStr="[[", string endStr="]]")  {
+	return iesJSONutilities.ReplaceTags(inputString, tagValues, SetNoMatchBlank, startStr, endStr);
+    }
+
+	
+	// **********************************************************************
+	// ****** SendEmail
+	// ****** 
+	// **********************************************************************
+	public static iesJSON SendEmail(iesJSON emailConfig, string toEmailP="", string fromEmailP="", string ccEmailP="", 
+			string bccEmailP="", string emailSubjectP="", string emailBodyP="") {
+		string pattern = null;
+		string toEmail=toEmailP.Trim();
+		string fromEmail=fromEmailP.Trim();
+		string ccEmail=ccEmailP.Trim();
+		string bccEmail=bccEmailP.Trim();
+		string emailSubject=emailSubjectP.Trim();
+		string emailBody=emailBodyP.Trim();
+		
+		if (toEmail=="") { toEmail=emailConfig["SendTo"].CString(); }  // FUTURE: Also allow for a json list
+		if (fromEmail=="") { fromEmail=emailConfig["SendFrom"].CString(); }  // FUTURE: Also allow for a json list
+		if (ccEmail=="") { ccEmail=emailConfig["cc"].CString(); }  // FUTURE: Also allow for a json list 
+		if (bccEmail=="") { bccEmail=emailConfig["bcc"].CString(); }  // FUTURE: Also allow for a json list 
+		if (emailSubject=="") { emailSubject=emailConfig["Subject"].CString(); } 
+		if (emailBody=="") { emailBody=emailConfig["emailBody"].CString(); }  
+		
+		iesJSON emailResults = new iesJSON("{}");
+		emailResults["success"].Value = false;
+		emailResults["response"].Value = "";		
+		var toEmailList = toEmail.Replace(";",",").Split(','); // FUTURE: Also allow for a json list
+		
+		if (toEmailList.Length < 1){
+			emailResults["response"].Value = "Blank TO Email Address";
+			return emailResults;
+		}
+		
+		if (String.IsNullOrWhiteSpace(fromEmail)){
+			emailResults["response"].Value = "Blank FROM Email Address";
+			return emailResults;
+		}
+
+		//Check for subject and body
+		if (String.IsNullOrWhiteSpace(emailSubject)){
+			emailResults["response"].Value = "Blank Email Subject Email Address";
+			return emailResults;
+		}
+		
+		if (String.IsNullOrWhiteSpace(emailBody)){
+			emailResults["response"].Value = "Blank Email Body Email Address";
+			return emailResults;
+		}		
+		
+		//Check that each of the email addresses is valid
+		pattern = "^([0-9a-zA-Z]([-\\.\\w]*[0-9a-zA-Z])*@([0-9a-zA-Z][-\\w]*[0-9a-zA-Z]\\.)+[a-zA-Z]{2,9})$";
+		if (!Regex.IsMatch(fromEmail,pattern)){
+			emailResults["response"].Value = "Invalid From Address";
+			return emailResults;
+		}
+		
+		//Check all the TO Email Addresses
+		iesJSON errorToEmail = new iesJSON("[]");
+		int toctr = 0;
+		foreach (string singleToEmail in toEmailList){
+			if (!Regex.IsMatch(singleToEmail,pattern)){
+				errorToEmail[toctr].Value = singleToEmail + " is an invalid email address";				
+			}
+			toctr++;
+		}		
+		
+		if (errorToEmail.Length > 0){
+			emailResults["response"] = errorToEmail;
+			return emailResults;
+		}
+		
+		//Check the CC Email Addresses, we care less about these so just exclude the incorrect ones
+		iesJSON cleanCCEmail = new iesJSON("{}");
+		if (ccEmail.Length > 0){
+			foreach (string singleCCEmail in ccEmail.Replace(";",",").Split(',')){
+				if (Regex.IsMatch(singleCCEmail,pattern)){
+					cleanCCEmail[singleCCEmail].Value = singleCCEmail; // Future: use iesJSON Array instead of Object?
+				}
+			}		
+		}
+
+
+		//Check the BCC Email Addresses, we care less about these so just exclude the incorrect ones
+		iesJSON cleanBCCEmail = new iesJSON("{}");
+		if (bccEmail.Length > 0){
+			foreach (string singleBCCEmail in bccEmail.Replace(";",",").Split(',')){
+				if (Regex.IsMatch(singleBCCEmail,pattern)){
+					cleanBCCEmail[singleBCCEmail].Value = singleBCCEmail; // Future: use iesJSON Array instead of Object?
+				}
+			}		
+		}		
+		
+		//Now we send the email		
+		System.Net.Mail.SmtpClient smtpClient = new System.Net.Mail.SmtpClient(SITE.email_smtp_server);
+		if (SITE.email_smtp_port>=0) { smtpClient.Port = SITE.email_smtp_port; }
+		smtpClient.UseDefaultCredentials = false; //This has to come before the credentials line below
+		smtpClient.Credentials = new System.Net.NetworkCredential(SITE.email_login, SITE.email_pwd);
+		smtpClient.EnableSsl = SITE.email_smtp_ssl;
+		
+		System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
+		//Setting From , To and CC
+		mail.From = new System.Net.Mail.MailAddress(fromEmail, SITE.World);
+		
+		//Add out TO Email Addresses
+		foreach (string singleToEmail in toEmailList){
+			mail.To.Add(new System.Net.Mail.MailAddress(singleToEmail));
+		}	
+		
+		//Add any cc emails if they exist
+		if (cleanCCEmail.Length > 0){
+			foreach (iesJSON singleCCEmail in cleanCCEmail){
+				mail.CC.Add(new System.Net.Mail.MailAddress(singleCCEmail.CString()));
+			}		
+		}
+		
+		mail.Subject = emailSubject;
+		mail.SubjectEncoding = System.Text.Encoding.UTF8;
+		mail.Body = emailBody;
+		mail.BodyEncoding = System.Text.Encoding.UTF8;
+		mail.IsBodyHtml = true;
+		mail.Priority = System.Net.Mail.MailPriority.High;		
+		try {
+			smtpClient.Send(mail);	
+			emailResults["success"].Value = true;
+		}
+		catch (Exception ex){
+			emailResults["response"].Value = ex.ToString();
+		}
+		
+		return emailResults;
+	}
+	
+	
+	// *** ReadFile()
+    // *** Read the entire text file specified by sFileName into ReadIntoVar
+    // *** sFileName should include the full path
+    public static void ReadFile(string sFileName, ref string ReadIntoVar) {
+		StreamReader wFile;
+		string ret="";  // Default incase the following fails.
+
+		try {
+			// *** FUTURE: Provide error trapping/handling and display error messages for developers
+
+			wFile=new StreamReader(sFileName);
+			ret=wFile.ReadToEnd();
+			wFile.Close();
+			}
+		catch { }
+		ReadIntoVar=ret;
+    } // End Function
+	
+	// *** WriteFile()
+    // *** Write entire text file specified by sFileName
+    // *** sFileName should include the full path
+    public static bool WriteFile(string sFileName, ref string DataToWrite, bool DeleteFirst=true) {
+		StreamWriter wFile;
+		bool ret=false;  // Default incase the following fails. (failed)
+		
+		try {
+			if (DeleteFirst==true) {
+				if (System.IO.File.Exists(sFileName)) {
+					System.IO.File.Delete(sFileName);
+				}
+			}
+
+			wFile=new StreamWriter(sFileName);
+			wFile.Write(DataToWrite);
+			wFile.Close();
+			ret=true; // success
+		}
+		catch { }
+		return ret;
+    } // End method
+	
+	// Look for a text file in a list of folders and load the first one that exists
+	public static void ReadFileFrom(string sFileName, string[] Folders, ref string ReadIntoVar) {
+		string sPath;
+		foreach (string strFolder in Folders) {
+			sPath=strFolder + "\\" + sFileName;
+			if (File.Exists(sPath)) {
+				ReadFile(sPath,ref ReadIntoVar);
+				break;
+				}
+		} // End foreach
+	}
+
+    public static void GetMasterFile(string FullFilePath,  ref iesJSON jRec, ref int flagStatus, string contentField = "content_area")
+    {
+        string fileContent = "";
+        flagStatus = -1;
+        
+        //Let's see if our file exists
+        if (!File.Exists(FullFilePath)) { flagStatus = -2; return; }
+
+        //Now we read the whole file... and parse the header.
+        fileContent = File.ReadAllText(FullFilePath);  //Read the file
+
+        if (!String.IsNullOrEmpty(fileContent))
+        {
+            int start = 0;
+            int end = 0;
+            int jsonLength = 0;
+            if (fileContent.IndexOf("[[{") != -1)
+            {
+                start = fileContent.IndexOf("[[{") + 2;
+                end = fileContent.IndexOf("}]]") - 1;
+
+                string jSON = fileContent.Substring(start, end);
+                jsonLength = jSON.Length + 4;
+
+                bool JsonOK = false;
+                if (!String.IsNullOrEmpty(jSON))
+                {
+                    jRec = new iesJSON();
+                    jRec.UseFlexJson = true;
+                    try
+                    {
+                        jRec.Deserialize(jSON);
+                        JsonOK = true;
+                    }
+                    catch (Exception e)
+                    {
+                        //Unable to find it...Let's just move on?
+                        // Below we will create an empty Header object
+                    }
+                }
+                if (!JsonOK)
+                {
+                    flagStatus = -3; return;
+                }
+            } // End if (pageContent.IndexOf("[[{")
+
+            //Let's remove the json from the content
+            if (!String.IsNullOrEmpty(fileContent) && jsonLength > 0)
+            {
+                fileContent = fileContent.Substring(jsonLength);
+            }
+            jRec[contentField].Value = fileContent;
+        } // End if (!String.IsNullOrEmpty(pageContent))
+        else
+        {
+            flagStatus = -4; return;
+        }
+        flagStatus = 0; // Success
+    } // End Function
+
+    /*** LogToFile() - For a quick log or debug message...
+	**** If sFileName does not contain a "." (ie. no extension such as .txt) then we add .txt
+	**** If sFileName does not contain a "\" (ie. no path) then we add the path to the log folder
+	**** If sFileName is blank, we create a LOG file with the current datetime
+	**** If fAddDateTime==true then we assume this is a file name without an extension and we append a date/time stamp.
+	**** A typical call might be: LogToFile("User ID=" + UserID,"DEBUG-UserID");
+	****/
+    public static void LogToFile(string sMessage, string sFileName="", bool fAppendToFile=true, bool fAddDateTime=true ) {
+    string sPath="", sAdd="";
+	if (fAddDateTime==true) { sAdd="-" + DateTime.Now.ToString("yyyMMddhhmmss"); }
+	if (!string.IsNullOrEmpty(sFileName)) {
+		sPath=sFileName + sAdd;
+		if (sPath.IndexOf(".")<0) { sPath=sPath + ".txt"; }
+		if (sPath.IndexOf("\\")<0) { sPath=SITE.LogFolder + "\\" + sPath; }
+		}
+	else { 
+		sPath=SITE.LogFolder + "\\LOG" + sAdd + ".txt";
+		}
+	try {
+		using (StreamWriter sOut = new StreamWriter(sPath,fAppendToFile)) {
+			sOut.WriteLine(sMessage);
+			}
+		} catch {}
+  }
+  
+	public static string NoBracket(string sData) {
+		return sData.Replace("`","").Replace("[","").Replace("]","");
+	}
+	
+	public static string javaJSONstr(string sData) {
+		// This routine cleans a string and makes it ready for JSON in javascript
+		// It needs to handle any special characters that need to be escaped in order to be passed back to javascript via an AJAX call
+		return sData.Replace("\"","\\\"");
+	}
+
+	public static string nbsp(string val) {
+		return IfNull(val,"&nbsp;");
+		}
+		
+	public static string IfNull(string val,string defaultVal) {
+		if (!String.IsNullOrEmpty(val)) { return val;}
+		return defaultVal;
+		}
+		
+	public static int ToInt(string strValue, int defaultVal=0) {
+		try { return System.Convert.ToInt32(strValue); } catch { }
+		return defaultVal;
+		}
+		
+	public static double ToDbl(string val,double defaultVal=0) {
+		try { return Convert.ToDouble(val); } catch { }
+		return defaultVal;
+		}
+		
+	public static string Right(string val, int numChars)
+	{
+		if (val==null) return val;
+		if (numChars<=0) return "";
+		if (numChars>=val.Length) return val;
+		return val.Substring(val.Length - numChars);
+	}
+	
+	public static string Left(string val, int numChars)
+	{
+		if (val==null) return val;
+		if (numChars<=0) return "";
+		if (numChars>=val.Length) return val;
+		return val.Substring(0,numChars);
+	}
+	
+	// UNLIKE VB - "start" IS ZERO BASED
+	public static string Mid(string val, int start)
+	{
+		if (val==null) return val;
+		if ((start<0)||(start>=val.Length)) return "";
+		return val.Substring(start);
+	}
+	public static string Mid(string val, int start, int numChars)
+	{
+		if (val==null) return val;
+		if ((numChars<=0)||(start<0)||(start>=val.Length)) return "";
+		if ((start+numChars)<=val.Length) return val.Substring(start,numChars);
+		return val.Substring(start);
+	}
+	
+	public static void ReplaceUnicode(bool ReplaceWithHTML, ref string unicodeString) {
+		bool modified = false;
+		StringBuilder sb = new StringBuilder(unicodeString.Length);// we may extend past this length, but this is a good place to start
+		foreach(char c in unicodeString)
+		  switch(c)
+		  {
+			case '\u2013': case '\u2014': case '\u2015': // dash
+			  sb.Append('-'); modified=true;
+			  break;
+			case '\u2018': // left single quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&lsquo;"); }
+			  else { sb.Append('\''); }
+			  break;
+			case '\u2019': // right single quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&rsquo;"); }
+			  else { sb.Append('\''); }
+			  break;
+			case '\u201A': // single low-9 quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&sbquo;"); }
+			  else { sb.Append('\''); }
+			  break;
+			case '\u201C': // left double quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&ldquo;"); }
+			  else { sb.Append('"'); }
+			  break;
+			case '\u201D': // right double quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&rdquo;"); }
+			  else { sb.Append('"'); }
+			  break;
+			case '\u201E': // double low-9 quote
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&bdquo;"); }
+			  else { sb.Append('"'); }
+			  break;
+			case '\u2020': // dagger
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&dagger;"); }
+			  else { sb.Append((char)134); }
+			  break;
+			case '\u2021': // double dagger
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&Dagger;"); }
+			  else { sb.Append((char)135); }
+			  break;
+			case '\u2022': // bullet
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&bull;"); }
+			  else { sb.Append((char)183); }
+			  break;
+			case '\u2026': // ellipsis
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&hellip;"); }
+			  else { sb.Append((char)133); }
+			  break;
+			case '\u20AC': // euro
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&euro;"); }
+			  else { sb.Append((char)128); }
+			  break;
+			case '\u2122': // trademark
+			  modified=true; 
+			  if (ReplaceWithHTML) { sb.Append("&trade;"); }
+			  else { sb.Append((char)153); }
+			  break;
+			default:
+			  sb.Append(c);
+			  break;
+		  }
+		if (modified) { unicodeString = sb.ToString(); }
+	}
+	
+	/* Old splitTags function
+	public static string[] SplitTags(string inputString) {
+		try {
+			List<string> result = new List<string>();
+
+			if (inputString == null) {
+				return new string[] { "" };
+			}
+
+			string curr_string = "";
+			char separator = ' ';
+
+			for (int i = 0; i < inputString.Length; i++) {
+				if (inputString[i] == '\"' || inputString[i] == '\'') {
+					if (i == 0 || inputString[i - 1] != '\\') {
+						int endIndex = i;
+
+						while (true) {
+							endIndex = inputString.IndexOf(inputString[i], endIndex + 1);
+
+							if (inputString[endIndex - 1] != '\\') {
+								break;
+							}
+						}
+
+						curr_string = inputString.Substring(i + 1, endIndex - i - 1);
+						i = endIndex + 1;
+					}
+				}
+
+				if (separator == ' ' && (inputString[i] == ':' || inputString[i] == '|')) {
+					separator = inputString[i];
+				}
+
+				if (inputString[i] == separator) {
+					curr_string = curr_string.Trim();
+					curr_string = curr_string.Replace("\\'", "'");
+					curr_string = curr_string.Replace("\\\"", "\"");
+
+					result.Add(curr_string);
+					curr_string = "";
+				}
+				else {
+					curr_string += inputString[i];
+				}
+			}
+
+			result.Add(curr_string);
+			return result.ToArray();
+		}
+    catch (Exception) { return new string[] { "" }; }
+  } // end function 
+  */ 
+  
+	  public static string[] SplitTags(string inputString) {
+		try {
+			//Decode html specific characters
+			inputString = System.Net.WebUtility.HtmlDecode(inputString);
+
+			List<string> result = new List<string>();
+			
+			bool inQuote = false;
+			char quoteType = ' ';
+			bool afterBackSlash = false;
+			char sepType = ' ';
+			bool addToSeg = true;
+			string segment = "";
+			for(int i = 0; i < inputString.Length; i++)
+			{
+				addToSeg = true;
+				if(inQuote == false)
+				{
+					if(sepType == ' ' && (inputString[i] == ':' || inputString[i] == '|'))
+					{
+						sepType = inputString[i];
+				 
+					}
+					if(inputString[i] == sepType)
+					{
+						result.Add(segment); 
+						segment = "";
+						addToSeg = false;
+					}
+					if(inputString[i] == '\'' || inputString[i] =='"')
+					{
+						inQuote = true;
+						quoteType = inputString[i];
+						addToSeg = false;
+					}
+				}
+				else if(inQuote == true)
+				{
+					if(afterBackSlash == true)
+					{
+						afterBackSlash = false;
+					}
+					else if(inputString[i] == '\\')
+					{
+						addToSeg = false;
+						afterBackSlash = true;
+					}
+					else if(inputString[i] == quoteType)
+					{
+						inQuote = false;
+						addToSeg = false;
+						
+					}
+						
+				}
+				if(addToSeg == true)
+					segment += (inputString[i]); 
+			}
+			result.Add(segment);
+			
+			return result.ToArray();
+		}
+		catch (Exception) { return new string[] { "" }; } 
+	} //Elizabeth's splitTags
+
+
+
+
+	public static string Sanitize(string stringValue, int truncateLength=-1 )
+    {
+        if (null == stringValue)
+            return stringValue;
+
+        stringValue = RegexReplace(stringValue, "-{2,}", "-");
+        stringValue = RegexReplace(stringValue, @"[*/]+", string.Empty);      // removes / and * used also to comment in sql scripts
+        stringValue = RegexReplace(stringValue, @"(;|\s)(exec|execute|select|insert|update|delete|create|alter|drop|rename|truncate|backup|restore)\s", string.Empty, RegexOptions.IgnoreCase);
+
+		// Truncate length if greater than specified max length. (if truncateLength<=0 then do nothing)
+		if (truncateLength>0) { if (stringValue.Length > truncateLength) { stringValue=stringValue.Substring(0,truncateLength); } }
+
+		return stringValue;
+    }
+
+	public static string RegexReplace(string stringValue, string matchPattern, string toReplaceWith)
+        {
+            return Regex.Replace(stringValue, matchPattern, toReplaceWith);
+        }
+
+    public static string RegexReplace(string stringValue, string matchPattern, string toReplaceWith, RegexOptions regexOptions)
+        {
+            return Regex.Replace(stringValue, matchPattern, toReplaceWith, regexOptions);
+        }
+		
+	public static string RandomString(int stringSize = 8){
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            var stringChars = new char[stringSize];
+            var random = new Random();
+
+            for (int i = 0; i < stringChars.Length; i++)
+            {
+                stringChars[i] = chars[random.Next(chars.Length)];
+            }
+
+            return new String(stringChars);
+        }
+}
+		 
+</script>

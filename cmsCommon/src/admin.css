@@ -1,0 +1,140 @@
+body { font-family:arial,sans-serif; font-size:16px; color: #000000;}
+
+p, ul, li
+{
+	font-family: arial,sans-serif;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+.admnu1 { background-image:url(/admin/images/Peregrine-AdminMnu-btn.gif);background-position:left top;padding:0 0 8px 0; cursor: pointer;}
+.admnu2 { background-image:url(/admin/images/Peregrine-AdminMnu-btn_hs.gif);background-position:left top;padding:0 0 8px 0; cursor: pointer;}
+.admlnk1 { text-decoration: none;color: #000000; }
+.admwhite1 {background-image:url(/admin/images/whiteblk-l.gif);background-position:top left;background-repeat:no-repeat;background-color:#FFFFFF;}
+.admwhite2 {background-image:url(/admin/images/whiteblk-r.gif);background-position:top left;background-repeat:no-repeat;background-color:#FFFFFF;}
+.admwhite3 {background-image:url(/admin/images/whiteblk-r.gif);background-position:top right;background-repeat:no-repeat;background-color:#FFFFFF;}
+.admarrow1 {background-image:url(/admin/images/button-arrow-l.gif);background-position:center left;background-repeat:no-repeat;cursor: pointer;}
+.admarrow2 {background-image:url(/admin/images/button-arrow-r.gif);background-position:center right;background-repeat:no-repeat;cursor: pointer;}
+.admbutton1 {background-image:url(/admin/images/button-round-l.gif);background-position:center left;background-repeat:no-repeat;cursor: pointer;}
+.admbutton2 {background-image:url(/admin/images/button-round-r.gif);background-position:center right;background-repeat:no-repeat;cursor: pointer;}
+.admsquare1 {background-image:url(/admin/images/button-square-l.gif);background-position:center left;background-repeat:no-repeat;cursor: pointer;}
+.admsquare2 {background-image:url(/admin/images/button-square-r.gif);background-position:center right;background-repeat:no-repeat;cursor: pointer;}
+.admsquare1g {background-image:url(/admin/images/button-squareg-l.gif);background-position:center left;background-repeat:no-repeat;cursor: pointer;}
+.admsquare2g {background-image:url(/admin/images/button-squareg-r.gif);background-position:center right;background-repeat:no-repeat;cursor: pointer;}
+.admtoplinks {color:#606060;font-size:16px;}
+.admtoplinks p{color:#606060;font-size:16px;}
+.admtoplinks a{color:#2020A0;font-size:16px;text-decoration:underline;}
+.admtoplinks a:hover{color:#808080;font-size:16px;text-decoration:underline;}
+
+.adminbutton { margin-left:10px; }
+.admindeletebutton { margin-left:30px; }
+
+a:focus,a:hover,a{
+    outline:none;
+    text-decoration: none;
+}
+li,ul{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+h1 {
+  font-size:22px;
+  }
+
+/*Home Page*/
+#navigation {
+    background-color: #f8f8f8;
+    border-color: #e7e7e7;
+}
+
+
+
+#navigation {
+    padding: 0;
+}
+
+.navbar-content > span {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#navigation{
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+.navi a {
+    border-bottom: 1px solid #0d172e;
+    border-top: 1px solid #0d172e;
+    display: block;
+    font-weight: 500;
+    padding: 10px 20px;
+    text-decoration: none;
+    font-family: arial;
+    font-size: 18px;
+    color: #6080A0;
+}
+
+.navi i {
+    margin-right: 15px;
+    color: #5584ff;
+}
+
+.navi .active a {
+    background-color: #6080A0;
+    color: #FFF !important;
+    display: block;
+}
+
+.navi a:hover {
+
+    background-color: #6080A0;
+    color: #FFF !important;
+    display: block;
+
+    /*
+    background: #122143 none repeat scroll 0 0;
+    border-left: 5px solid #5584ff;
+    display: block;
+    padding-left: 15px;
+    */
+}
+
+.navbar-default {
+    background-color: #ffffff;
+    border-color: #ffffff;
+}
+
+.navbar-toggle {
+    border: none;
+}
+
+.navbar-default .navbar-toggle:focus,
+.navbar-default .navbar-toggle:hover {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.navbar-default .navbar-toggle .icon-bar {
+    background-color: #0e1a35;
+}
+
+.hidden-xs{
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+.navi ul {margin-bottom:0}
+
+.site-title h3 {color:#909090; margin-top:0px; margin-bottom:7px;}
+.sub-title {color:#A0A0A0;}
+
+#editlisttable tr td, .editlisttable tr td {font-size:14px; padding:2px !important; height: 26px; margin-bottom: 0; margin-top: 0; table-layout: fixed; cursor: pointer;}
+#editlisttable thead th, .editlisttable thead th  {
+background:#2a5d9a; border:1px solid #39689f; font-size:14px; font-weight:normal !important; padding:2px !important; color:white;
+}

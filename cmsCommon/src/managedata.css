@@ -1,0 +1,179 @@
+.usertable {
+    table-layout: auto !important;
+}
+
+.usertable tr td {
+    text-align: left !important;
+}
+
+.edititem {
+    cursor: pointer;
+    color: #0000EE;
+}
+
+.edititem:hover {
+    text-decoration: underline;
+}
+
+.span_history {
+    left: 70px;
+    position: relative;
+    z-index: 999;
+    top: 40px;
+}
+
+.label_history {
+    font-size: 14px;
+}
+
+.show_history {
+    margin-right: 5px !important;
+    position: relative;
+    bottom: -2px;
+}
+
+.rememberorange {
+    margin-left: 5px;
+    color: orange;
+    font-size: 14px;
+    position: relative;
+    top: 5px;
+}
+
+.requiredred {
+    margin-left: 5px;
+    color: red;
+    font-size: 16px;
+    position: relative;
+    top: 5px;
+}
+
+.isrequired {
+    color: red;
+}
+
+.add_user_button {
+    display: inline-block;
+    float: right;
+    margin-bottom: -30px;
+    margin-right: 20px;
+}
+
+.list_title {
+    float: left;
+}
+
+#filelist thead tr th:first-child {
+    cursor: pointer;
+    text-align: center;
+}
+
+.existingFile {
+    color: orange;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.newFile {
+    color: green;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.editfile {
+    width: 85px;
+}
+
+#edit_file {
+    min-width: 760px;
+}
+
+.toolmenu {
+    float: right;
+}
+
+#minviewlevelholder label {
+    margin-right: 5px;
+}
+
+#mineditlevelholder label {
+    margin-right: 5px;
+}
+
+/* Hover Effects */
+/* Underline From Center */
+.hvr-underline-from-center {
+    display: inline-block;
+    vertical-align: middle;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -moz-osx-font-smoothing: grayscale;
+    position: relative;
+    overflow: hidden;
+}
+.hvr-underline-from-center:before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 50%;
+    right: 50%;
+    bottom: 0;
+    background: #2098d1;
+    height: 4px;
+    -webkit-transition-property: left, right;
+    transition-property: left, right;
+    -webkit-transition-duration: 0.3s;
+    transition-duration: 0.3s;
+    -webkit-transition-timing-function: ease-out;
+    transition-timing-function: ease-out;
+}
+.hvr-underline-from-center:hover:before, .hvr-underline-from-center:focus:before, .hvr-underline-from-center:active:before {
+    left: 0;
+    right: 0;
+}
+/* Shutter Out Horizontal */
+.hvr-shutter-out-horizontal {
+    display: inline-block;
+    vertical-align: middle;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -moz-osx-font-smoothing: grayscale;
+    position: relative;
+    -webkit-transition-property: color;
+    transition-property: color;
+    -webkit-transition-duration: 0.3s;
+    transition-duration: 0.3s;
+}
+.hvr-shutter-out-horizontal:before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #2098d1;
+    -webkit-transform: scaleX(0);
+    transform: scaleX(0);
+    -webkit-transform-origin: 50%;
+    transform-origin: 50%;
+    -webkit-transition-property: transform;
+    transition-property: transform;
+    -webkit-transition-duration: 0.3s;
+    transition-duration: 0.3s;
+    -webkit-transition-timing-function: ease-out;
+    transition-timing-function: ease-out;
+}
+.hvr-shutter-out-horizontal:hover, .hvr-shutter-out-horizontal:focus, .hvr-shutter-out-horizontal:active {
+    color: #fff;
+}
+.hvr-shutter-out-horizontal:hover:before, .hvr-shutter-out-horizontal:focus:before, .hvr-shutter-out-horizontal:active:before {
+    -webkit-transform: scaleX(1);
+    transform: scaleX(1);
+}

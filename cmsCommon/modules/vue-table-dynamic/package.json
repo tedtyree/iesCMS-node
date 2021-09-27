@@ -1,0 +1,107 @@
+{
+  "_from": "vue-table-dynamic",
+  "_id": "vue-table-dynamic@0.2.6",
+  "_inBundle": false,
+  "_integrity": "sha512-yIU11hJHmrsovdv0bW9aXXyEAIRkeQybp2Zrq9IEImKP0wWOQo1HCRqMbtwLoH9h9rjQJxhGCHg9lm4jtJu4eA==",
+  "_location": "/vue-table-dynamic",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "vue-table-dynamic",
+    "name": "vue-table-dynamic",
+    "escapedName": "vue-table-dynamic",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/vue-table-dynamic/-/vue-table-dynamic-0.2.6.tgz",
+  "_shasum": "a67b767922494ecce6290dd86a616d6aa881a487",
+  "_spec": "vue-table-dynamic",
+  "_where": "C:\\~Local\\vscode\\hello-world",
+  "author": {
+    "name": "TheoXiong"
+  },
+  "bugs": {
+    "url": "https://github.com/TheoXiong/vue-table-dynamic/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "lodash.throttle": "^4.1.1",
+    "lodash.trim": "^4.5.1",
+    "vue-scrollbar-simple": "0.0.3"
+  },
+  "deprecated": false,
+  "description": "A vue component of dynamic table",
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.4",
+    "babel-plugin-component": "^1.1.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "babili-webpack-plugin": "^0.1.2",
+    "cfonts": "^2.1.2",
+    "chalk": "^2.4.1",
+    "copy-webpack-plugin": "^4.5.1",
+    "cross-env": "^5.1.6",
+    "crypto-random-string": "^3.0.0",
+    "css-loader": "^0.28.11",
+    "element-ui": "^2.8.2",
+    "express": "^4.17.1",
+    "file-loader": "^1.1.11",
+    "file-saver": "^2.0.2",
+    "html-webpack-plugin": "^3.2.0",
+    "lodash.clonedeep": "^4.5.0",
+    "mini-css-extract-plugin": "0.4.0",
+    "multispinner": "^0.2.1",
+    "node-loader": "^0.6.0",
+    "node-sass": "^4.13.0",
+    "raw-loader": "^1.0.0",
+    "sass": "^1.3.2",
+    "sass-loader": "^8.0.0",
+    "style-loader": "^0.21.0",
+    "table": "^5.4.6",
+    "url-loader": "^1.0.1",
+    "vue": "^2.6.0",
+    "vue-html-loader": "^1.2.4",
+    "vue-loader": "^15.6.2",
+    "vue-msgs": "^1.0.6",
+    "vue-style-loader": "^4.1.0",
+    "vue-template-compiler": "^2.5.16",
+    "vuescroll": "^4.14.4",
+    "webpack": "^4.29.4",
+    "webpack-cli": "^3.0.8",
+    "webpack-dev-server": "^3.1.4",
+    "webpack-hot-middleware": "^2.22.2",
+    "webpack-merge": "^4.1.3"
+  },
+  "homepage": "https://github.com/TheoXiong/vue-table-dynamic#readme",
+  "keywords": [
+    "table",
+    "dynamic",
+    "data",
+    "vue"
+  ],
+  "license": "MIT",
+  "main": "dist/index.min.js",
+  "name": "vue-table-dynamic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheoXiong/vue-table-dynamic.git"
+  },
+  "scripts": {
+    "build": "webpack -p --hide-modules --config ./build/webpack.prod.conf.js",
+    "build:doc": "webpack -p --hide-modules --config ./build/webpack.doc.conf.js",
+    "build:server": "webpack -p --hide-modules --config ./build/webpack.server.conf.js",
+    "dev": "webpack-dev-server --config ./build/webpack.dev.conf.js --open --hot",
+    "server": "node dev/server/server.js"
+  },
+  "version": "0.2.6"
+}

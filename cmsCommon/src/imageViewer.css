@@ -1,0 +1,25 @@
+@charset "utf-8";
+/* CSS Document */
+.imageViewerDiv {
+	float:left;
+	width:189px;
+	min-width:189px;
+	min-height:100px;
+	/* height:auto; ** changed this value preliminarily to set up image viewing settings DSchwab */
+	border:7px solid #A0A0A0;
+	/* white-space:nowrap; */
+	text-align:center;
+	background:url(../images/_no_image.jpg) no-repeat top;
+}
+ 
+.imageViewerHelperSpan {
+	display:inline-block;
+	height:100%;
+	vertical-align:middle;
+}
+
+.imageViewerImage {
+	/* vertical-align:middle; */
+	max-width:175px;
+	max-height:125px;
+}
