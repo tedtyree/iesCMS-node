@@ -1,9 +1,10 @@
+const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
 
 const { existsSync, readFileSync } = require('fs');
-const _siteID = 'hostsite';
+const _siteID = 'kenyaheart';
 var assignedSiteID = '';
 
 class webEngine {
@@ -11,18 +12,36 @@ class webEngine {
     constructor(thisSiteID) {
         assignedSiteID = thisSiteID;
     	}
-        
 
-    static invalidSiteID(cms) {
+    invalidSiteID(cms) {
         if (assignedSiteID != _siteID) {
             cms.err = 517;
             cms.errMessage = 'ERROR: webEngine missmatch: ' + assignedSiteID + ' != ' + _siteID;
             return true;
         }
         return false;
-
     }
 
+    CustomTags(ret,cms) {
+        var content = new StringBuilder();
+        ret.Processed=true;
+        switch (ret.Tag.toLowerCase()) {
+            case "tag1":
+                ret.ReturnContent = "tag1_content";
+                break;
+            case "tag2":
+                content.append("tag2_content");
+                break;
+            case "lang":
+                content.append("debugger-lang");
+                break;
+            default:
+                ret.Processed=false;
+                break;
+        }
+        ret.ReturnContent += content.toString();
+    }
+    
     CreateHtml(cms) {
         var fileType = '';
         let pageHead = new iesJSON();
@@ -30,20 +49,22 @@ class webEngine {
         var pageTemplate;
         var templatePath;
 
-       // if (this.invalidSiteID(cms)) { return; }
-        cms.Html = "hostsite HTML<br>";
-        let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
+        if (this.invalidSiteID(cms)) { return; }
+        cms.Html = "website:[" + _siteID + "] HTML<br>";
+        // let filePath = cms.url.pathname.replace(/\\/g,'/');
+		let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
         if (cms.pathExt == '' || cms.pathExt == 'htm' || cms.pathExt == 'html') {
             fileType = 'html';
             filePath = filePath.replace(/\//g,'_');
         }
-        if (filePath == '') {
+		 if (filePath == '') {
             filePath = iesCommon.getParamStr(cms,"DefaultPageID","home");
             fileType=='html'
         }
         // debugger
-        cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        cms.pageId = filePath;
 
         // FUTURE: Determine if path is located in root (shared common folders) or in Websites/<siteid>
         
@@ -61,7 +82,6 @@ class webEngine {
                 return;
             }
 
-            // FUTURE: Can we read and parse this using iesCommon.LoadHtmlFile?
             var contentHtml = readFileSync(cms.fileFullPath, 'utf8').toString();
             // look for [[{ header }]]
             var p1 = contentHtml.indexOf('[[{');
@@ -74,7 +94,6 @@ class webEngine {
                     cms.Html += headJson + '<br>';
                     pageHead.DeserializeFlex(headJson);
                     if (pageHead.Status ==0 && pageHead.jsonType=='object') {
-                        cms.HEADER = pageHead; // store for later access
                         cms.Html += "Header object has been parsed.<br>";
                         cms.Html += "Template=" + pageHead.getStr("Template") + "<br>";
                         pageErr = 0;
@@ -128,14 +147,6 @@ class webEngine {
             return;
         }
         return;
-    }
-
-    static CustomTags(tag,content) {
-        switch (tag.toLowerCase()) {
-            case "tag1":
-                content = "tag1_content";
-                break;
-        }
     }
 }
 

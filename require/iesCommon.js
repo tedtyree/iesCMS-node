@@ -42,14 +42,36 @@ class iesCommonLib {
                 }
                 catch { }
                 break;
-            case "pageid":
-                content.append(cms.pageId);
-                break;
+            //case "pageid": // this is handled by cms.HEADER
+
             case "tagz":
                 ret.ReturnContent = "tagz_content";
                 break;
+            case "track":
+                try {
+                    let trackFile = (ret.Param1||"track") + ".cfg"
+                    let trackPath = this.FindFileInFolders(trackFile, this.getParamStr(cms,"TemplateFolder"), this.getParamStr(cms,"BaseFolder"));
+                    const trackBlock = this.LoadHtmlFile(trackPath, null, "", cms.UserLevel);
+                    content.append(trackBlock.content + ''); // Not much error checking - it either works or doesn't
+                }
+                catch { }
+                break;
+            case "v":
+                // FUTURE: how to get parameter from SITE/SERVER with tag replacement (should be made into a cms method)
+                content.append(cms.SITE.getStr("ScriptVersion"));
+                break;
+            case "world":
+            case "worldid":
+            case "siteid":
+                content.append(cms.siteID);
+                break;
             default:
-                ret.Processed = false;
+                let vv = this.getParamStr(cms,ret.Tag,null,true,true);
+                if (vv === null) {
+                    ret.Processed = false;
+                } else {
+                    content.append(vv);
+                }
                 break;
         }
         ret.ReturnContent += content.toString();
@@ -316,17 +338,26 @@ class iesCommonLib {
 
     } // End Function
 
-    getParamStr(cms,tagId,defaultValue,tagReplace = true) {
+    getParamStr(cms,tagId,defaultValue,tagReplace = true,findInHeader = true) {
         let v="";
-        // first we look in cms.SITE
-        if (cms.SITE.contains(tagId)) {
+        // first we look in cms.HEADER then cms.SITE
+        if (findInHeader && cms.HEADER && cms.HEADER.contains(tagId)) {
+            v = cms.HEADER.getStr(tagId);
+        }
+        else if (cms.SITE && cms.SITE.contains(tagId)) {
             v = cms.SITE.getStr(tagId);
         }
-        else if (cms.SERVER.contains(tagId)) {
+        else if (cms.SERVER && cms.SERVER.contains(tagId)) {
             v = cms.SERVER.getStr(tagId);
         }
         else { v = defaultValue; }
-        if (typeof v === 'string') { v = this.tagReplaceString(v, cms.SITE, cms.SERVER); }
+        if (typeof v === 'string') { 
+            if (findInHeader && cms.HEADER) {
+                v = this.tagReplaceString(v, cms.HEADER, cms.SITE, cms.SERVER); 
+            } else {
+                v = this.tagReplaceString(v, cms.SITE, cms.SERVER); 
+            }
+        }
         return v;
     }
 

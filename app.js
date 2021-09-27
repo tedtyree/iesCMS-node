@@ -169,7 +169,7 @@ let errMessage = "";
 //const { method, url, headers } = req;
 const q = 'z'; //url.parse(req.url,true).query;
 cms.url = url.parse(req.url,true);
-cms.server = serverCfg;
+cms.SERVER = serverCfg;
 const p = 'z'; //url.parse(req.url,true).pathname;
 const s = 'z'; //url.parse(req.url,true).search;
 
@@ -241,7 +241,8 @@ let cookies = parseCookies( req.headers.cookie );
         res.connection.destroy();
   }
 
-  cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
+  // This is already done above?
+  //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
   
   if (cms.siteID) {
       // Mimic (can only mimic on hostsite)
