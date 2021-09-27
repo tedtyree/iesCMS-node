@@ -94,6 +94,7 @@ class webEngine {
                     cms.Html += headJson + '<br>';
                     pageHead.DeserializeFlex(headJson);
                     if (pageHead.Status ==0 && pageHead.jsonType=='object') {
+                        cms.HEADER = pageHead; // store for later access
                         cms.Html += "Header object has been parsed.<br>";
                         cms.Html += "Template=" + pageHead.getStr("Template") + "<br>";
                         pageErr = 0;

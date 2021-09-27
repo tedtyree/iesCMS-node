@@ -111,3 +111,6 @@ dist
 # Websites that should not be in the repo 
 
 websites/kenyaheart
+
+# Need to include bootstrap 'dist' folder
+!cmscommon/modules/bootstrap/dist
