@@ -103,6 +103,9 @@ class iesJSON {
 		if (UseFlexJsonFlag == true || UseFlexJsonFlag == false) {
 			this.UseFlexJson = UseFlexJsonFlag;
 		}
+        if (InitialJSON) {
+            this.Deserialize(InitialJSON + '',0,false);
+        }
 	}
 	
 	createMetaIfNeeded(force = false) {
@@ -140,6 +143,14 @@ class iesJSON {
     set tmpStatusMsg(value) {
         this.createMetaIfNeeded();
         if (_meta != null) { _meta.tmpStatusMsg = value; }
+    }
+
+    get key() {
+        return this._key;
+    }
+
+    set key(value) {
+        this._key = value + '';
     }
 
     get preSpace() {
@@ -282,6 +293,25 @@ class iesJSON {
         
     }
 
+    get thisValue() {
+        return this.v();
+    }
+    set thisValue(value) {
+        this._status = 0;
+        this._jsonType = this.convertType(value);
+        if (this._jsonType == 'string') {
+            this._value = value + ''; // force conversion to string
+            this._value_valid = true;
+        } else if (this._jsonType) {
+            this._value = value;
+            this._value_valid = true;
+        } else {
+            this._jsonType = 'error';
+            this._value = null;
+            this._value_valid = false;
+        }
+    }
+
     toJsonArray(idx,dotNotation=true) {
         //if (trackingStats) { IncStats("stat_Value_get"); } // FUTURE-NEW
         if (!idx) {
@@ -327,7 +357,7 @@ class iesJSON {
                     if (nKey < 0 || nKey >= this._value.length) { break; }
                     k = nKey;
                 } else {
-                    if (nextItem._jsonType == "object") { k = nextItem.IndexOfKey(sKey); }
+                    if (nextItem._jsonType == "object") { k = nextItem.indexOfKey(sKey); }
                     else { 
                         // type array: error because IDX for an array must be an integer 
                         // FUTURE - throw error here?
@@ -340,11 +370,33 @@ class iesJSON {
         }
         if (k<0) { return iesJSON.CreateNull(); } // NOTE! You can check that there is no PARENT on this null object to see that it was NOT-FOUND
 
-        return nextItem;
-        
+        return nextItem;    
     }
 
-    IndexOfKey(Search) {
+    add (idx,value,dotNotation = true) {
+        let foundItem = this.i(idx,dotNotation);
+        if (foundItem.Parent) {
+            // Item exists... replace the value
+            foundItem.thisValue = value;
+        } else {
+            // Item does not exist... we need to add the item (be aware of dotNotation)
+            if (dotNotation && idx.indexOf('.')>=0) {
+                // FUTURE: WHAT TO DO HERE!!
+            } else {
+                // add item to this object - but verify that we are an object!
+                if (this._jsonType != 'object') {
+                    throw("ERROR: add() is only available for iesJSON object types.");
+                } else {
+                    let newV = new iesJSON();
+                    newV.thisValue = value;
+                    newV.key = idx;
+                    this._value.push(newV);
+                }
+            }
+        }
+    }
+
+    indexOfKey(Search) {
             if (Search == null) { return -1; }
             let s = Search.toLowerCase();
             if (!this.ValidateValue()) { return -1; }
@@ -1168,6 +1220,32 @@ class iesJSON {
             }
             else { this._meta.stats.AddToArray("StatusMessages", msg); }
             */
+        }
+
+        // Convert Javascript type to iesJSON type
+        convertType(v) {
+            const vType = typeof(v);
+            switch(vType) {
+                case 'bigint':
+                case 'number':
+                    return 'number';
+                    break;
+                case 'boolean':
+                    return 'boolean';
+                    break;
+                case 'object': // must be iesJSON object or it is not a true "object"
+                    return ''; // indicates an error/invlid type
+                    break;
+                case 'iesJSON':
+                    return iesJSON.jsonType;
+                    break;
+                case 'function':
+                    return ''; // indicate error/invalid type
+                    break;
+                default:
+                    return 'string';
+                    break;
+            }
         }
 }
 

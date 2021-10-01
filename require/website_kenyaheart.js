@@ -154,7 +154,7 @@ class webEngine {
      *  Add the language switcher 
      */
 
-    ProcessLangTag(langText, Content, cms) {
+    ProcessLangTag(langText, content, cms) {
 
         let langPieces = {};
         let textPieces = langText.split("@@");
@@ -163,34 +163,35 @@ class webEngine {
 
             let firstWord = this.GetFirstWord(piece).trim();
             let remainder = piece.substring(firstWord.length).trim();
-            // Content.Append("|||DEBUGGER:piece=[" + piece + "],firstword=[" + firstWord + "],remainder=[" + remainder + "]|||");
+            // content.Append("|||DEBUGGER:piece=[" + piece + "],firstword=[" + firstWord + "],remainder=[" + remainder + "]|||");
             if (firstWord == "") { firstWord = "default"; }
             if (remainder != "") { langPieces[firstWord] = remainder; }
         }
 
         // Use the list of languages for this PAGE (ie. in HEADER) first... and only for the SITE if not found for PAGE
         let languages = new iesJSON("{}");
-        if (cms.HEADER.Contains("languages")) {
+        if (cms.HEADER.contains("languages")) {
 
-            for (const lng of cms.HEADER["languages"].ToStr().split(",")) {
+            for (const lng of cms.HEADER.getStr("languages").split(",")) {
                 let l = lng.trim();
-                if (l != "") { languages[l].Value = l; }
+                if (l != "") { languages.add(l,l); }
             }
 
         } else {
-            languages = cms.SITE.config["Languages"];
+            languages = cms.SITE.v("Languages");
         }
-        // int cnt=0;
-        for (const lang of languages) {
-            if (cnt > 0) { Content.Append("<span class='lang-none'> / </span>"); }
-            let k1 = lang.Key.trim();
+        let cnt=0;
+        // FUTURE: TODO: find a way to iterate iesSON without tapping into _value
+        for (const lang of languages._value) {
+            if (cnt > 0) { content.append("<span class='lang-none'> / </span>"); }
+            let k1 = lang.key.trim();
             let v1 = "";
             if (langPieces[k1]) {
                 v1 = langPieces[k1].trim();
             } else {
                 v1 = langPieces["default"].trim();
             }
-            Content.Append("<span class='lang-" + k1 + "'>" + v1 + "</span>");
+            content.append("<span class='lang-" + k1 + "'>" + v1 + "</span>");
             cnt++;
         }
 
