@@ -178,7 +178,7 @@ class webEngine {
             }
 
         } else {
-            languages = cms.SITE.v("Languages");
+            languages = cms.SITE.i("Languages");
         }
         let cnt=0;
         // FUTURE: TODO: find a way to iterate iesSON without tapping into _value
