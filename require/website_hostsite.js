@@ -94,6 +94,18 @@ class webEngine {
                 cms.Html += "Page ERROR " + pageErr + ": pageHead.Status = " + pageHead.Status + "<br>";
                 return;
             }
+
+            // Determine page permissions
+            cms.minViewLevel = cms.SITE.i("defaultMinViewLevel").toNum(999); // default value
+            cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
+            if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
+            if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
+            if (cms.user.level < cms.minViewLevel) {
+                cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
+                cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
+                return;
+            }
+
             // Lookup page template
             pageTemplate="layout_" + pageHead.getStr("Template") + ".cfg";
             templatePath = iesCommon.FindFileInFolders(pageTemplate,

@@ -176,6 +176,10 @@ http.createServer(function (req, res) {
       const q = 'z'; //url.parse(req.url,true).query;
       cms.url = url.parse(req.url, true);
       cms.SERVER = serverCfg;
+      cms.user = {
+            id:-1, // user-not-identified
+            level:0, // default public
+      }
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
@@ -208,7 +212,7 @@ http.createServer(function (req, res) {
       cms.fileFullPath = ''; // This should get set by the website engine
       cms.resultType = '';
       cms.mimeType = '';
-
+      cms.redirect = null; // note: if this is set to a url and fileType = HTML or REDIRECT then CMS attempts a redirect
       /*
       let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
       try {
@@ -388,9 +392,16 @@ http.createServer(function (req, res) {
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
             // if (debugMode > 5) { cms.Html += '\n\n' + DebbugerMessage; }
+            if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
             res.end(cms.Html);
 
       } // end if (cms.resultType=='html')
+      if (cms.resultType == "redirect") {
+            // indicate resultType='redirect' to override HTML content with brief redirect message
+            cms.Html = "<HTML><BODY>Redirecting to <a href='" + cms.redirect + "'>" + cms.redirect + "</a>.<br><br>If page redirect does not occur within 60 seconds, click the redirect link.</a></BODY></HTML>"
+            res.redirect(cms.redirect);
+            res.end(cms.Html);
+      }
 
       if (debugMode > 0) {
             appendFileSync(debugHttpFile, "httpServer processing complete: " + timestamp() + "\n");
