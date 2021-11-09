@@ -1,11 +1,12 @@
 var http = require('http');
 var url = require('url');
-const querystring = require('querystring');
+//const querystring = require('querystring');
 const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommon = require('./require/iesCommon.js');
 const { Console } = require('console');
+const { parse, stringify } = require('querystring');// form submission 
 
 var websiteEngines = {};
 var debugLog = "";
@@ -176,9 +177,33 @@ http.createServer(function (req, res) {
       const q = 'z'; //url.parse(req.url,true).query;
       cms.url = url.parse(req.url, true);
       cms.SERVER = serverCfg;
+      cms.req = req;
+
+
+      // Get post data using query string 
+
+      if (cms.req.method === 'POST') {
+
+            let body = '';
+            cms.req.on('data', chunk => {
+                  body += chunk.toString();
+            });
+            cms.req.on('end', () => {
+                  console.log(
+                        parse(body)
+                  );
+                  cms.body = parse(body);
+            });
+      }
+
+
+
+
+
+
       cms.user = {
-            id:-1, // user-not-identified
-            level:0, // default public
+            id: -1, // user-not-identified
+            level: 0, // default public
       }
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
@@ -368,7 +393,7 @@ http.createServer(function (req, res) {
                   + 'protocol=' + req.headers.protocol + '\n'
                   + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
                   + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
-                  + querystring.stringify(req.headers) + '\n'
+                  + stringify(req.headers) + '\n'
                   + 'Header cookies=' + JSON.stringify(cookies) + '\n'
                   //'query=' + q + '\n'
                   + 'host=' + cms.urlHost + '\n'
@@ -392,14 +417,22 @@ http.createServer(function (req, res) {
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
             // if (debugMode > 5) { cms.Html += '\n\n' + DebbugerMessage; }
-            if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
+            try {
+                  if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
+            }
+            catch { }
+
             res.end(cms.Html);
 
       } // end if (cms.resultType=='html')
       if (cms.resultType == "redirect") {
             // indicate resultType='redirect' to override HTML content with brief redirect message
             cms.Html = "<HTML><BODY>Redirecting to <a href='" + cms.redirect + "'>" + cms.redirect + "</a>.<br><br>If page redirect does not occur within 60 seconds, click the redirect link.</a></BODY></HTML>"
-            res.redirect(cms.redirect);
+            try {
+
+                  res.redirect(cms.redirect);
+
+            } catch { }
             res.end(cms.Html);
       }
 

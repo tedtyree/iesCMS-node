@@ -3,7 +3,11 @@ const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
 
+
+
 const { existsSync, readFileSync } = require('fs');
+const { get } = require("http");
+
 const _siteID = 'kenyaheart';
 var assignedSiteID = '';
 
@@ -65,6 +69,22 @@ class webEngine {
         // debugger
         // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
         cms.pageId = filePath;
+
+
+
+        //check for user login  
+
+        if (cms.pageId.toLowerCase() == 'login') {
+
+            //let username = 
+
+
+
+
+
+
+
+        }
 
         // FUTURE: Determine if path is located in root (shared common folders) or in Websites/<siteid>
 
@@ -186,13 +206,13 @@ class webEngine {
 
             for (const lng of cms.HEADER.getStr("languages").split(",")) {
                 let l = lng.trim();
-                if (l != "") { languages.add(l,l); }
+                if (l != "") { languages.add(l, l); }
             }
 
         } else {
             languages = cms.SITE.i("Languages");
         }
-        let cnt=0;
+        let cnt = 0;
         // FUTURE: TODO: find a way to iterate iesSON without tapping into _value
         for (const lang of languages._value) {
             if (cnt > 0) { content.append("<span class='lang-none'> / </span>"); }
