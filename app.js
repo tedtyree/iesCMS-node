@@ -167,7 +167,7 @@ function stringifyCookies(thesecookies) {
 // **************************************************************************
 // **************************************************************************
 
-http.createServer(function (req, res) {
+http.createServer(async (req, res) => {
 
       let cms = {}; // Primary CMS object to hold all things CMS
       let err = 0;
@@ -184,22 +184,18 @@ http.createServer(function (req, res) {
 
       if (cms.req.method === 'POST') {
 
-            let body = '';
-            cms.req.on('data', chunk => {
-                  body += chunk.toString();
-            });
-            cms.req.on('end', () => {
-                  console.log(
-                        parse(body)
-                  );
-                  cms.body = parse(body);
-            });
+            const buffers = [];
+            for await (const chunk of req) {
+                  buffers.push(chunk);
+            }
+            const body = Buffer.concat(buffers).toString();
+
+            
+            console.log(
+                  parse(body)
+            );
+            cms.body = parse(body);
       }
-
-
-
-
-
 
       cms.user = {
             id: -1, // user-not-identified
