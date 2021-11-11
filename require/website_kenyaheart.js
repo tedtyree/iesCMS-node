@@ -9,18 +9,22 @@ const { existsSync, readFileSync } = require('fs');
 const { get } = require("http");
 
 const _siteID = 'kenyaheart';
-var assignedSiteID = '';
+//var assignedSiteID = '';
 
 class webEngine {
 
     constructor(thisSiteID) {
-        assignedSiteID = thisSiteID;
+        this.assignedSiteID = thisSiteID;
+        this.errorMessage = '';
+        this.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
+        this.JWT_EXPIRES_IN = 90;
+
     }
 
     invalidSiteID(cms) {
-        if (assignedSiteID != _siteID) {
+        if (this.assignedSiteID != _siteID) {
             cms.err = 517;
-            cms.errMessage = 'ERROR: webEngine missmatch: ' + assignedSiteID + ' != ' + _siteID;
+            cms.errMessage = 'ERROR: webEngine missmatch: ' + this.assignedSiteID + ' != ' + _siteID;
             return true;
         }
         return false;
@@ -30,8 +34,11 @@ class webEngine {
         var content = new StringBuilder();
         ret.Processed = true;
         switch (ret.Tag.toLowerCase()) {
-            case "tag1":
-                ret.ReturnContent = "tag1_content";
+            case "errmsg":
+                if (this.errorMessage) {
+                    ret.ReturnContent = "<div style='background:red; padding: 20px; border:solid 3px #000;'>" + this.errorMessage + "</div>";
+                }
+
                 break;
             case "tag2":
                 content.append("tag2_content");
@@ -76,7 +83,41 @@ class webEngine {
 
         if (cms.pageId.toLowerCase() == 'login') {
 
-            //let username = 
+            let username = cms.body.Username;
+            let password = cms.body.Password;
+
+            // if username is correct and password 
+            // create a JWT and return it to frontend 
+            // redirect to the landing page  
+            // if invalid password display error message  
+
+            if (username == 'joe' && password == 'friendofFelix84') {
+
+                this.errorMessage = 'login successful';
+
+                let user = { username: 'joe', userid: 1, userlevel: 9 };
+                //var token = jwt.encode({user}, secretKey); 
+
+                const token = jwt.sign({ user }, this.JWT_SECRET, {
+                    expiresIn: this.JWT_EXPIRES_IN,
+                });
+
+                res.status(201).json({
+                    status: 'success',
+                    token,
+                    data: {
+                        newUser,
+                    },
+                });
+
+
+
+
+
+            } else {
+                this.errorMessage = 'login not successful';
+            }
+
 
 
 

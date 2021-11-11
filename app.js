@@ -182,20 +182,25 @@ http.createServer(async (req, res) => {
 
       // Get post data using query string 
 
-      if (cms.req.method === 'POST') {
+      try {
 
-            const buffers = [];
-            for await (const chunk of req) {
-                  buffers.push(chunk);
+            if (cms.req.method === 'POST') {
+
+                  const buffers = [];
+                  for await (const chunk of req) {
+                        buffers.push(chunk);
+                  }
+                  const body = Buffer.concat(buffers).toString();
+
+
+                  console.log(
+                        parse(body)
+                  );
+                  cms.body = parse(body);
             }
-            const body = Buffer.concat(buffers).toString();
+      } catch { }
 
-            
-            console.log(
-                  parse(body)
-            );
-            cms.body = parse(body);
-      }
+      if (!cms.body) { cms.body = {}; }
 
       cms.user = {
             id: -1, // user-not-identified
