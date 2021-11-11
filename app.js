@@ -127,7 +127,12 @@ dlist.forEach(dDir => {
             var enginePath = './require/website_' + dDir + '.js';
             if (existsSync(enginePath)) {
                   //var newEngine = requireDynamically(enginePath);
-                  var newEngine = require(enginePath);
+                  try {
+                        var newEngine = require(enginePath);
+                  } catch (errWebEngine) {
+                        console.log("!!! ERROR LOADING WEBSITE ENGINE: " + enginePath);
+                        console.error(errWebEngine);
+                  }
                   //websiteEngines[dDir] = newEngine; //new newEngine();
                   websiteEngines[dDir] = new newEngine(dDir);
                   console.log("LOAD/REQUIRE WEBSITE ENGINE: " + enginePath);
