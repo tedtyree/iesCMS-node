@@ -179,6 +179,8 @@ http.createServer(async (req, res) => {
       cms.SERVER = serverCfg;
       cms.req = req;
 
+      cms.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
+      cms.JWT_EXPIRES_IN = 90;
 
       // Get post data using query string 
 
@@ -218,7 +220,8 @@ http.createServer(async (req, res) => {
       }
 
 
-      let cookies = parseCookies(req.headers.cookie);
+      cms.cookies = parseCookies(req.headers.cookie);
+      if (!cms.cookies) { cms.cookies = {}; }
 
       if (!vStatic) {
             vStatic = Date.now();
@@ -277,6 +280,19 @@ http.createServer(async (req, res) => {
             res.connection.destroy();
       }
 
+      // GET USER TOKEN - FUTURE: Move this to other location?
+      if (cms.cookies.token) {
+            let token = cms.cookies.token;
+            var verified = jwt.verify(token, cms.JWT_SECRET);
+            if (verified) {
+                  var decoded = jwt.decode(token, cms.JWT_SECRET);
+                  // FUTURE: Expire token if it is pased due
+                  if (decoded && decoded.user) {
+                        cms.user = decoded.user;
+                  }
+            }
+      }
+
       // This is already done above?
       //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
 
@@ -291,8 +307,8 @@ http.createServer(async (req, res) => {
                         // newCookies.add('mimic',cms.siteID);
                   } else {
                         // check for mimic cookie
-                        if (cookies.mimic) {
-                              override = cookies.mimic;
+                        if (cms.cookies.mimic) {
+                              override = cms.cookies.mimic;
                         }
                   }
                   if (override && override.toLowerCase() != 'none') {
@@ -341,7 +357,7 @@ http.createServer(async (req, res) => {
             }
       } // end if(cmsSiteID)
 
-      mimic = cookies.mimic;
+      mimic = cms.cookies.mimic;
       newCookies = {};
       newCookies.mimic = mimic ? mimic : '';
       newCookies.random = 'green toad';
@@ -381,6 +397,9 @@ http.createServer(async (req, res) => {
             if (cms.url.query.mimic) {
                   myHead.push(['Set-Cookie', 'mimic=' + cms.url.query.mimic]);
             }
+            if (cms.newToken) {
+                  myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
+            }
             //myHead.push(['Content-Type', 'text/plain']);
             myHead.push(['Content-Type', 'text/html']);
             res.writeHead(200, myHead);
@@ -395,7 +414,7 @@ http.createServer(async (req, res) => {
                   + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
                   + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
                   + stringify(req.headers) + '\n'
-                  + 'Header cookies=' + JSON.stringify(cookies) + '\n'
+                  + 'Header cookies=' + JSON.stringify(cms.cookies) + '\n'
                   //'query=' + q + '\n'
                   + 'host=' + cms.urlHost + '\n'
                   //+ 'path=' + p + '\n'

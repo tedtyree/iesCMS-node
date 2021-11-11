@@ -2,7 +2,7 @@ const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
-
+const jwt = require('jsonwebtoken');
 
 
 const { existsSync, readFileSync } = require('fs');
@@ -16,8 +16,6 @@ class webEngine {
     constructor(thisSiteID) {
         this.assignedSiteID = thisSiteID;
         this.errorMessage = '';
-        this.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
-        this.JWT_EXPIRES_IN = 90;
 
     }
 
@@ -98,10 +96,10 @@ class webEngine {
                 let user = { username: 'joe', userid: 1, userlevel: 9 };
                 //var token = jwt.encode({user}, secretKey); 
 
-                const token = jwt.sign({ user }, this.JWT_SECRET, {
-                    expiresIn: this.JWT_EXPIRES_IN,
+                const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                    expiresIn: cms.JWT_EXPIRES_IN,
                 });
-
+/*
                 res.status(201).json({
                     status: 'success',
                     token,
@@ -109,10 +107,8 @@ class webEngine {
                         newUser,
                     },
                 });
-
-
-
-
+*/
+                cms.newToken = token;
 
             } else {
                 this.errorMessage = 'login not successful';
