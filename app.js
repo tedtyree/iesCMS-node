@@ -212,7 +212,7 @@ http.createServer(async (req, res) => {
 
       if (!cms.body) { cms.body = {}; }
 
-      setUser(cms,new iesUser()); 
+      setUser(cms, new iesUser());
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
@@ -294,14 +294,14 @@ http.createServer(async (req, res) => {
                         var decoded = jwt.decode(token, cms.JWT_SECRET);
                         // FUTURE: Expire token if it is pased due
                         if (decoded && decoded.user) {
-                              setUser(cms,new iesUser(decoded.user));
+                              setUser(cms, new iesUser(decoded.user));
                         }
                         // Later we verify user.siteid
                   }
             } catch (jwtErr) {
                   console.log("JWT ERROR: " + jwtErr.message);
-             }
-            
+            }
+
       }
 
       // This is already done above?
@@ -413,7 +413,13 @@ http.createServer(async (req, res) => {
                   myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
             }
             myHead.push(['Content-Type', 'text/html']);
-            res.writeHead(200, myHead);
+
+            if (cms.redirect) {
+                  res.writeHead(301, { Location: cms.redirect });
+            } else {
+
+                  res.writeHead(200, myHead);
+            }
 
             let DebbugerMessage =
                   'method=' + req.method + '\n'
@@ -448,10 +454,13 @@ http.createServer(async (req, res) => {
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
             // if (debugMode > 5) { cms.Html += '\n\n' + DebbugerMessage; }
-            try {
-                  if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
-            }
-            catch { }
+            /* try {
+                   if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
+             }
+             catch (err) {
+                   console.log(err.message);
+             }
+             */
 
             res.end(cms.Html);
 
@@ -463,7 +472,9 @@ http.createServer(async (req, res) => {
 
                   res.redirect(cms.redirect);
 
-            } catch { }
+            } catch (err) {
+                  console.log(err.message);
+            }
             res.end(cms.Html);
       }
 

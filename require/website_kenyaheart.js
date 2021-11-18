@@ -58,7 +58,7 @@ class webEngine {
         var pageTemplate;
         var templatePath;
         this.errorMessage = "";
-        
+
         if (this.invalidSiteID(cms)) { return; }
         cms.Html = "website:[" + _siteID + "] HTML<br>";
         // let filePath = cms.url.pathname.replace(/\\/g,'/');
@@ -93,6 +93,8 @@ class webEngine {
                 if (username == 'joe' && password == 'friendofFelix84') {
 
                     this.errorMessage = 'login successful';
+
+                    cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
 
                     let user = { username: 'joe', userid: 1, userlevel: 9, siteid: cms.siteID };
                     //var token = jwt.encode({user}, secretKey); 
