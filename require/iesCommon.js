@@ -1,6 +1,7 @@
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
+const { connect } = require("http2");
 class iesCommonLib {
 
     mime = {
@@ -37,7 +38,7 @@ class iesCommonLib {
                 {
                     const menuPath = this.FindFileInFolders("menu_" + MenuName + ".cfg", this.getParamStr(cms,"TemplateFolder"), this.getParamStr(cms,"CommonTemplateFolder"));
                     //content.append("<!-- DEBUGGER menuPath=" + menuPath + " -->");
-                    const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.UserLevel);
+                    const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.userLevel);
                     content.append(webBlock.content + ''); // Not much error checking - it either works or doesn't
                 }
                 catch { }
@@ -51,7 +52,7 @@ class iesCommonLib {
                 try {
                     let trackFile = (ret.Param1||"track") + ".cfg"
                     let trackPath = this.FindFileInFolders(trackFile, this.getParamStr(cms,"TemplateFolder"), this.getParamStr(cms,"BaseFolder"));
-                    const trackBlock = this.LoadHtmlFile(trackPath, null, "", cms.UserLevel);
+                    const trackBlock = this.LoadHtmlFile(trackPath, null, "", cms.userLevel);
                     content.append(trackBlock.content + ''); // Not much error checking - it either works or doesn't
                 }
                 catch { }
@@ -64,6 +65,13 @@ class iesCommonLib {
             case "worldid":
             case "siteid":
                 content.append(cms.siteID);
+                break;
+            case "who_am_i":
+                if (cms.userLevel > 0) {
+                    content.append(cms.user.username + " [id=" + cms.userId + ",level=" + cms.userLevel + ",site=" + cms.user.siteid + "]");
+                } else {
+                    content.append("User not logged in.");
+                }
                 break;
             default:
                 let vv = this.getParamStr(cms,ret.Tag,null,true,true);

@@ -5,8 +5,10 @@ const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = 
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommon = require('./require/iesCommon.js');
+const iesUser = require('./require/iesUser.js');
 const { Console } = require('console');
 const { parse, stringify } = require('querystring');// form submission 
+const jwt = require('jsonwebtoken');
 
 var websiteEngines = {};
 var debugLog = "";
@@ -127,7 +129,12 @@ dlist.forEach(dDir => {
             var enginePath = './require/website_' + dDir + '.js';
             if (existsSync(enginePath)) {
                   //var newEngine = requireDynamically(enginePath);
-                  var newEngine = require(enginePath);
+                  try {
+                        var newEngine = require(enginePath);
+                  } catch (errWebEngine) {
+                        console.log("!!! ERROR LOADING WEBSITE ENGINE: " + enginePath);
+                        console.error(errWebEngine);
+                  }
                   //websiteEngines[dDir] = newEngine; //new newEngine();
                   websiteEngines[dDir] = new newEngine(dDir);
                   console.log("LOAD/REQUIRE WEBSITE ENGINE: " + enginePath);
@@ -152,10 +159,11 @@ function stringifyCookies(thesecookies) {
             .join('; ');
 }
 
-
-
-
-
+function setUser(cms, newUser) {
+      cms.user = newUser;
+      cms.userId = cms.user.userid || -1; // default
+      cms.userLevel = cms.user.userlevel || 0; // default
+}
 
 
 
@@ -179,6 +187,8 @@ http.createServer(async (req, res) => {
       cms.SERVER = serverCfg;
       cms.req = req;
 
+      cms.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
+      cms.JWT_EXPIRES_IN = 60 * 60 * 24 * 7; // SECONDS
 
       // Get post data using query string 
 
@@ -202,10 +212,7 @@ http.createServer(async (req, res) => {
 
       if (!cms.body) { cms.body = {}; }
 
-      cms.user = {
-            id: -1, // user-not-identified
-            level: 0, // default public
-      }
+      setUser(cms,new iesUser()); 
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
@@ -218,7 +225,8 @@ http.createServer(async (req, res) => {
       }
 
 
-      let cookies = parseCookies(req.headers.cookie);
+      cms.cookies = parseCookies(req.headers.cookie);
+      if (!cms.cookies) { cms.cookies = {}; }
 
       if (!vStatic) {
             vStatic = Date.now();
@@ -277,6 +285,25 @@ http.createServer(async (req, res) => {
             res.connection.destroy();
       }
 
+      // GET USER TOKEN - FUTURE: Move this to other location?
+      // FUTURE: Do we need to read the jwt if we are requesting a non-html file/img/resource?
+      if (cms.cookies.token) {
+            let token = cms.cookies.token;
+            try {
+                  if (jwt.verify(token, cms.JWT_SECRET)) {
+                        var decoded = jwt.decode(token, cms.JWT_SECRET);
+                        // FUTURE: Expire token if it is pased due
+                        if (decoded && decoded.user) {
+                              setUser(cms,new iesUser(decoded.user));
+                        }
+                        // Later we verify user.siteid
+                  }
+            } catch (jwtErr) {
+                  console.log("JWT ERROR: " + jwtErr.message);
+             }
+            
+      }
+
       // This is already done above?
       //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
 
@@ -287,18 +314,21 @@ http.createServer(async (req, res) => {
                   // check if mimic specified in URL
                   if (cms.url.query.mimic) {
                         override = cms.url.query.mimic;
-                        // set mimic cookie TODO
-                        // newCookies.add('mimic',cms.siteID);
+                        // set mimic cookie
+                        cms.newMimic = override;
                   } else {
                         // check for mimic cookie
-                        if (cookies.mimic) {
-                              override = cookies.mimic;
+                        if (cms.cookies.mimic) {
+                              override = cms.cookies.mimic;
                         }
                   }
                   if (override && override.toLowerCase() != 'none') {
                         cms.siteID = override;
                   }
             }
+
+            // Verify user.siteid - if incorrect, null-out the user and related permissions
+            if (cms.user.siteid != cms.siteID) { setUser(cms, new iesUser()); }
 
             // Read Site config (first check if config already loaded)
             var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteID);
@@ -341,7 +371,7 @@ http.createServer(async (req, res) => {
             }
       } // end if(cmsSiteID)
 
-      mimic = cookies.mimic;
+      mimic = cms.cookies.mimic;
       newCookies = {};
       newCookies.mimic = mimic ? mimic : '';
       newCookies.random = 'green toad';
@@ -376,12 +406,12 @@ http.createServer(async (req, res) => {
       if (cms.resultType == 'html') {
 
             let myHead = [];
-            myHead.push(['Set-Cookie', 'mycookie4=test4']);
-            myHead.push(['Set-Cookie', 'mycookie5=test5']);
-            if (cms.url.query.mimic) {
-                  myHead.push(['Set-Cookie', 'mimic=' + cms.url.query.mimic]);
+            if (cms.newMimic) {
+                  myHead.push(['Set-Cookie', 'mimic=' + cms.newMimic]);
             }
-            //myHead.push(['Content-Type', 'text/plain']);
+            if (cms.newToken) {
+                  myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
+            }
             myHead.push(['Content-Type', 'text/html']);
             res.writeHead(200, myHead);
 
@@ -395,7 +425,7 @@ http.createServer(async (req, res) => {
                   + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
                   + 'x-forwarded-proto=' + req.headers['x-forwarded-proto'] + '\n'
                   + stringify(req.headers) + '\n'
-                  + 'Header cookies=' + JSON.stringify(cookies) + '\n'
+                  + 'Header cookies=' + JSON.stringify(cms.cookies) + '\n'
                   //'query=' + q + '\n'
                   + 'host=' + cms.urlHost + '\n'
                   //+ 'path=' + p + '\n'

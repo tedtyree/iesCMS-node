@@ -2,7 +2,7 @@ const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
-
+const jwt = require('jsonwebtoken');
 
 
 const { existsSync, readFileSync } = require('fs');
@@ -16,8 +16,6 @@ class webEngine {
     constructor(thisSiteID) {
         this.assignedSiteID = thisSiteID;
         this.errorMessage = '';
-        this.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
-        this.JWT_EXPIRES_IN = 90;
 
     }
 
@@ -59,7 +57,8 @@ class webEngine {
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
-
+        this.errorMessage = "";
+        
         if (this.invalidSiteID(cms)) { return; }
         cms.Html = "website:[" + _siteID + "] HTML<br>";
         // let filePath = cms.url.pathname.replace(/\\/g,'/');
@@ -90,34 +89,31 @@ class webEngine {
             // create a JWT and return it to frontend 
             // redirect to the landing page  
             // if invalid password display error message  
+            if (username || password) {
+                if (username == 'joe' && password == 'friendofFelix84') {
 
-            if (username == 'joe' && password == 'friendofFelix84') {
+                    this.errorMessage = 'login successful';
 
-                this.errorMessage = 'login successful';
+                    let user = { username: 'joe', userid: 1, userlevel: 9, siteid: cms.siteID };
+                    //var token = jwt.encode({user}, secretKey); 
 
-                let user = { username: 'joe', userid: 1, userlevel: 9 };
-                //var token = jwt.encode({user}, secretKey); 
+                    const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                        expiresIn: cms.JWT_EXPIRES_IN,
+                    });
+                    cms.newToken = token;
 
-                const token = jwt.sign({ user }, this.JWT_SECRET, {
-                    expiresIn: this.JWT_EXPIRES_IN,
-                });
+                } else {
+                    this.errorMessage = 'login not successful';
+                    // Invalidate Token
+                    let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteID };
+                    //var token = jwt.encode({user}, secretKey); 
 
-                res.status(201).json({
-                    status: 'success',
-                    token,
-                    data: {
-                        newUser,
-                    },
-                });
-
-
-
-
-
-            } else {
-                this.errorMessage = 'login not successful';
+                    const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                        expiresIn: -1,
+                    });
+                    cms.newToken = token;
+                }
             }
-
 
 
 
