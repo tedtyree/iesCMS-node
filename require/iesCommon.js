@@ -42,6 +42,22 @@ class iesCommonLib {
                 }
                 catch { }
                 break;
+            // Subpages  menu 
+            case "subpage":
+
+                try {
+                    let FileName = ret.Param1.trim() + '.cfg';
+                    const filePath = this.FindFileInFolders(FileName, this.getParamStr(cms, "PageFolder"), this.getParamStr(cms, "CommonPageFolder"));
+                    //  content.append(filePath);
+                    const webBlock = this.LoadHtmlFile(filePath, null, "", cms.userLevel);
+                    content.append(webBlock.content + '');
+
+                } catch (err) {
+                    console.log(err.message);
+                }
+
+                break;
+
             //case "pageid": // this is handled by cms.HEADER
 
             case "tagz":
@@ -486,7 +502,7 @@ class iesCommonLib {
 
             if (fileContent.indexOf("[[{") >= 0) {
                 start = fileContent.indexOf("[[{") + 2;
-                end = fileContent.indexOf("}]]") - 1;
+                end = fileContent.indexOf("}]]") + 1;
                 foundHeader = true;
 
                 let jSON = fileContent.substring(start, end);
@@ -515,17 +531,20 @@ class iesCommonLib {
 
             //Let's remove the json header from the content
             if (fileContent.trim() != '' && end > 0) {
-                fileContent = fileContent.splice(end + 3);
+                fileContent = fileContent.slice(end + 2);
             }
             if ((UserViewLevel >= 0) && (foundHeader == true)) {
-                if (UserViewLevel < htmlFile.getInt("MinViewLevel", 999)) {
+
+                let debugValue = jsonHeader.getNum("MinViewLevel", 999);
+
+                if (UserViewLevel < jsonHeader.getNum("MinViewLevel", 999)) {
                     // User does not have permission to view this content
                     fileContent = "";
                     errMsg = "Insufficient permission to view content. [ERR-27931]";
                     status = -1;  // Not sure that this is really an 'error', but flag it as such
                 }
             }
-            if (ContentField.trim() != '') {
+            if (htmlFile && ContentField.trim() != '') {
                 htmlFile.AddToObjBase(ContentField, fileContent);
             }
             if (errMsg == "") { status = 0; }
