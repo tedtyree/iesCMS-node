@@ -415,7 +415,10 @@ http.createServer(async (req, res) => {
             myHead.push(['Content-Type', 'text/html']);
 
             if (cms.redirect) {
-                  // res.writeHead(302, { Location: cms.redirect });
+                  // iesCMS supports 2 types of redirects
+                  // For this one just set cms.redirect = destination page or URL
+                  // This one shows an HTML page (in case redirect fails), sets cookies, and then redirects.
+                  // (see below for alternate redirect)
                   myHead.push(['Location', cms.redirect]);
                   res.writeHead(302, myHead);
             } else {
@@ -455,15 +458,6 @@ http.createServer(async (req, res) => {
                         "============ DebbugerMessage =================\n" + DebbugerMessage + "\n");
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
-            // if (debugMode > 5) { cms.Html += '\n\n' + DebbugerMessage; }
-            /* try {
-                   if (cms.redirect) { res.redirect(cms.redirect); } // Redirect to new page if requested
-             }
-             catch (err) {
-                   console.log(err.message);
-             }
-             */
-
             res.end(cms.Html);
 
       } // end if (cms.resultType=='html')
@@ -471,13 +465,18 @@ http.createServer(async (req, res) => {
             // indicate resultType='redirect' to override HTML content with brief redirect message
             cms.Html = "<HTML><BODY>Redirecting to <a href='" + cms.redirect + "'>" + cms.redirect + "</a>.<br><br>If page redirect does not occur within 60 seconds, click the redirect link.</a></BODY></HTML>"
             try {
-
-                  res.redirect(cms.redirect);
+                  // iesCMS supports 2 types of redirects
+                  // For this complete redirect, set cms.redirect = destination page or URL AND set cms.resultType = 'redirect'
+                  // This one does notshow an HTML page, does not set cookies, but only redirects.
+                  // (see above for alternate redirect that displays an HTML page and sets cookies)
+                  let myHead = [];
+                  myHead.push(['Location', cms.redirect]);
+                  res.writeHead(302, myHead);
 
             } catch (err) {
                   console.log(err.message);
             }
-            res.end(cms.Html);
+            res.end();
       }
 
       if (debugMode > 0) {
