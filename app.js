@@ -415,7 +415,9 @@ http.createServer(async (req, res) => {
             myHead.push(['Content-Type', 'text/html']);
 
             if (cms.redirect) {
-                  res.writeHead(301, { Location: cms.redirect });
+                  // res.writeHead(302, { Location: cms.redirect });
+                  myHead.push(['Location', cms.redirect]);
+                  res.writeHead(302, myHead);
             } else {
 
                   res.writeHead(200, myHead);
