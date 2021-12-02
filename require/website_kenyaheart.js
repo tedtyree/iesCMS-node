@@ -2,11 +2,14 @@ const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
+const iesDbClass = require('./iesDB/iesDbClass.js');
+// const iesDB = new iesDbClass();  // use cms.db instead
 const jwt = require('jsonwebtoken');
 
 
 const { existsSync, readFileSync } = require('fs');
 const { get } = require("http");
+const { resolve } = require("path");
 
 const _siteID = 'kenyaheart';
 //var assignedSiteID = '';
@@ -28,7 +31,7 @@ class webEngine {
         return false;
     }
 
-    CustomTags(ret, cms) {
+    async CustomTags(ret, cms) {
         var content = new StringBuilder();
         ret.Processed = true;
         switch (ret.Tag.toLowerCase()) {
@@ -44,6 +47,15 @@ class webEngine {
             case "lang":
                 this.ProcessLangTag(ret.Param1, content, cms);
                 break;
+            case "tablesearch":
+                let searchText = iesCommon.FormOrUrlParam(cms,"search","");
+                let page = iesCommon.FormOrUrlParam(cms,"page",1);
+                try { page = parseInt(page); }
+                catch { page = 1; }
+                if (page < 1) { page = 1; }
+                iesCommon.PrepForJsonReturn(ret);
+                await this.BuildTableSearch(cms, searchText, content, page, ret);
+                break;
             default:
                 ret.Processed = false;
                 break;
@@ -51,7 +63,7 @@ class webEngine {
         ret.ReturnContent += content.toString();
     }
 
-    CreateHtml(cms) {
+    async CreateHtml(cms) {
         var fileType = '';
         let pageHead = new iesJSON();
         var pageErr = -1;
@@ -76,7 +88,15 @@ class webEngine {
         // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
         cms.pageId = filePath;
 
-
+        // Setup DATABASE for connection (if needed) ... do not connect yet
+        let dbConnectJson = cms.SERVER.i("dbConnect");
+        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        let dbConnect = {
+            host: dbConnectJson.i("host").toStr()
+            ,user: dbConnectJson.i("user").toStr()
+            ,password: dbConnectJson.i("password").toStr()
+        };
+        cms.db = new iesDbClass(dbConnect);
 
         //check for user login  
 
@@ -116,12 +136,6 @@ class webEngine {
                     cms.newToken = token;
                 }
             }
-
-
-
-
-
-
 
         }
 
@@ -185,7 +199,11 @@ class webEngine {
                 return;
             }
 
-            // Lookup page template
+            if (cms.HEADER.contains("ResponseType")) {
+                cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
+            }
+
+            // Lookup page template (if HTML response expected)
             pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
             templatePath = iesCommon.FindFileInFolders(pageTemplate,
                 './websites/' + cms.siteID + '/templates/',
@@ -197,10 +215,10 @@ class webEngine {
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
-            cms.Html = iesCommon.ReplaceTags(template, pageHead, contentHtml, this, cms);
+            cms.Html = await iesCommon.ReplaceTags(template, pageHead, contentHtml, this, cms);
 
         } else {
-            // NON-HTML RESOURCES
+            // NON-HTML/JSON RESOURCES
             // cms.Html += 'DEBUGGER: get non-html file<br>pathExt=' + cms.pathExt +'<br>cms.url.pathname=' + cms.url.pathname + '<br>urlBasePath=' + cms.urlBasePath + '<br>';
             if (cms.urlBasePath.toLowerCase() == 'cmscommon') {
                 // look for file in cmsCommon
@@ -276,6 +294,181 @@ class webEngine {
         }
         return "";
     }
+
+    async BuildTableSearch(cms, searchText, Content, page, ret)
+    {
+        /* FUTURE: Log event
+            if (cms.SITE.DebugMode > 0)
+            {
+                cms.WriteLog("custom", "========================================================================= BuildTableSearch\n");
+            }
+        */
+            // Load vocabsearch config file
+            let configName = cms.db.dbStr(iesCommon.Sanitize(iesCommon.FormOrUrlParam(cms,"config","")), 40, false);
+            let vocabFile = "table_" + configName + ".cfg";
+            let vocabConfigPath = iesCommon.FindFileInFolders(vocabFile, iesCommon.getParamStr(cms, "ConfigFolder"));
+            if (!vocabConfigPath)
+            {
+                // FUTURE: Log error message
+                // if (cms.SITE.DebugMode >= 1) { cms.WriteLog("custom", "ERROR: BuildVocabSearch: Vocab config not found: " + vocabFile + " [ERR37617]\n"); }
+                return;
+            }
+            let cfg = new iesJSON();
+            cfg.DeserializeFlexFile(vocabConfigPath);
+            if (cfg.Status != 0)
+            {
+                // FUTURE: Log error message
+                //if (cms.SITE.DebugMode >= 1) { cms.WriteLog("custom", "ERROR: BuildVocabSearch: Vocab config parse error [ERR37688]\n" + cfg.StatusMessage + "\n"); }
+                return;
+            }
+
+            // ADD Build parameters for query
+            cfg.addToObjBase("siteid", cms.siteID);
+
+            // Get SQL WHERE query from config WITH parameter replacement
+            let table = cfg.i("table").toStr(); // debugger
+            let vocabSearchFields = cfg.i("searchFields").toStr();
+            let RecordsPerPage = cfg.i("RecordsPerPage").toNum(25);
+            let offset = (page - 1) * RecordsPerPage;
+            let orderby = cfg.i("orderby").toStr(""); // Includes tag replacement
+            let searchWhere = "";
+
+            if (searchText.trim() != "")
+            {
+                searchWhere = iesCommon.MakeSearch(vocabSearchFields, searchText, cms);
+            }
+            let where = cfg.i("where").toStr(""); // Includes tag replacement
+            if (searchWhere != "")
+            {
+                where += " AND " + searchWhere;
+            }
+
+            // Optional search of specific columns/tags
+            let searchTags = cfg.i("searchTags");
+            searchTags.forEach (function(tagSearch) {
+                console.log("tagSearch=" + tagSearch.toStr());
+                /*
+                let formField = tagSearch.i("formField").toStr().trim();
+                if (formField != "") {
+                    let matchList = iesCommon.FormOrUrlParam(cms,formField,"").trim();
+                    if (matchList != "") {
+                        let searchType = tagSearch.i("type").toStr().trim().toLowerCase();
+                        switch (searchType) {
+                            case "where-in":
+                              // NOTE: If matchList is blank, then we select "ALL" rows
+                              // If more than one item is specified, then WHERE-IN acts like an OR
+                              let tableColumn = tagSearch.i("tableColumn").toStr().trim();
+                              if (tableColumn != "") {
+                                  let newWhere = tableColumn + " in " + iesCommon.ConvertListToWhereIn(cms,matchList);
+                                  where += " AND " + newWhere;
+                              }
+                            break;
+                        }
+                    }
+                }
+                */
+            }); // end forEach
+
+            // Get COUNT of records (so we can do paging)
+            let countRecords = await cms.db.GetCount(table, where);
+/*
+            if (((cms.db.status != 0) || (countRecords < 0)) && cms.SITE.DebugMode > 0)
+            {
+                cms.WriteLog("custom", "BuildTableSearch-01: ERROR: GetCount=" + countRecords + "\n");
+                cms.WriteLog("custom", "BuildTableSearch-02: ERROR: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
+            }
+            iesJSON zDebug = null;
+            if (cms.SITE.DebugMode >= 5) { cms.WriteLog("custom", "DEBUG-03: sql where=" + where + "\n"); }
+            try
+            {
+                zDebug = cms.db.GetFirstRow("SELECT COUNT(*) FROM " + table + " " + where);
+            }
+            catch (Exception eee)
+            {
+                if (cms.SITE.DebugMode > 0)
+                {
+                    cms.WriteLog("custom", "BuildTableSearch: DEBUG-ERROR-03b: EXCEPTION=" + eee.ToString() + "\n");
+                }
+            }
+            if ((cms.SITE.DebugMode > 0) && (zDebug != null))
+            {
+                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-04: RecordSet Count=" + zDebug.Length + "\n");
+                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-05: RecordSet Value=" + zDebug.jsonString + "\n");
+                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-06: RecordSet Status=" + zDebug.Status + "\n");
+                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-07: Status Msg=" + zDebug.StatusMessage + "\n");
+                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-08: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
+            }
+            else
+            {
+                if (zDebug == null)
+                {
+                    cms.WriteLog("custom", "BuildTableSearch: DEBUG1-04b: zDebug=NULL\n");
+                    cms.WriteLog("custom", "BuildTableSearch: DEBUG1-05b: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
+                }
+            }
+
+            string fieldList = "*";
+            if (cfg["format"].ToStr().ToLower() == "json") {
+                // Here we only want to get the fields listed in the "Get Fields" list (cannot be packed in _json - FUTURE: Maybe allow ability to extract from _json ?)
+                fieldList="";
+                foreach (iesJSON f in cfg["GetFields"]) {
+                    fieldList += ((fieldList=="")?"":",") + f.ToStr();
+                }
+            }
+
+            string sqlVocab = "SELECT " + fieldList + " FROM " + table + " " + where + " " + orderby + " LIMIT " + offset + ", " + RecordsPerPage + " ";
+            if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-09: Debug: SQL=" + sqlVocab + "\n"); }
+            if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-10: COUNT-A=" + countRecords + "\n"); }
+
+            // Get data records
+            iesJSON recVocab = cms.db.GetDataReaderAll(sqlVocab);
+            if (((cms.db.status != 0) || (recVocab.Status != 0)) && cms.SITE.DebugMode > 0)
+            {
+                cms.WriteLog("custom", "BuildTableSearch-11: ERROR: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
+                cms.WriteLog("custom", "BuildTableSearch-12: ERROR: Recordset Status=" + recVocab.Status + "\n");
+            }
+            if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-13: COUNT-B=" + recVocab.Length + "\n"); }
+
+            if (cfg["format"].ToStr().ToLower() != "json") { // format=html
+
+                // Create TABLE HEADER
+                string tblHeader = Util.GetParamStr(cfg, "TableHeader");  // With tag replacement
+                string tblRow = cfg["TableRow"].ToStr();  // NO TAG REPLACEMENT!!! (that comes later)
+                string tblFooter = Util.GetParamStr(cfg, "TableFooter");  // With tag replacement
+                Content.Append(tblHeader + "\n");
+
+                // Create TABLE ROWS
+                foreach (iesJSON rec in recVocab)
+                {
+                    Content.Append(
+                        Util.ReplaceTags(tblRow, rec)
+                    );
+                }
+
+                // TABLE FOOTER
+                Content.Append(tblFooter + "\n");
+            } // end if (cfg["format"] != "json")
+
+            // Add PAGING INFO at bottom of table - hidden for jQuery to read and use
+            Content.Append("<input type='hidden' id='rowcount' ref='rowcount' value='" + countRecords + "'>");
+            Content.Append("<input type='hidden' id='recordsperpage' ref='recordsperpage' value='" + RecordsPerPage + "'>\n");
+
+            // Count at bottom of page (the js script adds this on the front-end)
+            // Content.Append("<br>Total Records: " + countRecords + "<br>\n");
+
+            // Create JSON if this is a JSON request
+            // FUTURE: TODO: Better way to flag JSON vs HTML (rather than checking if JSON object exists)
+            if (ret.ReturnJson != null) {
+                ret.ReturnJson.AddToObjBase("rowcount",countRecords);
+                ret.ReturnJson.AddToObjBase("recordsperpage",RecordsPerPage);
+                if (cfg["format"].ToStr().ToLower() == "json") {
+                    ret.ReturnJson.AddToObjBase("data",recVocab);
+                } else { // format=html
+                    ret.ReturnJson.AddToObjBase("content",Content.ToString());
+                }
+            }
+            */
+        } // end BuildTableSearch()
 
 }
 

@@ -36,8 +36,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // You can implement foreach with this class:
 //    iesJSON i=new iesJSON("[5,4,3,2,1]");
-//    foreach (object k in i) {
-//		...
+//    i.forEach ( k => { ... });
 //
 // You can reference items using [index]...
 //    iesJSON i=new iesJSON("{'color1':'black','color2':'blue','dogs':['Pincher','Sausage','Doverman','Chiwawa']}");
@@ -60,6 +59,7 @@ const iesJsonConstants = require('./iesJsonConstants.js');
 const iesJsonPosition = require('./iesJsonPosition.js');
 const iesJsonMeta = require('./iesJsonMeta.js');
 const fs = require('fs');
+const StringBuilder = require("string-builder");
 
 class iesJSON {
 	
@@ -165,6 +165,18 @@ class iesJSON {
         if (this._meta != null) { this._meta.preSpace = value; }
     }
 
+    get postSpace() {
+        if (this._meta != null) {
+            if (this._meta.postSpace != null) { return this._meta.postSpace; }
+        }
+        return null;
+    }
+
+    set postSpace(value) {
+        this.createMetaIfNeeded();
+        if (this._meta != null) { this._meta.postSpace = value; }
+    }
+
     get finalSpace() {
         if (this._meta != null) {
             if (this._meta.finalSpace != null) { return this._meta.finalSpace; }
@@ -234,6 +246,116 @@ class iesJSON {
         return (this._jsonType);
     }
 
+    get jsonString() {
+        // if (trackingStats) { IncStats("stat_jsonString_get"); }
+        if (this._status != 0) { return ""; } // *** ERROR - status is invalid
+        if (!this._jsonString_valid)
+        {
+            if (!this._value_valid)
+            {
+                // *** Neither is valid - this JSON object is null
+                return "";
+            }
+            else
+            {
+                // *** First we need to serialize
+                this.SerializeMe();
+                if (this._status != 0) { return ""; } // *** ERROR - status is invalid
+                return this._jsonString;
+            }
+        }
+        else
+        {  // jsonString was already valid.
+            return this._jsonString;
+        }
+    } // end getJsonString()
+    
+    set jsonString(value)
+    {
+        //if (trackingStats) { IncStats("stat_jsonString_set"); }
+        if ((this._status == 0) && (this._jsonString_valid) && (this._jsonString == value))
+        {
+            return;
+        }
+        else
+        {
+            this.Clear(false, 1);  // *** This clears _value AND notifies Parent that we have changed.
+            this._jsonString = value;
+            this._jsonString_valid = true;  // *** This does not indicate 'valid JSON syntax' but only that the string has been populated.
+        }
+    } //End Set jsonString
+
+    // Gets Array.Length or Dictionary.Count for array/object.  Gets 1 for all other types (string, number, null, etc.)  Returns 0 if _value is not valid.
+    get length() {
+        if (this._status != 0 || !this._value_valid) { return 0; }
+        if (this._jsonType == "null") { return 0; }
+        if (this._jsonType != "array" && this._jsonType != "object") { return 1; }
+        // otherwise we are a _jsonType="object" or _jsonType="array"
+        try
+        {
+            return this._value.length;
+        }
+        catch { return -1; } //Error occurred... return -1 to indicate an error
+    }
+    // There is no "set" for length
+
+    // *** Clear()
+    // *** src=0 indicates outside source is invalidating us
+    // *** src=1 indicates we are invalidating ourself (a routine in this object)
+    //DEFAULT-PARAMETERS
+    //public void Clear() { Clear(true,0,false); }
+    //public void Clear(bool ClearParent) { Clear(ClearParent,0,false); }
+    //public void Clear(bool ClearParent,int src) { Clear(ClearParent,src,false); }
+    //public void Clear(bool ClearParent,int src,bool bClearStats) {
+    //FUTURE: May want to clear any string values in _keep... but need to retain _keep object and _keep parameters
+    Clear(ClearParent = true, src = 0, bClearStats = false) {
+        /* FUTURE: HERE-NEW
+        if (trackingStats)
+        {
+            if (bClearStats)
+            {
+                this.ClearStats(true);
+            }
+            else
+            {
+                this.IncStats("stat_Clear");
+                if (src == 0) { this.IncStats("stat_ClearFromOther"); }
+                if (src == 1) { this.IncStats("stat_ClearFromSelf"); }
+            }
+        } */
+        this._status = 0;
+        this._jsonType = "";
+        this._value = null;
+        this._value_valid = false;
+        this.InvalidateJsonString(src); // *** Resets _jsonString and _jsonString_valid (and notifies Parent of changes)
+        this.endpos = 0;
+        if (ClearParent) { this.Parent = null; }
+    } // end Clear()
+
+    // *** InvalidateJsonString()
+    // *** Indicate that the jsonString no-longer matches the "value" object
+    // *** This is done when the "value" of the JSON object changes
+    // *** src=0 indicates outside source is invalidating us
+    // *** src=1 indicates we are invalidating ourself (a routine in this object)
+    // *** src=2 indicates that one of our child objects is invalidating us
+    //DEFAULT-PARAMETERS
+    //public void InvalidateJsonString() { InvalidateJsonString(0); }
+    //public void InvalidateJsonString(int src) {
+    InvalidateJsonString(src = 0) {
+        /* FUTURE: HERE-NEW
+        if (trackingStats)
+        {
+            IncStats("stat_Invalidate");
+            if (src == 0) { IncStats("stat_InvalidateFromOther"); }
+            if (src == 1) { IncStats("stat_InvalidateFromSelf"); }
+            if (src == 2) { IncStats("stat_InvalidateFromChild"); }
+        } */
+        this._jsonString = "";
+        this._jsonString_valid = false;
+        // *** if our jsonString is invalid, { the PARENT jsonString would also be invalid
+        if (!(this.Parent == null)) { this.Parent.InvalidateJsonString(2); }
+    } // end InvalidateJsonString()
+
     // keepSpacingAndComments() - setsup the spacing/comments object used for Flex config files
     //   flag values: -1 leave default value, 0 Set to FALSE, 1 Set to TRUE
     //  NOTE: Only works if NoCommentsOrMsgs is set to false
@@ -252,10 +374,6 @@ class iesJSON {
             if (comments_flag == 1) { this.keepComments = true; }
         }
     }
-		
-	InvalidateJsonString() {
-		// FUTURE-NEW
-	}
 
     ValidateValue() {
         if (this._status != 0) { return false; } // *** ERROR - status is invalid
@@ -331,8 +449,17 @@ class iesJSON {
         return this.i(idx,dotNotation);
     }
 
+    // if idx is a number - use as an index into array/object (error upon any non array/object)
+    // if idx is a string containing dots (periods)... then parse it into dot notation (unless specified not to)
+    // if idx is a string with no dots, use idx as a named parameter of an 'object' (if not an object, return an error)
     i(idx,dotNotation = true) {
         //if (trackingStats) { IncStats("stat_Item_get"); } // FUTURE-NEW
+
+        if (Number.isInteger(idx)) {
+            if (this.jsonType != 'array' && this.jsonType != 'object') { return iesJSON.CreateNull(); }
+            if (idx<0 || idx>this.length) { return null; } // error: we are past the end of the array/object
+            return this._value[idx];
+        }
 
         var searchList;
         let nextItem = this;
@@ -371,6 +498,22 @@ class iesJSON {
         if (k<0) { return iesJSON.CreateNull(); } // NOTE! You can check that there is no PARENT on this null object to see that it was NOT-FOUND
 
         return nextItem;    
+    }
+
+    forEach(callback) {
+        if (this.jsonType == 'object' || this.jsonType == 'array') {
+            for (let i = 0; i < this.length; i++) { 
+                let jj = this.i(i); // debugger
+                callback(this.i(i));
+            } // end for
+        } else {
+            callback(this); // if we are not an object/array, then callback one time for this object
+            // FUTURE: Should we call back 0 times if we are a NULL or status!=0?
+        }
+    } // end forEach()
+
+    addToObjBase (idx,value) {
+        this.add(idx,value,false);
     }
 
     add (idx,value,dotNotation = true) {
@@ -502,6 +645,110 @@ class iesJSON {
             j._status = 0;
             return j;
         }
+
+    // SerializeMe() - Use this to Serialize the items that are already in the iesJSON object.
+    // Return: 0=OK, -1=Error
+    SerializeMe()
+    {
+        let s = new StringBuilder();
+        let i=0;
+        let k=0;
+        let preKey = "";
+        let postKey = "";
+        //if (this.trackingStats) { IncStats("stat_SerializeMe"); }
+        if (this._status != 0) { return -1; }
+        if (!this.ValidateValue()) { return -1; }
+        try
+        {
+            let preSpace = this.preSpace;
+            if (preSpace) {
+                // Here we ignore keepSpacing/keepComments - these flags are only used during the deserialize process
+                s.append(preSpace); // preSpace of overall object/array or item
+            }
+            switch (this._jsonType)
+            {
+                case "object":
+                    s.append("{");
+                    i = 0;
+                    this._value.forEach( o => {
+                        if (i > 0) { s.append(","); }
+                        let k = o.SerializeMe();
+
+                        // Here we ignore keepSpacing/keepComments - these flags are only used during the deserialize process
+                        // preSpace and postSpace are already added during the SerializeMe() call above.  Here we add preKye and postKey.
+                        let oPreKey = o.preKey || '';
+                        let oPostKey = o.postKey || '';
+                        
+                        if ((k == 0) && (o.Status == 0)) { s.append(oPreKey + "\"" + o.key.toString() + "\"" + oPostKey + ":" + o.jsonString); }
+                        else
+                        {
+                            this._status = -53;
+                            this.AddStatusMessage("ERROR: Failed to serialize Object item " + i + " [err-53][" + o.Status + ":" + o.StatusMessage + "]");
+                            return -1;
+                        }
+                        i++;
+                    }); // end foreach
+                    s.append("}");
+                    break;
+                case "array":
+                    s.append("[");
+                    i = 0;
+                    this._value.forEach( o => {
+                        if (i > 0) { s.append(","); }
+                        k = o.SerializeMe();
+                        if ((k == 0) && (o.Status == 0)) { s.append(o.jsonString); }
+                        else
+                        {
+                            this._status = -52;
+                            this.AddStatusMessage("ERROR: Failed to serialize Array item " + i + " [err-52]");
+                            return -1;
+                        }
+                        i++;
+                    });
+                    s.append("]");
+                    break;
+                case "null":
+                    s.append("null");
+                    break;
+                case "string":
+                    s.append("\"" + this.EncodeString(this.toStr()) + "\"");
+                    break;
+                default:
+                    s.append(this.toStr()); // FUTURE: better approach? seems prone to problems
+                    break;
+            }
+            let postSpace = '' + (this.postSpace || '') + (this.finalSpace || '');
+            if (postSpace)
+            {
+                s.append(postSpace);
+            }
+            this._jsonString = s.toString();
+            this._jsonString_valid = true;
+        }
+        catch (err94)
+        {
+            this._jsonString = "";
+            this.InvalidateJsonString(1);
+            this._status = -94;
+            // FUTURE: Remove err94.message below?
+            this.AddStatusMessage("ERROR: SerializeMe() failed to serialize the iesJSON object. [err-94] " + err94.message);
+            return -1;
+        }
+        return 0;
+    } // end SerializeMe()
+
+    EncodeString(vString = "") {
+        let s;
+        // *** NOTE: This is a simple encode.  It needs to be expanded in the future!
+        s = vString;
+        s = s.replace(/\\/g,'\\\\'); // **** NOTE: THIS MUST BE FIRST (so we do not double-escape the items below!)
+        s = s.replace(/\t/g,'\\t');
+        s = s.replace(/\n/g,'\\n');
+        s = s.replace(/\r/g,'\\r');
+        s = s.replace(/"/g,'\\"');
+        if (this.ENCODE_SINGLE_QUOTES) { s = s.replace(/'/g, "\\'"); }
+        return s;
+    } // End Function
 	
 	// *** Deserialize()
 	// ***   if this item starts with a { then it is an parameter list and must end with a } and anything past that is ignored
@@ -519,7 +766,7 @@ class iesJSON {
 	Deserialize(snewString, start = 0, OkToClip = false)
 	{
 		if (this.trackingStats) { IncStats("stat_Deserialize"); }
-		// Clear(false, 1);  // FUTURE-NEW
+		this.Clear(false, 1);
 		this._jsonString = snewString;
 		this._jsonString_valid = true;
 
@@ -656,7 +903,7 @@ class iesJSON {
                         if (meStatus >= iesJsonConstants.ST_STRING) {
                             if (keepCM || keepSP) {
                                 preSpace = getSpace;
-                                getSpace.Length = 0; // clear
+                                getSpace = ''; // clear
                             }
                         }
                         if (meStatus == iesJsonConstants.ST_STRING || meStatus == iesJsonConstants.ST_STRING_NO_QUOTE) {
@@ -854,9 +1101,9 @@ class iesJSON {
                 case "nqstring": // NOTE! This is objType must be converted to another type here! nqstring is not a real type.
                     let tmpString = meString;  // do not need to trim since we should have consumed the whitespace in getSpace
                     if (!MustBeString) {
-                        if (tmpString.Length < 7) {
-                            var tmpStringUpper = tmpString.ToUpper();
-                            if (string.IsNullOrWhiteSpace(tmpStringUpper) || tmpStringUpper == "NULL") {
+                        if (tmpString.length < 7) {
+                            var tmpStringUpper = tmpString.trim().toUpperCase();
+                            if (tmpStringUpper == '' || tmpStringUpper == "NULL") {
                                 this._value = "";
                                 this._jsonType = iesJsonConstants.typeNull;
                             }
@@ -1052,7 +1299,7 @@ class iesJSON {
                     jNew=null;
 
                     // *** Check if we are past the end of the string
-                    if (mePos.absolutePosition >= meJsonString.Length)
+                    if (mePos.absolutePosition >= meJsonString.length)
                     {
                         this.StatusErr(-15, "Past end of string before we found the } symbol as the end of the object @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-15)");
                         break;
@@ -1130,7 +1377,7 @@ class iesJSON {
                 jNew=null;
 
                 // *** Check if we are past the end of the string
-                if (mePos.absolutePosition >= meJsonString.Length)
+                if (mePos.absolutePosition >= meJsonString.length)
                 {
                     this.StatusErr(-115, "Past end of string before we found the ] symbol as the end of the object @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-115)");
                     break;

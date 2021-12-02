@@ -17,7 +17,7 @@ class iesCommonLib {
 
     constructor() { }
 
-    AdminTags(ret, Custom, cms) {
+    async AdminTags(ret, Custom, cms) {
         var content = new StringBuilder();
         ret.Processed = true;
         switch (ret.Tag.toLowerCase()) {
@@ -119,7 +119,7 @@ class iesCommonLib {
 
 
     // **************** ReplaceTags()
-    ReplaceTags(inputString, header, content, Custom, cms, lvl = 0) {
+    async ReplaceTags(inputString, header, content, Custom, cms, lvl = 0) {
         var charPosition = 0;
         var beginning = 0;
         var startPos = 0;
@@ -210,12 +210,17 @@ class iesCommonLib {
                         ret.Processed = true;
                     }
                     if (ret.Processed == false && Custom && Custom.CustomTags) {
-                        Custom.CustomTags(ret, cms);
+                        await Custom.CustomTags(ret, cms);
                     }
 
                     if (ret.Processed == false) {
                         // Tag not processed, let's try the admin level to replace this tag...
-                        this.AdminTags(ret, Custom, cms);
+                        await this.AdminTags(ret, Custom, cms);
+                    }
+
+                    // Check if our return object include JSON
+                    if (ret.ReturnJson) {
+                        cms.ReturnJson = ret.ReturnJson;  // FUTURE Merge if we already have JSON in cms.ReturnJson??? (otherwise last one wins)
                     }
 
                     // Check if our replacement string has [[tags]] that need to be replaced
@@ -224,7 +229,7 @@ class iesCommonLib {
                         var pt = replacement.indexOf("[[");
                         if (pt >= 0) {
                             // Recursive call to replace [[tags]]
-                            var replace2 = this.ReplaceTags(replacement, header, content, Custom, cms, lvl);
+                            var replace2 = await this.ReplaceTags(replacement, header, content, Custom, cms, lvl);
                             replacement = replace2;
                         }
                     }
@@ -244,6 +249,8 @@ class iesCommonLib {
     } // END ReplaceTags
 
     /* ******************************************** SUPPORT ROUTINES *********************************** */
+
+    // Left(length) - USE slice([start],[end]) as a replacement for Left()
 
     SplitTags(inputString) {
         try {
@@ -376,6 +383,23 @@ class iesCommonLib {
         return v;
     }
 
+    FormOrUrlParam(cms,paramId,defaultValue = null) {
+        if (cms.body.hasOwnProperty(paramId)) {
+            return cms.body[paramId];
+        }
+        try {
+            let v = cms.url.query[paramId];
+            if (v) { return v; }
+        } catch {}
+        return defaultValue;
+    }
+
+    PrepForJsonReturn(ret) {
+        if (!ret.ReturnJson) {
+            ret.ReturnJson = new iesJSON("{}");
+        }
+    }
+
     // **************** tagReplaceString()
     tagReplaceString(inputString, cfg1, cfg2, cfg3, cfg4, lvl = 0) {
         var charPosition = 0;
@@ -456,6 +480,40 @@ class iesCommonLib {
 
         return data.toString();
     } // END tagReplaceString
+
+    Sanitize(stringValue, truncateLength = -1)
+    {
+        if (stringValue == null) { return stringValue; }
+        let s = '' + stringValue;
+        s = s.replace(/-{2,}/g, "-");
+        s = s.replace(/[*/]+/g, '');      // removes / and * used also to comment in sql scripts
+        s = s.replace(/(;|\s)(exec|execute|select|insert|update|delete|create|alter|drop|rename|truncate|backup|restore)\s/ig, '');
+
+        // Truncate length if greater than specified max length. (if truncateLength<=0 then do nothing)
+        if (truncateLength > 0) { if (s.length > truncateLength) { s = s.substring(0, truncateLength); } }
+
+        return s;
+    } // end Sanitize()
+
+    // Convert a comma separated list
+    //   example: aaa,bbb,ccc
+    // to a WHERE IN clause
+    //   example: ('aaa','bbb','ccc')
+    // Perform safety on each element (to avoid sql injection)
+    // FUTURE: removeSpecialChars
+    ConvertListToWhereIn(cms, matchList, removeSpecialChars = true, addParens = true) {
+        let newList = new StringBuilder();
+        if (addParens) { newList.append("("); }
+        let matches = matchList.split(",");
+        let cnt = 0;
+        matches.forEach ( match => {
+            if (cnt>0) { newList.append(","); }
+            newList.append(cms.db.dbStr(iesCommon.Sanitize(match,40),-1,true));
+            cnt += 1;
+        });
+        if (addParens) { newList.append(")"); }
+        return newList.toString();
+    }
 
     // Look for a text file in a list of folders and load the first one that exists
     ReadFileFrom(sFileName, Folders) {
@@ -556,6 +614,150 @@ class iesCommonLib {
         }
         return { content: fileContent, jsonHeader, foundHeader, status, errMsg };
     }
+
+    MakeSearch(oFields, oSearch, cms, mysqlDate = false) {
+            let p1cnt = 0;
+            let p2cnt = 0;
+            let qry = new StringBuilder();
+            let FieldList = this.SplitStr(oFields, ",");
+            let SearchList = this.SplitStr(oSearch, ", *%");
+            
+            // **** Search Criteria
+            if (SearchList.length > 0)
+            {
+                p1cnt = 0;
+                if (qry.length > 0) { qry.append(") AND ("); }
+                Searchlist.forEach ( p1 => {
+                    if (mysqlDate) {
+                        let DatePiece = this.SplitStr(p1, "/");
+                        let strMonth = "";
+                        let strDay = "";
+                        if ((DatePiece.length >= 2) && (DatePiece.length <= 3))
+                        {
+                            strDay = DatePiece[2].toString().trim();
+                            if (strDay.length == 1) { strDay = "0" + strDay; }
+                            strMonth = DatePiece[1].toString().trim();
+                            if (strMonth.length == 1) { strMonth = "0" + strMonth; }
+                            p1 = strMonth + "-" + strDay;
+                        }
+                        if (DatePiece.length == 3)
+                        {
+                            p1 = DatePiece[3] + "-" + p1;
+                        }
+                    }
+                    if (p1cnt > 0) { qry.append(") AND ("); }
+                    else { qry.append("("); }
+                    p1cnt = p1cnt + 1;
+                    // *** Fields....
+                    p2cnt = 0;
+                    FieldList.forEach (p2 => {
+                        if (p2cnt > 0) { qry.append(" OR "); }
+                        p2cnt = p2cnt + 1;
+                        qry.append(p2 + " LIKE '%" + p1.replace(/'/g, "''") + "%'");
+                    }); // End foreach (p2 in FieldList)
+                }); // End foreach (p1 in SearchList)
+                qry.append(")");
+            } // End if (SearchList.Length > 0)
+            
+            return qry.toString();
+        } // End MakeSearch()
+
+        // FieldList must be an iesJSON object
+        // Each field row (JSON) should have:
+        //    Field: DB field name
+        //    Flags: s=searchable (include this field only if the 's' flag is found.
+        //           d=date (use date formatting for search)
+        // NOTE: FUTURE: TEST - 'd' flag may not work - untested - and does not take into account the search text!
+        MakeSearchFromJson(FieldList, oSearch) {
+            let p1cnt = 0;
+            let p2cnt = 0;
+            let qry = new StringBuilder();
+            let SearchList = this.SplitStr(oSearch, ", *%");
+            
+            // **** Search Criteria
+            if (SearchList.length > 0) {
+                p1cnt = 0;
+                if (qry.length > 0) { qry.append(") AND ("); }
+                SearchList.forEach (p1 => {
+                    
+                    if (p1cnt > 0) { qry.append(") AND ("); }
+                    else { qry.append("("); }
+                    p1cnt = p1cnt + 1;
+                    // *** Fields....
+                    p2cnt = 0;
+                    FieldList.forEach (p2 => {
+
+                        // Check for 'd' date flag
+                        if (p2.i("Flags").toStr().indexOf("d") >=0)
+                        {
+                            let DatePiece = this.SplitStr(p1, "/");
+                            let strMonth = "";
+                            let strDay = "";
+                            if ((DatePiece.length >= 2) && (DatePiece.length <= 3))
+                            {
+                                strDay = DatePiece[2].toString().trim();
+                                if (strDay.length == 1) { strDay = "0" + strDay; }
+                                strMonth = DatePiece[1].toString().trim();
+                                if (strMonth.length == 1) { strMonth = "0" + strMonth; }
+                                p1 = strMonth + "-" + strDay;
+                            }
+                            if (DatePiece.length == 3)
+                            {
+                                p1 = DatePiece[3] + "-" + p1;
+                            }
+                        }
+
+                        if (p2cnt > 0) { qry.append(" OR "); }
+                        p2cnt = p2cnt + 1;
+                        qry.append(p2.i("Field").toStr().trim() + " LIKE '%" + p1.replace(/'/g, "''") + "%'");
+                    }); // End foreach (p2 in FieldList)
+                }); // End foreach (p1 in SearchList)
+                qry.append(")");
+            } // End if (SearchList.Length > 0)
+            
+            return qry.toString();
+        } // End MakeSearchFromJson()
+
+        // *** SplitStr()
+        // *** NOTE: NEEDED BECAUSE WE SPLIT BASED ON MORE THAN 1 CHARACTER
+        SplitStr(nString, CharList) {
+            let cnt=0;
+            let LastF=0;
+            let ListLen=CharList.length;
+            let px=0;
+            let f=0;
+            let s="";
+            let safety=9999;
+            let newStr = "";
+
+            let ret = [];
+            if (nString.length <= 0) { return ret; }
+            do
+            {
+                f = 999999;
+                for (px = 0; px < ListLen; px++)
+                {
+                    s = nString.indexOf(CharList.substring(px, 1), LastF);
+                    if ((s > 0) && (s < f)) { f = s; }
+                } // End for
+                if (f >= 999999) { break; }
+                newStr = nString.substring(LastF, f - LastF);
+                if (newStr.trim() != "")
+                {
+                    cnt = cnt + 1;
+                    ret.push(newStr);
+                }
+                LastF = f + 1;
+                if (safety-- <= 0) { break; }
+            } while (true);
+            if (LastF < nString.length) { newStr = nString.substring(LastF, (nString.length) - LastF); }
+            if (newStr.trim() != "")
+            {
+                cnt = cnt + 1;
+                ret.push(newStr);
+            }
+            return ret;
+        } //End Function
 
 }
 

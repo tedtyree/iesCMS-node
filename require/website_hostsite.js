@@ -23,7 +23,7 @@ class webEngine {
 
     }
 
-    CreateHtml(cms) {
+    async CreateHtml(cms) {
         var fileType = '';
         let pageHead = new iesJSON();
         var pageErr = -1;
@@ -118,7 +118,7 @@ class webEngine {
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
-            cms.Html = iesCommon.ReplaceTags(template,pageHead,contentHtml,this,cms);
+            cms.Html = await iesCommon.ReplaceTags(template,pageHead,contentHtml,this,cms);
 
         } else {
             // NON-HTML RESOURCES
@@ -142,7 +142,7 @@ class webEngine {
         return;
     }
 
-    static CustomTags(tag,content) {
+    async CustomTags(tag,content) {
         switch (tag.toLowerCase()) {
             case "tag1":
                 content = "tag1_content";

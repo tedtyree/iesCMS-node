@@ -175,6 +175,7 @@ function setUser(cms, newUser) {
 // **************************************************************************
 // **************************************************************************
 
+
 http.createServer(async (req, res) => {
 
       let cms = {}; // Primary CMS object to hold all things CMS
@@ -357,12 +358,12 @@ http.createServer(async (req, res) => {
             try {
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
                         debugLog += "thisEngine.CreateHtml()\n";
-                        cms.thisEngine.CreateHtml(cms);
+                        await cms.thisEngine.CreateHtml(cms);
                   } else {
                         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
                               debugLog += "hostsiteEngine.CreateHtml()\n";
                               // We leave a reference to thisEngine in case it has Custom Tags
-                              cms.hostsiteEngine.CreateHtml(cms);
+                              await cms.hostsiteEngine.CreateHtml(cms);
                         }
                   }
             } catch (e) {
@@ -478,11 +479,19 @@ http.createServer(async (req, res) => {
             }
             res.end();
       }
+      if (cms.resultType == 'json') {
+            // FUTURE: Do we need to set header parameters such as jwt, mimic, cookies?
+            if (cms.ReturnJson) {
+                  res.end(cms.ReturnJson.jsonString);
+            }
+      }
 
       if (debugMode > 0) {
             appendFileSync(debugHttpFile, "httpServer processing complete: " + timestamp() + "\n");
       }
 
+      res.end(); // if all else fails, end the request
+      
 }).listen(serverPort);
 
 if (debugMode > 0) {
