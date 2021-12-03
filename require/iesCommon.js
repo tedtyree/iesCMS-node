@@ -360,6 +360,20 @@ class iesCommonLib {
 
     } // End Function
 
+    cfgParamStr(cfg, parameter, defaultValue = "", tagReplace = true)
+    {
+        let newValue = defaultValue;
+
+        if (cfg.contains(parameter)) {
+            newValue = cfg.i(parameter).toStr(defaultValue);
+        }
+
+        if (tagReplace) {
+            newValue = this.tagReplaceString(newValue, cfg);
+        }
+        return newValue;
+    }  // End cfgParameterStr()
+
     getParamStr(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
         let v = "";
         // first we look in cms.HEADER then cms.SITE

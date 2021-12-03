@@ -363,7 +363,9 @@ class webEngine {
             {
                 searchWhere = iesCommon.MakeSearch(vocabSearchFields, searchText, cms);
             }
-            let where = cfg.i("where").toStr(""); // Includes tag replacement
+            
+            // let where = cfg.i("where").toStr(""); // FUTURE: NEEDS TO Include tag replacement
+            let where = iesCommon.cfgParamStr(cfg, "where"); // Includes tag replacement
             if (searchWhere != "")
             {
                 where += " AND " + searchWhere;

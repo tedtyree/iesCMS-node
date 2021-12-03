@@ -533,6 +533,7 @@ class iesJSON {
                     let newV = new iesJSON();
                     newV.thisValue = value;
                     newV.key = idx;
+                    newV.Parent = this;
                     this._value.push(newV);
                 }
             }
