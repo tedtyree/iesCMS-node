@@ -464,6 +464,15 @@ http.createServer(async (req, res) => {
             responseBuilt = true;
 
       } // end if (cms.resultType=='html')
+      if (cms.resultType == 'json') {
+
+            let myHeadJ = [];
+            myHeadJ.push(['Content-Type', 'application/json']);
+            res.writeHead(200, myHeadJ);
+            res.end(cms.ReturnJson.jsonString);
+            responseBuilt = true;
+
+      } // end if (cms.resultType=='json')
       if (cms.resultType == "redirect") {
             // indicate resultType='redirect' to override HTML content with brief redirect message
             cms.Html = "<HTML><BODY>Redirecting to <a href='" + cms.redirect + "'>" + cms.redirect + "</a>.<br><br>If page redirect does not occur within 60 seconds, click the redirect link.</a></BODY></HTML>"
