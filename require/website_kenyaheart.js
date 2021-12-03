@@ -397,106 +397,82 @@ class webEngine {
                 */
             }); // end forEach
 
+            //if (cms.SITE.DebugMode >= 5) { cms.WriteLog("custom", "DEBUG-03: sql where=" + where + "\n"); } // FUTURE DEBUG
+
             // Get COUNT of records (so we can do paging)
             let countRecords = await cms.db.GetCount(table, where);
             console.log("countRecords=" + countRecords);
-/*
+/* FUTURE: RECOGNIZE ERROR CONDITIONS
             if (((cms.db.status != 0) || (countRecords < 0)) && cms.SITE.DebugMode > 0)
             {
                 cms.WriteLog("custom", "BuildTableSearch-01: ERROR: GetCount=" + countRecords + "\n");
                 cms.WriteLog("custom", "BuildTableSearch-02: ERROR: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
             }
-            iesJSON zDebug = null;
-            if (cms.SITE.DebugMode >= 5) { cms.WriteLog("custom", "DEBUG-03: sql where=" + where + "\n"); }
-            try
-            {
-                zDebug = cms.db.GetFirstRow("SELECT COUNT(*) FROM " + table + " " + where);
-            }
-            catch (Exception eee)
-            {
-                if (cms.SITE.DebugMode > 0)
-                {
-                    cms.WriteLog("custom", "BuildTableSearch: DEBUG-ERROR-03b: EXCEPTION=" + eee.ToString() + "\n");
-                }
-            }
-            if ((cms.SITE.DebugMode > 0) && (zDebug != null))
-            {
-                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-04: RecordSet Count=" + zDebug.Length + "\n");
-                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-05: RecordSet Value=" + zDebug.jsonString + "\n");
-                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-06: RecordSet Status=" + zDebug.Status + "\n");
-                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-07: Status Msg=" + zDebug.StatusMessage + "\n");
-                cms.WriteLog("custom", "BuildTableSearch: DEBUG1-08: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
-            }
-            else
-            {
-                if (zDebug == null)
-                {
-                    cms.WriteLog("custom", "BuildTableSearch: DEBUG1-04b: zDebug=NULL\n");
-                    cms.WriteLog("custom", "BuildTableSearch: DEBUG1-05b: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
-                }
-            }
+*/
 
-            string fieldList = "*";
-            if (cfg["format"].ToStr().ToLower() == "json") {
+            let fieldList = "*";
+            if (cfg.i("format").toStr().toLowerCase() == "json") {
                 // Here we only want to get the fields listed in the "Get Fields" list (cannot be packed in _json - FUTURE: Maybe allow ability to extract from _json ?)
                 fieldList="";
-                foreach (iesJSON f in cfg["GetFields"]) {
-                    fieldList += ((fieldList=="")?"":",") + f.ToStr();
-                }
+                cfg.i("GetFields").forEach( f => {
+                    fieldList += ((fieldList=="")?"":",") + f.toStr();
+                });
             }
 
-            string sqlVocab = "SELECT " + fieldList + " FROM " + table + " " + where + " " + orderby + " LIMIT " + offset + ", " + RecordsPerPage + " ";
-            if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-09: Debug: SQL=" + sqlVocab + "\n"); }
-            if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-10: COUNT-A=" + countRecords + "\n"); }
+            let sqlVocab = "SELECT " + fieldList + " FROM " + table + " " + where + " " + orderby + " LIMIT " + offset + ", " + RecordsPerPage + " ";
+            //if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-09: Debug: SQL=" + sqlVocab + "\n"); }
+            //if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-10: COUNT-A=" + countRecords + "\n"); }
 
             // Get data records
-            iesJSON recVocab = cms.db.GetDataReaderAll(sqlVocab);
+            let recVocab = await cms.db.GetDataReader(sqlVocab); // returns array
+/* FUTURE: RECOGNIZE ERROR CONDITIONS
             if (((cms.db.status != 0) || (recVocab.Status != 0)) && cms.SITE.DebugMode > 0)
             {
                 cms.WriteLog("custom", "BuildTableSearch-11: ERROR: DB Status=" + cms.db.status + ", StatusMsg=" + cms.db.statusMessage + "\n");
                 cms.WriteLog("custom", "BuildTableSearch-12: ERROR: Recordset Status=" + recVocab.Status + "\n");
             }
             if (cms.SITE.DebugMode > 6) { cms.WriteLog("custom", "BuildTableSearch-13: COUNT-B=" + recVocab.Length + "\n"); }
-
-            if (cfg["format"].ToStr().ToLower() != "json") { // format=html
+*/
+            if (cfg.i("format").toStr().toLowerCase() != "json") { // format=html
 
                 // Create TABLE HEADER
-                string tblHeader = Util.GetParamStr(cfg, "TableHeader");  // With tag replacement
-                string tblRow = cfg["TableRow"].ToStr();  // NO TAG REPLACEMENT!!! (that comes later)
-                string tblFooter = Util.GetParamStr(cfg, "TableFooter");  // With tag replacement
-                Content.Append(tblHeader + "\n");
+                let tblHeader = iesCommon.cfgParamStr(cfg, "TableHeader");  // With tag replacement
+                let tblRow = cfg.i("TableRow").toStr();  // NO TAG REPLACEMENT!!! (that comes later)
+                let tblFooter = iesCommon.cfgParamStr(cfg, "TableFooter");  // With tag replacement
+                Content.append(tblHeader + "\n");
 
                 // Create TABLE ROWS
-                foreach (iesJSON rec in recVocab)
-                {
-                    Content.Append(
-                        Util.ReplaceTags(tblRow, rec)
+                recVocab.forEach (rec => {
+                    Content.append(
+                        iesCommon.tagReplaceString(tblRow, rec)
                     );
-                }
+                });
 
                 // TABLE FOOTER
-                Content.Append(tblFooter + "\n");
+                Content.append(tblFooter + "\n");
             } // end if (cfg["format"] != "json")
 
             // Add PAGING INFO at bottom of table - hidden for jQuery to read and use
-            Content.Append("<input type='hidden' id='rowcount' ref='rowcount' value='" + countRecords + "'>");
-            Content.Append("<input type='hidden' id='recordsperpage' ref='recordsperpage' value='" + RecordsPerPage + "'>\n");
+            Content.append("<input type='hidden' id='rowcount' ref='rowcount' value='" + countRecords + "'>");
+            Content.append("<input type='hidden' id='recordsperpage' ref='recordsperpage' value='" + RecordsPerPage + "'>\n");
 
             // Count at bottom of page (the js script adds this on the front-end)
             // Content.Append("<br>Total Records: " + countRecords + "<br>\n");
 
+            // FUTURE: TODO-NOW: EXTRACT _json fields! OR maybe iesDB should have done that for us already? Then we SCREEN for wanted fields?
+
             // Create JSON if this is a JSON request
             // FUTURE: TODO: Better way to flag JSON vs HTML (rather than checking if JSON object exists)
             if (ret.ReturnJson != null) {
-                ret.ReturnJson.AddToObjBase("rowcount",countRecords);
-                ret.ReturnJson.AddToObjBase("recordsperpage",RecordsPerPage);
-                if (cfg["format"].ToStr().ToLower() == "json") {
-                    ret.ReturnJson.AddToObjBase("data",recVocab);
+                ret.ReturnJson.rowcount=countRecords;
+                ret.ReturnJson.recordsperpage=RecordsPerPage;
+                if (cfg.i("format").toStr().toLowerCase() == "json") {
+                    ret.ReturnJson.data=recVocab;
                 } else { // format=html
-                    ret.ReturnJson.AddToObjBase("content",Content.ToString());
+                    ret.ReturnJson.content=Content.toString();
                 }
             }
-            */
+        
             resolve(''); // success
            // ================================================ END
             } catch (err) {

@@ -1,3 +1,4 @@
+const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
@@ -142,12 +143,35 @@ class webEngine {
         return;
     }
 
-    async CustomTags(tag,content) {
-        switch (tag.toLowerCase()) {
-            case "tag1":
-                content = "tag1_content";
-                break;
-        }
+    CustomTags(ret, cms) { // async
+        return new Promise(async (resolve,reject) => {
+            try {
+                // =========================================== BEGIN
+                var content = new StringBuilder();
+                ret.Processed = true;
+                switch (ret.Tag.toLowerCase()) {
+                    case "errmsg":
+                        if (this.errorMessage) {
+                            ret.ReturnContent = "<div style='background:red; padding: 20px; border:solid 3px #000;'>" + this.errorMessage + "</div>";
+                        }
+
+                        break;
+                    case "tag2":
+                        content.append("tag2_content");
+                        break;
+                    default:
+                        ret.Processed = false;
+                        break;
+                }
+                ret.ReturnContent += content.toString();
+                resolve(true);
+                // =========================================== END
+            } catch (err) {
+                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                console.log(errmsg);
+                reject(errmsg);
+            }
+        });
     }
 }
 

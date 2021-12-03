@@ -469,7 +469,7 @@ http.createServer(async (req, res) => {
             let myHeadJ = [];
             myHeadJ.push(['Content-Type', 'application/json']);
             res.writeHead(200, myHeadJ);
-            res.end(cms.ReturnJson.jsonString);
+            res.end(JSON.stringify(cms.ReturnJson));
             responseBuilt = true;
 
       } // end if (cms.resultType=='json')

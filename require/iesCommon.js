@@ -410,7 +410,7 @@ class iesCommonLib {
 
     PrepForJsonReturn(ret) {
         if (!ret.ReturnJson) {
-            ret.ReturnJson = new iesJSON("{}");
+            ret.ReturnJson = {};
         }
     }
 

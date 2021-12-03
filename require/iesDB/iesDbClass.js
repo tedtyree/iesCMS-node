@@ -57,10 +57,10 @@ class iesDB {
 
     //============================================================================== BEGIN HERE 
     
-    Open() // async
+    Open() // async - may be used with .Then()
     {
         return new Promise((resolve,reject) => {
-            if (this.ConnectStatus == 1) { resolve(true); }
+            if (this.ConnectStatus == 1) { resolve(false); } // indicate we were already open: needToClose=false
 
             // Verify that we have the data needed to connect...
             if (!this.ConnectObj || !this.ConnectObj.host || !this.ConnectObj.user || !this.ConnectObj.password)
@@ -102,7 +102,7 @@ class iesDB {
                         this.ConnectStatus = 1;
                         this.status = 0;
                         this.statusMessage = "";
-                        resolve(true);
+                        resolve(true);  // needToClose=true
                     }
                 });
             }
@@ -222,17 +222,54 @@ class iesDB {
             if ((start + numChars) <= val.Length) return val.Substring(start, numChars);
             return val.Substring(start);
         }
-
+*/
         // GetDataReader()
         // Runs a SQL statement and returns an iesDataReader (recordset)
         // NOTE! If we OPEN the connection here, the calling function needs to CLOSE the connection!
-        public iesDataReader GetDataReader(string sql)
-        {
-            if (ConnectStatus != 1) { Open(); }
-            if (ConnectStatus == 1) { return GetDataReader(iesConnection, sql); }
-            return null;  // Error
+        // FUTURE: REMOVE THIS FUNCTION OR THE ONE AFTER IT...
+        GetDataReader_OLD(sql) { // async
+            return new Promise(async (resolve,reject) => {
+                const func="GetDataReader()";
+                try {
+                    let NeedToClose = false;
+                    if (this.ConnectStatus != 1) { NeedToClose = await this.Open(); }
+                    if (this.ConnectStatus == 1)
+                    {
+                        let dr = await this.iGetDataReader(this.iesConnection, sql);
+                        if (dr) { resolve(dr); }
+                        if (NeedToClose) { await this.Close(); }
+                        return;
+                    }
+                    reject(this.errPipe(func,"[ERR7455]")); 
+                } catch (err) {
+                    reject(this.errPipe(func,"[ERR7453]",err));
+                }
+            });
         }
-*/
+
+        GetDataReader(sql) { // async
+            return new Promise(async (resolve,reject) => {
+                const func="GetDataReader()";
+                this.Open()
+                    .then( needToClose => {
+                        this.iGetDataReader(this.iesConnection, sql)
+                            .then( dr => {
+                                resolve(dr);
+                            })
+                            .catch(err2 => {
+                                reject(this.errPipe(func,"ERR7553",err2));
+                            })
+                            .finally( async () => {
+                                if (needToClose) { await this.Close(); } // await here so that we do not move on to next task before the close is done
+                            });
+                    })
+                    .catch(err1 => {
+                        reject(this.errPipe(func,"ERR7557",err1));
+                    });
+            });
+        }
+
+
         // FUTURE: Is this needed? Why not just call query?
         iGetDataReader(iConnect, sql) { // async
             return new Promise(async (resolve,reject) => {
@@ -247,53 +284,72 @@ class iesDB {
                 });
             });
         }
-/*
+
         //DEFAULT-PARAMETERS
         //public iesJSON GetDataReaderAll(string sql) { return GetDataReaderAll(sql, false); }
         //public iesJSON GetDataReaderAll(string sql, bool AsArray) {
-        public iesJSON GetDataReaderAll(string sql, bool AsArray = false)
-        {
-            bool NeedToClose = false;
-            if (ConnectStatus != 1) { Open(); NeedToClose = true; }
-            if (ConnectStatus == 1)
-            {
-                iesJSON jAll = GetDataReaderAll(iesConnection, sql, AsArray);
-                if (jAll.Status != 0) { this.status = jAll.Status; }
-                if (NeedToClose) { Close(); }
-                return jAll;
-            }
-            if (NeedToClose) { Close(); }
-            return null;  // Error
+        GetDataReaderAll(sql, AsArray = false) { // sync
+            throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9991]");
+            /*
+            return new Promise(async (resolve,reject) => {
+                try {
+                    NeedToClose = false;
+                    if (this.ConnectStatus != 1) { await this.Open(); NeedToClose = true; }
+                    if (this.ConnectStatus == 1)
+                    {
+                        let jAll = this.iGetDataReaderAll(this.iesConnection, sql, AsArray);
+                        // FUTURE: Error checking on results?
+                        if (NeedToClose) { await this.Close(); }
+                        resolve(jAll);
+                    }
+                    if (NeedToClose) { await this.Close(); }
+                    reject('Error: GetDataReaderAll(): failed to run query. [ERR7457]');  // Error
+                } catch (err) {
+                    console.log ("ERROR: GetDataReaderAll(): [ERR7458]" + err);
+                    reject("ERROR: GetDataReaderAll(): failed. [ERR7458]");
+                }
+            });
+            */
         }
 
         //DEFAULT-PARAMETERS
         //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql) { return GetDataReaderAll(iConnect,sql,false); }
         //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray) {
-        public static iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray = false, bool ReturnPartial = false)
-        {
-            iesJSON jAll = new iesJSON("[]");
-            try
-            {
-                iesDataReader jDR = GetDataReader(iConnect, sql);
-                jDR.AsArray = AsArray;  // Allows data to be returned as a JSON Array rather than a JSON Object
-                if (!(jDR == null))
-                {
-                    iesJSON jRow;
-                    while (jDR.Read())
+            // FUTURE: IS THIS NEEDED ANY LONGER? GetDataReader DOES get all records!
+        static iGetDataReaderAll(iConnect, sql, AsArray = false, ReturnPartial = false) { // async
+            throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9991]");
+            /*
+            return new Promise(async (resolve,reject) => {
+                try {
+                    let jAll = [];
+                    try
                     {
-                        jRow = jDR.GetJSON();
-                        jAll.AddToArrayBase(jRow);
+                        let jDR = this.iGetDataReader(iConnect, sql);
+                        jDR.AsArray = AsArray;  // Allows data to be returned as a JSON Array rather than a JSON Object
+                        if (!(jDR == null))
+                        {
+                            iesJSON jRow;
+                            while (jDR.Read())
+                            {
+                                jRow = jDR.GetJSON();
+                                jAll.AddToArrayBase(jRow);
+                            }
+                            jDR.Close();
+                            return jAll;
+                        }
                     }
-                    jDR.Close();
+                    catch { }
+                    if (ReturnPartial == false) { jAll = new iesJSON("[]"); }
+                    jAll.InvalidateStatus(-34); // Indicate there was an error during processing (but still return array... which may be empty or have partial data)
                     return jAll;
+                } catch (err) {
+                    console.log ("ERROR: setConnectObj(): " + err);
+                    reject("ERROR: setConnectObj(): failed.");
                 }
-            }
-            catch { }
-            if (ReturnPartial == false) { jAll = new iesJSON("[]"); }
-            jAll.InvalidateStatus(-34); // Indicate there was an error during processing (but still return array... which may be empty or have partial data)
-            return jAll;
+            });
+            */
         }
-
+/*
         // GetDataObjFromRows()
         // This routine selects a set of rows and converts them into a single iesJSON Object where the 'key' value of each row becomes the key values in the object.
         // If SingleValueField!="" then the specified field is the value of each key/value pair (rather than making each attribute a row-object)
@@ -1158,6 +1214,11 @@ class iesDB {
         }
 
         */
+       errPipe(func,errId,errMessage = "") {
+        const errmsg = "ERROR: " + func + " [" + errId + "]";
+        console.log(errmsg + " " + errMessage);
+        return(errmsg);
+       }
 
 } // end Class
 
