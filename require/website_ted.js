@@ -22,7 +22,7 @@ class webEngine {
         return false;
     }
 
-    CustomTags(ret,cms) {
+    async CustomTags(ret,cms) {
         var content = new StringBuilder();
         ret.Processed=true;
         switch (ret.Tag.toLowerCase()) {
@@ -39,7 +39,7 @@ class webEngine {
         ret.ReturnContent += content.toString();
     }
 
-    CreateHtml(cms) {
+    async CreateHtml(cms) {
         var fileType = '';
         let pageHead = new iesJSON();
         var pageErr = -1;
@@ -122,7 +122,7 @@ class webEngine {
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
-            cms.Html = iesCommon.ReplaceTags(template,pageHead,contentHtml,this,cms);
+            cms.Html = await iesCommon.ReplaceTags(template,pageHead,contentHtml,this,cms);
 
         } else {
             // NON-HTML RESOURCES

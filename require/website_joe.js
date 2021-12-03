@@ -7,12 +7,12 @@ class webEngine {
         assignedSiteID = thisSiteID;
     	}
 
-    CreateHtml(cms) {
+    async CreateHtml(cms) {
         cms.Html = "Joe HTML";
         return;
     }
 
-    CustomTags(tag,content) {
+    async CustomTags(tag,content) {
         switch (tag.toLowerCase()) {
             case "tag2":
                 content = "tag2_content";

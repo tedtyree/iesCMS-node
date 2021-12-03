@@ -22,7 +22,7 @@ let vDynamic = null;
 let mimic = null;
 
 const serverPort = 8118;
-const serverConfig = ".\\secrets\\server.cfg";
+const serverConfig = "./secrets/server.cfg";
 const websitePathTemplate = './websites/{{siteID}}/site.cfg';
 
 function requireDynamically(path) {
@@ -71,7 +71,7 @@ var siteList = [];
 
 // Load SERVER parameters
 let serverCfg = new iesJSON();
-serverCfg.DeserializeFlexFile('./server.cfg'); // Cannot log the error yet, log file has not been created.
+serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
       debugMode = serverCfg.getNum('debugMode', debugMode);
       forwardedHost = serverCfg.getBool('forwardedHost', forwardedHost);
@@ -357,12 +357,12 @@ http.createServer(async (req, res) => {
             try {
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
                         debugLog += "thisEngine.CreateHtml()\n";
-                        cms.thisEngine.CreateHtml(cms);
+                        await cms.thisEngine.CreateHtml(cms);
                   } else {
                         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
                               debugLog += "hostsiteEngine.CreateHtml()\n";
                               // We leave a reference to thisEngine in case it has Custom Tags
-                              cms.hostsiteEngine.CreateHtml(cms);
+                              await cms.hostsiteEngine.CreateHtml(cms);
                         }
                   }
             } catch (e) {
@@ -383,12 +383,13 @@ http.createServer(async (req, res) => {
             return res.end('Method not implemented');
         }
       */
-
+      let responseBuilt = false;
       if (cms.resultType == 'file') {
             if (!cms.fileFullPath) {
                   res.setHeader('Content-Type', 'text/plain');
                   res.statusCode = 404;
                   res.end('Not found');
+                  responseBuilt = true;
             } else {
                   var streamFile = createReadStream(cms.fileFullPath);
                   streamFile.on('open', function () {
@@ -401,6 +402,7 @@ http.createServer(async (req, res) => {
                         res.statusCode = 404;
                         res.end('Not found');
                   });
+                  responseBuilt = true;
             }
       }
       if (cms.resultType == 'html') {
@@ -459,8 +461,18 @@ http.createServer(async (req, res) => {
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
             res.end(cms.Html);
+            responseBuilt = true;
 
       } // end if (cms.resultType=='html')
+      if (cms.resultType == 'json') {
+
+            let myHeadJ = [];
+            myHeadJ.push(['Content-Type', 'application/json']);
+            res.writeHead(200, myHeadJ);
+            res.end(JSON.stringify(cms.ReturnJson));
+            responseBuilt = true;
+
+      } // end if (cms.resultType=='json')
       if (cms.resultType == "redirect") {
             // indicate resultType='redirect' to override HTML content with brief redirect message
             cms.Html = "<HTML><BODY>Redirecting to <a href='" + cms.redirect + "'>" + cms.redirect + "</a>.<br><br>If page redirect does not occur within 60 seconds, click the redirect link.</a></BODY></HTML>"
@@ -477,11 +489,14 @@ http.createServer(async (req, res) => {
                   console.log(err.message);
             }
             res.end();
+            responseBuilt = true;
       }
 
       if (debugMode > 0) {
             appendFileSync(debugHttpFile, "httpServer processing complete: " + timestamp() + "\n");
       }
+
+      if (!responseBuilt) { res.end(); } // if all else fails, end the response
 
 }).listen(serverPort);
 
