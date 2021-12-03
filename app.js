@@ -22,7 +22,7 @@ let vDynamic = null;
 let mimic = null;
 
 const serverPort = 8118;
-const serverConfig = ".\\secrets\\server.cfg";
+const serverConfig = "./secrets/server.cfg";
 const websitePathTemplate = './websites/{{siteID}}/site.cfg';
 
 function requireDynamically(path) {
@@ -71,7 +71,7 @@ var siteList = [];
 
 // Load SERVER parameters
 let serverCfg = new iesJSON();
-serverCfg.DeserializeFlexFile('./server.cfg'); // Cannot log the error yet, log file has not been created.
+serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
       debugMode = serverCfg.getNum('debugMode', debugMode);
       forwardedHost = serverCfg.getBool('forwardedHost', forwardedHost);
