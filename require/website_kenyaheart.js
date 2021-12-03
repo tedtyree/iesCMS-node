@@ -31,39 +31,53 @@ class webEngine {
         return false;
     }
 
-    async CustomTags(ret, cms) {
-        var content = new StringBuilder();
-        ret.Processed = true;
-        switch (ret.Tag.toLowerCase()) {
-            case "errmsg":
-                if (this.errorMessage) {
-                    ret.ReturnContent = "<div style='background:red; padding: 20px; border:solid 3px #000;'>" + this.errorMessage + "</div>";
-                }
+    CustomTags(ret, cms) { // async
+        return new Promise(async (resolve,reject) => {
+            try {
+                // =========================================== BEGIN
+                var content = new StringBuilder();
+                ret.Processed = true;
+                switch (ret.Tag.toLowerCase()) {
+                    case "errmsg":
+                        if (this.errorMessage) {
+                            ret.ReturnContent = "<div style='background:red; padding: 20px; border:solid 3px #000;'>" + this.errorMessage + "</div>";
+                        }
 
-                break;
-            case "tag2":
-                content.append("tag2_content");
-                break;
-            case "lang":
-                this.ProcessLangTag(ret.Param1, content, cms);
-                break;
-            case "tablesearch":
-                let searchText = iesCommon.FormOrUrlParam(cms,"search","");
-                let page = iesCommon.FormOrUrlParam(cms,"page",1);
-                try { page = parseInt(page); }
-                catch { page = 1; }
-                if (page < 1) { page = 1; }
-                iesCommon.PrepForJsonReturn(ret);
-                await this.BuildTableSearch(cms, searchText, content, page, ret);
-                break;
-            default:
-                ret.Processed = false;
-                break;
-        }
-        ret.ReturnContent += content.toString();
+                        break;
+                    case "tag2":
+                        content.append("tag2_content");
+                        break;
+                    case "lang":
+                        this.ProcessLangTag(ret.Param1, content, cms);
+                        break;
+                    case "tablesearch":
+                        let searchText = iesCommon.FormOrUrlParam(cms,"search","");
+                        let page = iesCommon.FormOrUrlParam(cms,"page",1);
+                        try { page = parseInt(page); }
+                        catch { page = 1; }
+                        if (page < 1) { page = 1; }
+                        iesCommon.PrepForJsonReturn(ret);
+                        await this.BuildTableSearch(cms, searchText, content, page, ret);
+                        break;
+                    default:
+                        ret.Processed = false;
+                        break;
+                }
+                ret.ReturnContent += content.toString();
+                resolve(true);
+                // =========================================== END
+            } catch (err) {
+                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                console.log(errmsg);
+                reject(errmsg);
+            }
+        });
     }
 
-    async CreateHtml(cms) {
+    CreateHtml(cms) { // async
+        return new Promise(async (resolve,reject) => {
+            try {
+        // ================================================ BEGIN
         var fileType = '';
         let pageHead = new iesJSON();
         var pageErr = -1;
@@ -71,7 +85,7 @@ class webEngine {
         var templatePath;
         this.errorMessage = "";
 
-        if (this.invalidSiteID(cms)) { return; }
+        if (this.invalidSiteID(cms)) { reject('ERROR: Incorrect SiteID. [ERR5157]'); }
         cms.Html = "website:[" + _siteID + "] HTML<br>";
         // let filePath = cms.url.pathname.replace(/\\/g,'/');
         let filePath = decodeURI(cms.url.pathname).replace(/\\/g, '/');
@@ -152,7 +166,7 @@ class webEngine {
             if (!cms.fileFullPath) {
                 // We didn't find the file - time to call it quits
                 cms.Html += 'file not found.<br>';
-                return;
+                reject('ERROR: Page not found. [ERR1111]');
             }
 
             var contentHtml = readFileSync(cms.fileFullPath, 'utf8').toString();
@@ -185,7 +199,7 @@ class webEngine {
             }
             if (pageErr != 0) {
                 cms.Html += "Page ERROR " + pageErr + ": pageHead.Status = " + pageHead.Status + "<br>";
-                return;
+                reject('ERROR: Page status error. [ERR5353]');
             }
 
             // Determine page permissions
@@ -196,7 +210,7 @@ class webEngine {
             if (cms.user.level < cms.minViewLevel) {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
                 cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
-                return;
+                resolve('Warning: permission denied. [WARN5111]');
             }
 
             if (cms.HEADER.contains("ResponseType")) {
@@ -211,7 +225,7 @@ class webEngine {
             );
             if (!templatePath) {
                 cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
-                return;
+                reject('ERROR: Template not found. [ERR5449]');
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
@@ -234,9 +248,16 @@ class webEngine {
             cms.mimeType = iesCommon.mime[cms.pathExt] || 'text/plain';
             cms.resultType = 'file';
             cms.Html += 'DEBUGGER: cms.fileFullPath=[' + cms.fileFullPath + ']<br>mimeType=' + cms.mimeType;
-            return;
+            resolve(''); // success
         }
-        return;
+        resolve(''); // success
+        // ================================================ END
+            } catch (err) {
+                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                console.log(errmsg);
+                reject(errmsg);
+            }
+        });
     }
 
     /**
@@ -297,6 +318,10 @@ class webEngine {
 
     async BuildTableSearch(cms, searchText, Content, page, ret)
     {
+        return new Promise(async (resolve,reject) => {
+            try {
+        // ================================================ BEGIN
+
         /* FUTURE: Log event
             if (cms.SITE.DebugMode > 0)
             {
@@ -309,17 +334,18 @@ class webEngine {
             let vocabConfigPath = iesCommon.FindFileInFolders(vocabFile, iesCommon.getParamStr(cms, "ConfigFolder"));
             if (!vocabConfigPath)
             {
-                // FUTURE: Log error message
-                // if (cms.SITE.DebugMode >= 1) { cms.WriteLog("custom", "ERROR: BuildVocabSearch: Vocab config not found: " + vocabFile + " [ERR37617]\n"); }
-                return;
+
+                const err1 = "ERROR: BuildVocabSearch: Vocab config not found: " + vocabFile + " [ERR37617]";
+                console.log(err1);
+                reject(err1);
             }
             let cfg = new iesJSON();
             cfg.DeserializeFlexFile(vocabConfigPath);
             if (cfg.Status != 0)
             {
-                // FUTURE: Log error message
-                //if (cms.SITE.DebugMode >= 1) { cms.WriteLog("custom", "ERROR: BuildVocabSearch: Vocab config parse error [ERR37688]\n" + cfg.StatusMessage + "\n"); }
-                return;
+                const err2 = "ERROR: BuildVocabSearch: Vocab config parse error [ERR37688]\n" + cfg.StatusMessage;
+                console.log(err2);
+                reject(err2);
             }
 
             // ADD Build parameters for query
@@ -468,7 +494,14 @@ class webEngine {
                 }
             }
             */
-        } // end BuildTableSearch()
+           // ================================================ END
+            } catch (err) {
+                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                console.log(errmsg);
+                reject(errmsg);
+            }
+        });
+    } // end BuildTableSearch()
 
 }
 

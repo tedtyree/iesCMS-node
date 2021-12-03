@@ -365,10 +365,11 @@ class iesDB {
                     if (this.ConnectStatus != 1) { await this.Open(); NeedToClose = true; }
                     if (this.ConnectStatus == 1) { ret = await this.iGetFirstRow(this.iesConnection, sql); }
                     if (NeedToClose) { await this.Close(); }
-                    return ret;  // Error
+                    resolve(ret);  // Error
                 } catch (err) {
                     console.log("ERROR: GetFirstRow(): " + err);
-                    throw new Error('ERROR: GetFirstRow(): failed.');
+                    //throw new Error('ERROR: GetFirstRow(): failed.');
+                    reject('ERROR: GetFirstRow(): failed.');
                 }
             });
         }
