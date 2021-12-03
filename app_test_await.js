@@ -17,7 +17,7 @@ function qcall3() {
     });
 }
 
-function qcall2() {
+function qcall2a() {
     return new Promise( async (resolve,reject) => {
         await qcall3();
         setTimeout((err) => {
@@ -34,7 +34,7 @@ function qcall2() {
     });
 }
 
-async function qcall2b() {
+async function qcall2() {
     await qcall3();
     setTimeout((err) => {
         if(err) {
@@ -47,7 +47,7 @@ async function qcall2b() {
     }, 2000);
 }
 
-function qcall1() {
+function qcall1a() {
     return new Promise( async (resolve,reject) => {
         await qcall2();
         setTimeout((err) => {
@@ -64,7 +64,7 @@ function qcall1() {
     });
 }
 
-async function qcall1b() {
+async function qcall1() {
     await qcall2();
     setTimeout((err) => {
         if(err) {
