@@ -125,8 +125,8 @@ class iesDB {
             {
                 if (this.ConnectStatus == 1) { await this.iesConnection.end(); }
 
-                status = 0;
-                statusMessage = "";
+                this.status = 0;
+                this.statusMessage = "";
                 this.iesConnection = null;
                 this.ConnectStatus = 0;
                 resolve(true);
@@ -378,20 +378,12 @@ class iesDB {
             return new Promise(async (resolve,reject) => {
                 try
                 {
-                    let jAll = new iesJSON("[]");
                     let jDR = await this.iGetDataReader(iConnect, sql);
-                    if (jDR)
+                    if (jDR && jDR.length > 0)
                     {
-                        let jRow; // iesJSON object
-                        if (jDR.Read())
-                        {
-                            jRow = jDR.GetJSON();
-                            jAll.AddToArrayBase(jRow);
-                        }
-                        await jDR.Close();
-                        resolve(jAll.i(0));  // NOTE: If no record was found, this will return an iesJSON "null" with no parent defined
+                        resolve(jDR[0]);
                     }
-                    reject("Error iGetFirstRow()");
+                    resolve({});
                 }
                 catch (err) {
                     console.log("ERROR: iGetFirstRow(): " + err);
@@ -524,17 +516,16 @@ class iesDB {
                     if (!sqlWhere) { if (sqlWhere.slice(0,5).toUpperCase() != "WHERE") { sqlWhere = " WHERE " + sqlWhere; } }
                     let sql = "SELECT Count(*) FROM " + sTable + " " + sqlWhere;
                     let rs = await this.GetFirstRow(sql); // iesJSON object
+                    // returned record should be in the form {Count(*):<value>}
                     if (rs)
                     {
-                        if ((rs.Status == 0) && (rs.jsonType != "null"))
+                        try
                         {
-                            try
-                            {
-                                resolve(rs[0].toNum());
-                            }
-                            catch { 
-                                reject('ERROR: GetCount(): toNum failed.');
-                            }
+                            let rowCount = parseInt(rs['Count(*)']);
+                            resolve(rowCount);
+                        }
+                        catch { 
+                            reject('ERROR: GetCount(): toNum failed.');
                         }
                     }
                     reject('ERROR: GetCount(): data not found.');

@@ -175,7 +175,6 @@ function setUser(cms, newUser) {
 // **************************************************************************
 // **************************************************************************
 
-
 http.createServer(async (req, res) => {
 
       let cms = {}; // Primary CMS object to hold all things CMS
@@ -384,12 +383,13 @@ http.createServer(async (req, res) => {
             return res.end('Method not implemented');
         }
       */
-
+      let responseBuilt = false;
       if (cms.resultType == 'file') {
             if (!cms.fileFullPath) {
                   res.setHeader('Content-Type', 'text/plain');
                   res.statusCode = 404;
                   res.end('Not found');
+                  responseBuilt = true;
             } else {
                   var streamFile = createReadStream(cms.fileFullPath);
                   streamFile.on('open', function () {
@@ -402,6 +402,7 @@ http.createServer(async (req, res) => {
                         res.statusCode = 404;
                         res.end('Not found');
                   });
+                  responseBuilt = true;
             }
       }
       if (cms.resultType == 'html') {
@@ -460,6 +461,7 @@ http.createServer(async (req, res) => {
             }
             if (err != 0) { cms.Html = "ERROR: " + errMessage; }
             res.end(cms.Html);
+            responseBuilt = true;
 
       } // end if (cms.resultType=='html')
       if (cms.resultType == "redirect") {
@@ -478,20 +480,15 @@ http.createServer(async (req, res) => {
                   console.log(err.message);
             }
             res.end();
-      }
-      if (cms.resultType == 'json') {
-            // FUTURE: Do we need to set header parameters such as jwt, mimic, cookies?
-            if (cms.ReturnJson) {
-                  res.end(cms.ReturnJson.jsonString);
-            }
+            responseBuilt = true;
       }
 
       if (debugMode > 0) {
             appendFileSync(debugHttpFile, "httpServer processing complete: " + timestamp() + "\n");
       }
 
-      res.end(); // if all else fails, end the request
-      
+      if (!responseBuilt) { res.end(); } // if all else fails, end the response
+
 }).listen(serverPort);
 
 if (debugMode > 0) {

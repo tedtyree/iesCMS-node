@@ -397,6 +397,7 @@ class webEngine {
 
             // Get COUNT of records (so we can do paging)
             let countRecords = await cms.db.GetCount(table, where);
+            console.log("countRecords=" + countRecords);
 /*
             if (((cms.db.status != 0) || (countRecords < 0)) && cms.SITE.DebugMode > 0)
             {
@@ -494,6 +495,7 @@ class webEngine {
                 }
             }
             */
+            resolve(''); // success
            // ================================================ END
             } catch (err) {
                 let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
