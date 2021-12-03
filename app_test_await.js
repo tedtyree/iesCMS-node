@@ -35,16 +35,21 @@ function qcall2a() {
 }
 
 async function qcall2() {
-    await qcall3();
-    setTimeout((err) => {
-        if(err) {
-            console.log("ERROR: QCALL2(): " + err);
-            throw new Error("ERROR: QCALL2(): " + err);
-        } else {
-            console.log("QCALL2 Complete!");
-            return true;
-        }
-    }, 2000);
+    try {
+        await qcall3();
+        setTimeout((err) => {
+            if(err) {
+                console.log("ERROR: QCALL2(): " + err);
+                throw new Error("ERROR: QCALL2(): " + err);
+            } else {
+                console.log("QCALL2 Complete!");
+                return true;
+            }
+        }, 2000);
+    } catch (err2) {
+        console.log("ERROR2: QCALL2() " + err2);
+        throw new Error("ERROR2: QCALL2(): " + err2);
+    }
 }
 
 function qcall1a() {
@@ -65,16 +70,21 @@ function qcall1a() {
 }
 
 async function qcall1() {
-    await qcall2();
-    setTimeout((err) => {
-        if(err) {
-            console.log("ERROR: QCALL1(): " + err);
-            throw new Error("ERROR: QCALL1(): " + err);
-        } else {
-            console.log("QCALL1 Complete!");
-            return true;
-        }
-    }, 1000);
+    try {
+        await qcall2();
+        setTimeout((err) => {
+            if(err) {
+                console.log("ERROR: QCALL1(): " + err);
+                throw new Error("ERROR: QCALL1(): " + err);
+            } else {
+                console.log("QCALL1 Complete!");
+                return true;
+            }
+        }, 1000);
+    } catch (err2) {
+        console.log("ERROR2: QCALL1() " + err2);
+        throw new Error("ERROR2: QCALL1(): " + err2);
+    }
 }
 async function go() {
         console.log("Begin DEBUGGER await call...");
@@ -85,9 +95,12 @@ async function go() {
         return('done.');
 }
 
-
+await go();
+/*
 go().then(v => console.log(v))
     .catch(err => console.error(err));;
+    */
+
 console.log("here6789");
 
 

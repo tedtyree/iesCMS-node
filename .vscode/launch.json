@@ -11,11 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\app_test_await.js",
-            "runtimeArgs": [
-                "--harmony",
-                "--no-deprecation"
-            ]
+            "program": "${workspaceFolder}\\app.js"
         }
     ]
 }
