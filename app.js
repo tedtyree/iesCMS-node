@@ -75,7 +75,11 @@ serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log fi
 if (serverCfg.Status == 0) {
       debugMode = serverCfg.getNum('debugMode', debugMode);
       forwardedHost = serverCfg.getBool('forwardedHost', forwardedHost);
+} else {
+      throw new Error('Error :failed to parse server config1 ' + serverCfg.statusMsg);
 }
+
+
 
 // Setup debug log
 if (debugMode > 0) {
