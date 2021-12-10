@@ -9,6 +9,7 @@ const iesUser = require('./require/iesUser.js');
 const { Console } = require('console');
 const { parse, stringify } = require('querystring');// form submission 
 const jwt = require('jsonwebtoken');
+const { moveCursor } = require('readline');
 
 var websiteEngines = {};
 var debugLog = "";
@@ -163,13 +164,6 @@ function stringifyCookies(thesecookies) {
             .join('; ');
 }
 
-function setUser(cms, newUser) {
-      cms.user = newUser;
-      cms.userId = cms.user.userid || -1; // default
-      cms.userLevel = cms.user.userlevel || 0; // default
-}
-
-
 
 // **************************************************************************
 // **************************************************************************
@@ -216,7 +210,7 @@ http.createServer(async (req, res) => {
 
       if (!cms.body) { cms.body = {}; }
 
-      setUser(cms, new iesUser());
+      iesCommon.noUserZ(cms);
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
@@ -298,7 +292,7 @@ http.createServer(async (req, res) => {
                         var decoded = jwt.decode(token, cms.JWT_SECRET);
                         // FUTURE: Expire token if it is pased due
                         if (decoded && decoded.user) {
-                              setUser(cms, new iesUser(decoded.user));
+                              iesCommon.setUser(cms, new iesUser(decoded.user));
                         }
                         // Later we verify user.siteid
                   }
@@ -332,7 +326,7 @@ http.createServer(async (req, res) => {
             }
 
             // Verify user.siteid - if incorrect, null-out the user and related permissions
-            if (cms.user.siteid != cms.siteID) { setUser(cms, new iesUser()); }
+            if (cms.user.siteid != cms.siteID) { iesCommon.noUser(cms); }
 
             // Read Site config (first check if config already loaded)
             var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteID);
@@ -352,6 +346,9 @@ http.createServer(async (req, res) => {
                   cfg = new iesJSON("{}");
             }
             cms.SITE = cfg;
+
+            // Get a few key parameters from SITE
+            cms.debugMode = iesCommon.getParamNum("debugMode");
 
             // PROCESS REQUEST
             cms.hostsiteEngine = websiteEngines.hostsite;
