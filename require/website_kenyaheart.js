@@ -4,7 +4,7 @@ const iesCommonLib = require('./iesCommon.js');
 const iesCommon = new iesCommonLib();
 const iesDbClass = require('./iesDB/iesDbClass.js');
 // const iesDB = new iesDbClass();  // use cms.db instead
-const jwt = require('jsonwebtoken');
+// const jwt = require('jsonwebtoken');
 
 
 const { existsSync, readFileSync } = require('fs');
@@ -112,12 +112,17 @@ class webEngine {
         };
         cms.db = new iesDbClass(dbConnect);
 
+        //check for user logout
+        if (iesCommon.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+            iesCommon.userSignedOut(cms);
+        }
+
         //check for user login  
 
         if (cms.pageId.toLowerCase() == 'login') {
 
-            let username = cms.body.Username;
-            let password = cms.body.Password;
+            let username = cms.body.username;
+            let password = cms.body.password;
 
             // if username is correct and password 
             // create a JWT and return it to frontend 
@@ -133,14 +138,19 @@ class webEngine {
                     let user = { username: 'joe', userid: 1, userlevel: 9, siteid: cms.siteID };
                     //var token = jwt.encode({user}, secretKey); 
 
+                    iesCommon.userSignedIn(cms,user);
+                    /*
                     const token = jwt.sign({ user }, cms.JWT_SECRET, {
                         expiresIn: cms.JWT_EXPIRES_IN,
                     });
                     cms.newToken = token;
+                    */
 
                 } else {
                     this.errorMessage = 'login not successful';
                     // Invalidate Token
+                    iesCommon.userSignedOut(cms);
+                    /*
                     let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteID };
                     //var token = jwt.encode({user}, secretKey); 
 
@@ -148,6 +158,7 @@ class webEngine {
                         expiresIn: -1,
                     });
                     cms.newToken = token;
+                    */
                 }
             }
 
@@ -207,29 +218,30 @@ class webEngine {
             cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
             if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
             if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
-            if (cms.user.level < cms.minViewLevel) {
+            if (cms.user.userlevel >= cms.minViewLevel) {
+                if (cms.HEADER.contains("ResponseType")) {
+                    cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
+                }
+    
+                // Lookup page template (if HTML response expected)
+                pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
+                templatePath = iesCommon.FindFileInFolders(pageTemplate,
+                    './websites/' + cms.siteID + '/templates/',
+                    './cmsCommon/templates/'
+                );
+                if (!templatePath) {
+                    cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
+                    reject('ERROR: Template not found. [ERR5449]');
+                }
+                //cms.Html += "Template found: " + templatePath + "<br>";
+                var template = readFileSync(templatePath, 'utf8');
+                cms.Html = await iesCommon.ReplaceTags(template, pageHead, contentHtml, this, cms);
+    
+            } else {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
                 cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
                 resolve('Warning: permission denied. [WARN5111]');
             }
-
-            if (cms.HEADER.contains("ResponseType")) {
-                cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
-            }
-
-            // Lookup page template (if HTML response expected)
-            pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
-            templatePath = iesCommon.FindFileInFolders(pageTemplate,
-                './websites/' + cms.siteID + '/templates/',
-                './cmsCommon/templates/'
-            );
-            if (!templatePath) {
-                cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
-                reject('ERROR: Template not found. [ERR5449]');
-            }
-            //cms.Html += "Template found: " + templatePath + "<br>";
-            var template = readFileSync(templatePath, 'utf8');
-            cms.Html = await iesCommon.ReplaceTags(template, pageHead, contentHtml, this, cms);
 
         } else {
             // NON-HTML/JSON RESOURCES
@@ -253,7 +265,7 @@ class webEngine {
         resolve(''); // success
         // ================================================ END
             } catch (err) {
-                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                let errmsg = "ERROR: " + _siteID + ".CreateHtml(): " + err;
                 console.log(errmsg);
                 reject(errmsg);
             }
@@ -476,7 +488,7 @@ class webEngine {
             resolve(''); // success
            // ================================================ END
             } catch (err) {
-                let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
+                let errmsg = "ERROR: " + _siteID + ".BuildTableSearch(): " + err;
                 console.log(errmsg);
                 reject(errmsg);
             }

@@ -2,6 +2,7 @@ const StringBuilder = require("string-builder");
 const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
+const jwt = require('jsonwebtoken');
 class iesCommonLib {
 
     mime = {
@@ -404,6 +405,10 @@ class iesCommonLib {
         if (cms.body.hasOwnProperty(paramId)) {
             return cms.body[paramId];
         }
+        return this.urlParam(cms, paramId, defaultValue);
+    }
+
+    urlParam(cms, paramId, defaultValue = null) {
         try {
             let v = cms.url.query[paramId];
             if (v) { return v; }
@@ -764,6 +769,21 @@ class iesCommonLib {
         }
         return ret;
     } //End Function
+
+    userSignedIn(cms, user) {
+        const token = jwt.sign({ user }, cms.JWT_SECRET, {
+            expiresIn: cms.JWT_EXPIRES_IN,
+        });
+        cms.newToken = token;
+    }
+
+    userSignedOut(cms) {
+        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteID };
+        const token = jwt.sign({ user }, cms.JWT_SECRET, {
+            expiresIn: -1,
+        });
+        cms.newToken = token;
+    }
 
 }
 
