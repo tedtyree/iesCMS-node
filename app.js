@@ -4,7 +4,7 @@ var url = require('url');
 const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
-const iesCommon = require('./require/iesCommon.js');
+const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 const { Console } = require('console');
 const { parse, stringify } = require('querystring');// form submission 
@@ -175,7 +175,7 @@ function stringifyCookies(thesecookies) {
 
 http.createServer(async (req, res) => {
 
-      let cms = {}; // Primary CMS object to hold all things CMS
+      let cms = new iesCommonLib(); // Primary CMS object to hold all things CMS
       let err = 0;
       let errMessage = "";
 
@@ -185,11 +185,10 @@ http.createServer(async (req, res) => {
       cms.SERVER = serverCfg;
       cms.req = req;
 
-      cms.JWT_SECRET = 'sdhiohefefawryuhfdwswegstydgjncdryijfdesfgutd';
-      cms.JWT_EXPIRES_IN = 60 * 60 * 24 * 7; // SECONDS
+      cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
+      cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
 
       // Get post data using query string 
-
       try {
 
             if (cms.req.method === 'POST') {
@@ -210,7 +209,7 @@ http.createServer(async (req, res) => {
 
       if (!cms.body) { cms.body = {}; }
 
-      iesCommon.noUserZ(cms);
+      cms.noUser();
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
@@ -270,9 +269,9 @@ http.createServer(async (req, res) => {
       // Already parsed... cms.url.query
 
       // Detemrine SiteID
-      cms.siteID = null;
-      try { cms.siteID = iesDomains[cms.urlHost.toLowerCase()]; } catch { }
-      if (!cms.siteID) {
+      cms.siteId = null;
+      try { cms.siteId = iesDomains[cms.urlHost.toLowerCase()]; } catch { }
+      if (!cms.siteId) {
             err = 171; // ERR171
             errMessage = "Failed to find site for domain: " + cms.urlHost + " [ERR" + err + "]";
             if (debugMode > 0) {
@@ -285,14 +284,21 @@ http.createServer(async (req, res) => {
 
       // GET USER TOKEN - FUTURE: Move this to other location?
       // FUTURE: Do we need to read the jwt if we are requesting a non-html file/img/resource?
+      // FUTURE: Include 2 exp date/time stamps - one causes verification every 1 hour if user is still valid
+      //   the other is a long-term exp that determines how often the user needs to repeat the login process.
       if (cms.cookies.token) {
             let token = cms.cookies.token;
             try {
                   if (jwt.verify(token, cms.JWT_SECRET)) {
                         var decoded = jwt.decode(token, cms.JWT_SECRET);
-                        // FUTURE: Expire token if it is pased due
                         if (decoded && decoded.user) {
-                              iesCommon.setUser(cms, new iesUser(decoded.user));
+                              // FUTURE: Expire token if it is pased due
+                              let expDate = user.expires;
+                              if (expDate && expDate < Date.now()) {
+                                    cms.setUser(new iesUser(decoded.user));
+                              } else {
+                                    console.log("JWT EXPIRED: " + expDate);
+                              }
                         }
                         // Later we verify user.siteid
                   }
@@ -305,9 +311,9 @@ http.createServer(async (req, res) => {
       // This is already done above?
       //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
 
-      if (cms.siteID) {
+      if (cms.siteId) {
             // Mimic (can only mimic on hostsite)
-            if (cms.siteID == 'hostsite') {
+            if (cms.siteId == 'hostsite') {
                   var override = '';
                   // check if mimic specified in URL
                   if (cms.url.query.mimic) {
@@ -321,15 +327,15 @@ http.createServer(async (req, res) => {
                         }
                   }
                   if (override && override.toLowerCase() != 'none') {
-                        cms.siteID = override;
+                        cms.siteId = override;
                   }
             }
 
             // Verify user.siteid - if incorrect, null-out the user and related permissions
-            if (cms.user.siteid != cms.siteID) { iesCommon.noUser(cms); }
+            if (cms.user.siteid != cms.siteId) { cms.noUser(); }
 
             // Read Site config (first check if config already loaded)
-            var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteID);
+            var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteId);
             let cfg = null;
             try {
                   if (existsSync(dPath)) {
@@ -348,13 +354,13 @@ http.createServer(async (req, res) => {
             cms.SITE = cfg;
 
             // Get a few key parameters from SITE
-            cms.debugMode = iesCommon.getParamNum("debugMode");
+            cms.debugMode = cms.getParamNum("debugMode");
 
             // PROCESS REQUEST
             cms.hostsiteEngine = websiteEngines.hostsite;
-            cms.thisEngine = websiteEngines[cms.siteID];
+            cms.thisEngine = websiteEngines[cms.siteId];
             cms.Html = "ERROR: nosite [ERR-14159]";
-            //cms.iesCommon = new iesCommon();
+            
             try {
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
                         debugLog += "thisEngine.CreateHtml()\n";
@@ -446,7 +452,7 @@ http.createServer(async (req, res) => {
                   + 'search=' + s + '\n'
                   + 'vStatic=' + vStatic + '\n'
                   + 'vDynamic=' + vDynamic + '\n'
-                  + 'siteID=' + cms.siteID + '\n'
+                  + 'siteID=' + cms.siteId + '\n'
                   + 'mimic=' + mimic + '\n'
                   + 'newCookies=' + stringifyCookies(newCookies) + '\n'
                   + 'Hello s53 World! [from node.js]\n'

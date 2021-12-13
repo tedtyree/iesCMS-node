@@ -4,9 +4,9 @@ class iesUser {
     constructor(newUser) {
         let nu = newUser || {};
         this.username = nu.username || '';
-        this.userid = nu.userid || -1;
-        this.userlevel = nu.userlevel || 0;
-        this.siteid = nu.siteid || '';
+        this.userId = nu.userId || -1;
+        this.userLevel = nu.userLevel || 0;
+        this.siteId = nu.siteId || '';
      }
 
 }

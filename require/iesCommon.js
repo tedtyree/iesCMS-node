@@ -1,3 +1,5 @@
+//iesCommonLib
+// NOTE: This library/class is used to create the cms object.  Therefore all methods are accessible through the cms object
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
@@ -17,7 +19,12 @@ class iesCommonLib {
         js: 'application/javascript'
     };
 
-    constructor() { }
+    constructor() { 
+        this.debugMode = 0;
+        this.user = {};
+        this.userId = -1;
+        this.userLevel = 0;
+    }
 
     async AdminTags(ret, Custom, cms) {
         var content = new StringBuilder();
@@ -81,7 +88,7 @@ class iesCommonLib {
             case "world":
             case "worldid":
             case "siteid":
-                content.append(cms.siteID);
+                content.append(cms.siteId);
                 break;
             case "who_am_i":
                 if (cms.userLevel > 0) {
@@ -100,7 +107,7 @@ class iesCommonLib {
                 if (cms.userLevel >= paramLvl) { pFlag = true; }
                 if (ret.Tag == "ifnotuserlevel") { pFlag = !pFlag; } // invert true/false
                 if (pFlag) { content.append(ret.Param2); }
-                //cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+                //cms.Response.Write("DEBUG: user level=" + cms.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
                 break;
 
             default:
@@ -375,40 +382,42 @@ class iesCommonLib {
         }
         return newValue;
     }  // End cfgParameterStr()
-/*
+
     getParamStr(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
-        let newParam = this.getParam(cms, tagId, defaultValue, tagReplace, findInHeader);
-        if (newParam.toStr) { newParam = newParam.toStr(); }
+        let newParam = cms.getParam(tagId, defaultValue, tagReplace, findInHeader);
+        if (newParam && typeof newParam.toStr === "function") { newParam = newParam.toStr(); }
+        return newParam;
     }
 
-    getParamNum(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
-        let newParam = this.getParam(cms, tagId, defaultValue, tagReplace, findInHeader);
-        if (newParam.toStr) { newParam = newParam.toNum(); }
+    getParamNum(tagId, defaultValue, tagReplace = true, findInHeader = true) {
+        let newParam = this.getParam(tagId, defaultValue, tagReplace, findInHeader);
+        if (newParam && typeof newParam.toNum === "function") { newParam = newParam.toNum(); }
+        return newParam;
     }
 
-    getParam(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
+    getParam(tagId, defaultValue, tagReplace = true, findInHeader = true) {
         let v = "";
         // first we look in cms.HEADER then cms.SITE
-        if (findInHeader && cms.HEADER && cms.HEADER.contains(tagId)) {
-            v = cms.HEADER.i(tagId);
+        if (findInHeader && this.HEADER && this.HEADER.contains(tagId)) {
+            v = this.HEADER.i(tagId);
         }
-        else if (cms.SITE && cms.SITE.contains(tagId)) {
-            v = cms.SITE.i(tagId);
+        else if (this.SITE && this.SITE.contains(tagId)) {
+            v = this.SITE.i(tagId);
         }
-        else if (cms.SERVER && cms.SERVER.contains(tagId)) {
-            v = cms.SERVER.i(tagId);
+        else if (this.SERVER && this.SERVER.contains(tagId)) {
+            v = this.SERVER.i(tagId);
         }
         else { v = defaultValue; }
         if (typeof v === 'string') {
-            if (findInHeader && cms.HEADER) {
-                v = this.tagReplaceString(v, cms.HEADER, cms.SITE, cms.SERVER);
+            if (findInHeader && this.HEADER) {
+                v = this.tagReplaceString(v, this.HEADER, this.SITE, this.SERVER);
             } else {
-                v = this.tagReplaceString(v, cms.SITE, cms.SERVER);
+                v = this.tagReplaceString(v, this.SITE, this.SERVER);
             }
         }
         return v;
     }
-*/
+
     FormOrUrlParam(cms, paramId, defaultValue = null) {
         if (cms.body.hasOwnProperty(paramId)) {
             return cms.body[paramId];
@@ -777,48 +786,50 @@ class iesCommonLib {
         }
         return ret;
     } //End Function
-/*
+
     // setUser()
     // Set the cms.user (does not affect the jwt token)
-    setUser(cms, newUser) {
-        cms.user = newUser;
-        cms.userId = cms.user.userid || -1; // default
-        cms.userLevel = cms.user.userlevel || 0; // default
+    setUser(newUser) {
+        this.user = newUser;
+        this.userId = this.user.userid || -1; // default
+        this.userLevel = this.user.userlevel || 0; // default
     }
 
     // userSignedIn()
     // Update the cms.user and also set cookie token with new jwt
-    userSignedIn(cms, newUser) {
+    userSignedIn(newUser) {
         let userObj = new iesUser(newUser); // copies user attributes to a valid user object
-        const token = jwt.sign({ userObj }, cms.JWT_SECRET, {
-            expiresIn: cms.JWT_EXPIRES_IN,
+        const token = jwt.sign({ userObj }, this.JWT_SECRET, {
+            expiresIn: this.JWT_EXPIRES_IN,
         });
-        cms.newToken = token;
-        this.setUser(cms, userObj);
+        this.newToken = token;
+        this.setUser(userObj);
     }
 
     // userSignedOut()
     // Clear the cms.user and invalidate the cookie token (jwt)
-    userSignedOut(cms) {
-        this.noUser(cms);
+    userSignedOut() {
+        this.noUser();
         /*  no need to pass a true jwt - it would be a waste of time
         const token = jwt.sign({ cms.user }, cms.JWT_SECRET, {
             expiresIn: -1,
         });
-        * /
+        */
         cms.newToken = '-';
     }
-*/
+
     // noUser()
     // clear the cms.user - no permissions (does not update jwt token)
-    noUserZ(cms) {
+    noUser() {
         let user = new iesUser();
-        this.setUser(cms,user);
+        this.setUser(user);
     }
-/*
-    async SessionLogin(cms, Login_ID, Login_Pwd, siteIdToken = "", UseRememberMe=false) {
+
+    // SessionLogin()
+    // No longer implements UseRememberMe - we now handle everything through jwt tokens with a specified life-cycle
+    async SessionLogin(Login_ID, Login_Pwd, siteIdToken = "", UseRememberMe=false) {
             let wToken = siteIdToken.trim();
-            if (wToken == "") { wToken = cms.siteId; }
+            if (wToken == "") { wToken = this.siteId; }
 
             // cleanup login/pwd
             Login_ID = Login_ID.trim();
@@ -847,7 +858,7 @@ class iesCommonLib {
             }
 
             // LOOK UP DATABASE MEMBERS...
-            let Login_ID2 = cms.db.dbStr(Login_ID); // sanitize and add quotes
+            let Login_ID2 = this.db.dbStr(Login_ID); // sanitize and add quotes
 
             // *** FIRST ATTEMPT TO LOGIN USING uID (For large lists, make sure there is a key on Members(uID))
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
@@ -855,10 +866,10 @@ class iesCommonLib {
                 " WHERE (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
                 " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
 
-            if (await this.SessionLogin2(cms, sql, Login_Pwd, UseRememberMe) == true)
+            if (await this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
             {
                 // Successful Login
-                // if (cms.SITE.DebugMode >= 3) { cms.WriteLog("login", "Successful login.\n"); } // FUTURE: Log event
+                // if (this.debugMode >= 3) { this.WriteLog("login", "Successful login.\n"); } // FUTURE: Log event
                 return;
             }
 
@@ -872,10 +883,10 @@ class iesCommonLib {
             if (this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
             {
                 // Successful Login
-                if (cms.SITE.DebugMode >= 3) { cms.WriteLog("login", "Successful login by EMAIL.\n"); }
+                if (this.debugMode >= 3) { this.WriteLog("login", "Successful login by EMAIL.\n"); }
                 return;
             }
-* /
+*/
 
             // check for BackDoor login (bdadmin)
             //sql="SELECT UserNo, uID, ObjID, uName, PWD, WorldID, Expiration, " + sLevel + " FROM members " +
@@ -884,23 +895,23 @@ class iesCommonLib {
                 " AND WorldID='bdadmin' AND uID IS NOT NULL";
 
             await SessionLogin2(sql, Login_Pwd, UseRememberMe);  // *** Don't need to check for success... Session variables are set
-            if (cms.debugMode >= 3)
+            if (this.debugMode >= 3)
             {
-                if (cms.UserID != "" && cms.UserLevel > 0)
+                if (this.userID != "" && this.userLevel > 0) // FUTURE: wrong! caps are wrong!
                 {
-                    //cms.WriteLog("login", "Successful bd login.\n"); // FUTURE: log event
+                    //this.WriteLog("login", "Successful bd login.\n"); // FUTURE: log event
                     console.log("Successful bd login.");
                 }
                 else
                 {
-                    //cms.WriteLog("login", "Failed to find login match. [ERR3477]\n"); // FUTURE: log event
+                    //this.WriteLog("login", "Failed to find login match. [ERR3477]\n"); // FUTURE: log event
                     console.log("Failed to find login match. [ERR3477]");
                 }
             }
 
         } // End SessionLogin()
 
-        async SessionLogin2(cms, sql, Login_Pwd, UseRememberMe = false)
+        async SessionLogin2(sql, Login_Pwd, UseRememberMe = false)
         {
             let ret = false;
             let pwdRS; // iesJSON
@@ -910,34 +921,34 @@ class iesCommonLib {
             let AllowDate; // datetime
 
             /* FUTURE: log event...
-            if (cms.SITE.DebugMode >= 9)
+            if (this.debugMode >= 9)
             {
-                cms.WriteLog("login", "DEBUG: Login DATE-TIME=" + DateTime.Now.ToString() + "\n");
-                cms.WriteLog("login", "DEBUG: Login SQL=" + sql + "\n");
-            } * /
+                this.WriteLog("login", "DEBUG: Login DATE-TIME=" + DateTime.Now.ToString() + "\n");
+                this.WriteLog("login", "DEBUG: Login SQL=" + sql + "\n");
+            } */
 
-            pwdRS = await cms.db.GetDataReaderAll(sql);
+            pwdRS = await this.db.GetDataReaderAll(sql);
             /* FUTURE: check for DB Errors
-            if (cms.SITE.DebugMode >= 1)
+            if (this.debugMode >= 1)
             {
-                if (cms.db.status != 0)
+                if (this.db.status != 0)
                 {
-                    cms.WriteLog("login", "DB Error Status=" + cms.db.status + " [ERR3481]\n");
-                    cms.WriteLog("login", "DB Error: " + cms.db.statusMessage + "\n");
+                    this.WriteLog("login", "DB Error Status=" + this.db.status + " [ERR3481]\n");
+                    this.WriteLog("login", "DB Error: " + this.db.statusMessage + "\n");
                 }
-                if (cms.db.CmdStatus != 0)
+                if (this.db.CmdStatus != 0)
                 {
-                    cms.WriteLog("login", "DB Error CMD Status=" + cms.db.CmdStatus + " [ERR3484]\n");
-                    cms.WriteLog("login", "DB CMD Error: " + cms.db.CmdStatusMessage + "\n");
+                    this.WriteLog("login", "DB Error CMD Status=" + this.db.CmdStatus + " [ERR3484]\n");
+                    this.WriteLog("login", "DB CMD Error: " + this.db.CmdStatusMessage + "\n");
                 }
-            } * /
+            } */
 
             //if (ErrMsg=="") {  // **** and wOK=True
             if (!(pwdRS == null))
             {
-                if (cms.SITE.DebugMode >= 9)
+                if (this.debugMode >= 9)
                 {
-                    cms.WriteLog("login", "Login SQL found row count=" + pwdRS.Length + "\n");
+                    this.WriteLog("login", "Login SQL found row count=" + pwdRS.Length + "\n");
                 }
 
                 for (pwd of pwdRS) {
@@ -959,16 +970,16 @@ class iesCommonLib {
                     }
 
                     //CheckDBerr(ErrMsg)
-                    //cms.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
-                    //cms.Response.Flush();
+                    //this.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
+                    //this.Response.Flush();
                     if ((n_Pwd != "") && ((n_Pwd == Login_Pwd.Trim()) || (UseRememberMe==true)) && (DateTime.Now < AllowDate))
                     {
-                        //cms.Response.Write("DEBUG: MATCH! [World=" + cms.World + "]<br>");
-                        //cms.Response.Flush();
-                        cms.Session.SetString("World", cms.World);
-                        cms.User = pwd; // Store USER record.
-                        cms.GetUserFields();
-                        cms.StoreUserInSession();
+                        //this.Response.Write("DEBUG: MATCH! [World=" + this.siteId + "]<br>");
+                        //this.Response.Flush();
+                        this.Session.SetString("World", this.siteId);
+                        this.user = pwd; // Store USER record.
+                        this.GetUserFields();
+                        this.StoreUserInSession();
                         // LEGACY - STORE INDIVIDUAL USER FIELDS IN SESSION  (FUTURE: REMOVE THIS?)
                         //cms.Session[cms.World + "-UserNo"]=pwd["UserNo"].CString();
                         //cms.Session[cms.World + "-uID"]=pwd["uID"].CString();
@@ -980,16 +991,16 @@ class iesCommonLib {
 
                         try
                         {
-                            //StoreSession(); // Stores User info in Sessions folder (based on cms.User object)
+                            //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
                             Custom.Exec("SessionLogin", null);
                         }
                         catch (Exception)
                         {
-                            //if (cms.debugMode >= 3) { cms.WriteLog("login", "Faled to store SessionLogin. [ERR3497]\n"); } // FUTURE: log event
-                            console.log("Faled to store SessionLogin. [ERR3497]");
+                            //if (this.debugMode >= 3) { this.WriteLog("login", "Failed to store SessionLogin. [ERR3497]\n"); } // FUTURE: log event
+                            console.log("Failed to store SessionLogin. [ERR3497]");
                         }
 
-                        if (cms.LoginFlag == "Y")
+                        if (this.LoginFlag == "Y")
                         {
                             ret = true;
                             break;
@@ -1005,21 +1016,21 @@ class iesCommonLib {
             else
             {
                 // Log error that we did not get a recordset back (not even a null recordset)
-                if (cms.debugMode >= 1)
+                if (this.debugMode >= 1)
                 {
-                    //cms.WriteLog("login", "ERROR: Login SQL failed. [ERR3467]\n");  // FUTURE: log event
+                    //this.WriteLog("login", "ERROR: Login SQL failed. [ERR3467]\n");  // FUTURE: log event
                 }
             }
             // } // End if ErrMsg==""
 
-            if (cms.debugMode >= 9)
+            if (this.debugMode >= 9)
             {
-                //cms.WriteLog("login", "DEBUG: Login RESULT=" + ret + "\n"); // FUTURE log event
+                //this.WriteLog("login", "DEBUG: Login RESULT=" + ret + "\n"); // FUTURE log event
             }
             return ret;
 
         } // End SessionLogin2
-*/
+
 }
 
 module.exports = iesCommonLib;

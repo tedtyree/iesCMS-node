@@ -69,7 +69,7 @@ class webEngine {
             cms.resultType = 'html';
             cms.mimeType = 'text/html';
             cms.fileFullPath = iesCommon.FindFileInFolders(filePath + '.cfg',
-                './websites/' + cms.siteID + '/pages/',
+                './websites/' + cms.siteId + '/pages/',
                 './cmsCommon/pages/'
                 );
                 
@@ -113,7 +113,7 @@ class webEngine {
             // Lookup page template
             pageTemplate="layout_" + pageHead.getStr("Template") + ".cfg";
             templatePath = iesCommon.FindFileInFolders(pageTemplate,
-                './websites/' + cms.siteID + '/templates/',
+                './websites/' + cms.siteId + '/templates/',
                 './cmsCommon/templates/'
                 );
             if (!templatePath) {
@@ -135,7 +135,7 @@ class webEngine {
             } else {
                 // look for file in SITE folder
                 cms.fileFullPath = iesCommon.FindFileInFolders(cms.urlFileName,
-                './websites/' + cms.siteID + '/' + cms.urlPathList.join('/')
+                './websites/' + cms.siteId + '/' + cms.urlPathList.join('/')
                 );
             }
             cms.mimeType = iesCommon.mime[cms.pathExt] || 'text/plain';
