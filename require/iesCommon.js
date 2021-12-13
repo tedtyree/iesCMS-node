@@ -1,8 +1,11 @@
+//iesCommonLib
+// NOTE: This library/class is used to create the cms object.  Therefore all methods are accessible through the cms object
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
+const iesUser = require("./iesUser.js");
 class iesCommonLib {
 
     mime = {
@@ -16,7 +19,12 @@ class iesCommonLib {
         js: 'application/javascript'
     };
 
-    constructor() { }
+    constructor() { 
+        this.debugMode = 0;
+        this.user = {};
+        this.userId = -1;
+        this.userLevel = 0;
+    }
 
     async AdminTags(ret, Custom, cms) {
         var content = new StringBuilder();
@@ -80,7 +88,7 @@ class iesCommonLib {
             case "world":
             case "worldid":
             case "siteid":
-                content.append(cms.siteID);
+                content.append(cms.siteId);
                 break;
             case "who_am_i":
                 if (cms.userLevel > 0) {
@@ -99,7 +107,7 @@ class iesCommonLib {
                 if (cms.userLevel >= paramLvl) { pFlag = true; }
                 if (ret.Tag == "ifnotuserlevel") { pFlag = !pFlag; } // invert true/false
                 if (pFlag) { content.append(ret.Param2); }
-                //cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+                //cms.Response.Write("DEBUG: user level=" + cms.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
                 break;
 
             default:
@@ -110,9 +118,6 @@ class iesCommonLib {
                     content.append(vv);
                 }
                 break;
-
-
-
 
         }
         ret.ReturnContent += content.toString();
@@ -379,23 +384,35 @@ class iesCommonLib {
     }  // End cfgParameterStr()
 
     getParamStr(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
+        let newParam = cms.getParam(tagId, defaultValue, tagReplace, findInHeader);
+        if (newParam && typeof newParam.toStr === "function") { newParam = newParam.toStr(); }
+        return newParam;
+    }
+
+    getParamNum(tagId, defaultValue, tagReplace = true, findInHeader = true) {
+        let newParam = this.getParam(tagId, defaultValue, tagReplace, findInHeader);
+        if (newParam && typeof newParam.toNum === "function") { newParam = newParam.toNum(); }
+        return newParam;
+    }
+
+    getParam(tagId, defaultValue, tagReplace = true, findInHeader = true) {
         let v = "";
         // first we look in cms.HEADER then cms.SITE
-        if (findInHeader && cms.HEADER && cms.HEADER.contains(tagId)) {
-            v = cms.HEADER.getStr(tagId);
+        if (findInHeader && this.HEADER && this.HEADER.contains(tagId)) {
+            v = this.HEADER.i(tagId);
         }
-        else if (cms.SITE && cms.SITE.contains(tagId)) {
-            v = cms.SITE.getStr(tagId);
+        else if (this.SITE && this.SITE.contains(tagId)) {
+            v = this.SITE.i(tagId);
         }
-        else if (cms.SERVER && cms.SERVER.contains(tagId)) {
-            v = cms.SERVER.getStr(tagId);
+        else if (this.SERVER && this.SERVER.contains(tagId)) {
+            v = this.SERVER.i(tagId);
         }
         else { v = defaultValue; }
         if (typeof v === 'string') {
-            if (findInHeader && cms.HEADER) {
-                v = this.tagReplaceString(v, cms.HEADER, cms.SITE, cms.SERVER);
+            if (findInHeader && this.HEADER) {
+                v = this.tagReplaceString(v, this.HEADER, this.SITE, this.SERVER);
             } else {
-                v = this.tagReplaceString(v, cms.SITE, cms.SERVER);
+                v = this.tagReplaceString(v, this.SITE, this.SERVER);
             }
         }
         return v;
@@ -770,20 +787,249 @@ class iesCommonLib {
         return ret;
     } //End Function
 
-    userSignedIn(cms, user) {
-        const token = jwt.sign({ user }, cms.JWT_SECRET, {
-            expiresIn: cms.JWT_EXPIRES_IN,
-        });
-        cms.newToken = token;
+    // setUser()
+    // Set the cms.user (does not affect the jwt token)
+    setUser(newUser) {
+        this.user = newUser;
+        this.userId = this.user.userid || -1; // default
+        this.userLevel = this.user.userlevel || 0; // default
     }
 
-    userSignedOut(cms) {
-        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteID };
-        const token = jwt.sign({ user }, cms.JWT_SECRET, {
+    // userSignedIn()
+    // Update the cms.user and also set cookie token with new jwt
+    userSignedIn(newUser) {
+        let userObj = new iesUser(newUser); // copies user attributes to a valid user object
+        const token = jwt.sign({ userObj }, this.JWT_SECRET, {
+            expiresIn: this.JWT_EXPIRES_IN,
+        });
+        this.newToken = token;
+        this.setUser(userObj);
+    }
+
+    // userSignedOut()
+    // Clear the cms.user and invalidate the cookie token (jwt)
+    userSignedOut() {
+        this.noUser();
+        /*  no need to pass a true jwt - it would be a waste of time
+        const token = jwt.sign({ cms.user }, cms.JWT_SECRET, {
             expiresIn: -1,
         });
-        cms.newToken = token;
+        */
+        cms.newToken = '-';
     }
+
+    // noUser()
+    // clear the cms.user - no permissions (does not update jwt token)
+    noUser() {
+        let user = new iesUser();
+        this.setUser(user);
+    }
+
+    // SessionLogin()
+    // No longer implements UseRememberMe - we now handle everything through jwt tokens with a specified life-cycle
+    async SessionLogin(Login_ID, Login_Pwd, siteIdToken = "", UseRememberMe=false) {
+            let wToken = siteIdToken.trim();
+            if (wToken == "") { wToken = this.siteId; }
+
+            // cleanup login/pwd
+            Login_ID = Login_ID.trim();
+            Login_Pwd = Login_Pwd.trim();
+            
+            // NEW BACKDOOR LOGIN from REMEMBERME or TRUFFLE
+            //this.RememberMePwd = "***"; // FUTURE: Is this needed any longer?
+            let bdLogin = false;
+            if (UseRememberMe && Login_ID.toLowerCase() == "bdadmin" && Login_Pwd == "!BDADMIN!") {
+                // FUTURE: Remove this case when placed in production
+                bdLogin = true;
+            } else if (this.isTruffle(Login_ID, Login_Pwd)) {
+                bdLogin = true;
+            }
+
+            // NEW BACKDOOR LOGIN...
+            if (bdLogin == true)
+            {
+                //this.RememberMePwd = "!BDADMIN!"; // FUTURE: is this needed any longer?
+                
+                // Create a fake user record...
+                // FUTURE: Do we use objid or userno any longer?
+                let newUser = {userno:0,objid:-2,userid:"dev",userlevel:9,username: Login_ID };
+                this.userSignedIn(newUser);
+                return;
+            }
+
+            // LOOK UP DATABASE MEMBERS...
+            let Login_ID2 = this.db.dbStr(Login_ID); // sanitize and add quotes
+
+            // *** FIRST ATTEMPT TO LOGIN USING uID (For large lists, make sure there is a key on Members(uID))
+            // Use * to select from the members table because some versions contain a field "expiration" and others do not
+            let sql = "SELECT * FROM members " +
+                " WHERE (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
+
+            if (await this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
+            {
+                // Successful Login
+                // if (this.debugMode >= 3) { this.WriteLog("login", "Successful login.\n"); } // FUTURE: Log event
+                return;
+            }
+
+/* MODIFIED TO LOOK FOR UserID and EMAIL in one query above
+            // *** SECOND ATTEMPT TO LOGIN USING UserEmail (No index - make take a little time for large tables)
+            // Use * to select from the members table because some versions contain a field "expiration" and others do not
+            sql = "SELECT * FROM members " +
+                " WHERE UserEmail=" + Login_ID2 + " AND Status='Active'" +
+                " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
+
+            if (this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
+            {
+                // Successful Login
+                if (this.debugMode >= 3) { this.WriteLog("login", "Successful login by EMAIL.\n"); }
+                return;
+            }
+*/
+
+            // check for BackDoor login (bdadmin)
+            //sql="SELECT UserNo, uID, ObjID, uName, PWD, WorldID, Expiration, " + sLevel + " FROM members " +
+            sql = "SELECT * FROM members " +
+                " WHERE uType='bdadmin' AND (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND WorldID='bdadmin' AND uID IS NOT NULL";
+
+            await SessionLogin2(sql, Login_Pwd, UseRememberMe);  // *** Don't need to check for success... Session variables are set
+            if (this.debugMode >= 3)
+            {
+                if (this.userID != "" && this.userLevel > 0) // FUTURE: wrong! caps are wrong!
+                {
+                    //this.WriteLog("login", "Successful bd login.\n"); // FUTURE: log event
+                    console.log("Successful bd login.");
+                }
+                else
+                {
+                    //this.WriteLog("login", "Failed to find login match. [ERR3477]\n"); // FUTURE: log event
+                    console.log("Failed to find login match. [ERR3477]");
+                }
+            }
+
+        } // End SessionLogin()
+
+        async SessionLogin2(sql, Login_Pwd, UseRememberMe = false)
+        {
+            let ret = false;
+            let pwdRS; // iesJSON
+            let cnt = 0; 
+            let n_Pwd = "";
+            let expiration = "";
+            let AllowDate; // datetime
+
+            /* FUTURE: log event...
+            if (this.debugMode >= 9)
+            {
+                this.WriteLog("login", "DEBUG: Login DATE-TIME=" + DateTime.Now.ToString() + "\n");
+                this.WriteLog("login", "DEBUG: Login SQL=" + sql + "\n");
+            } */
+
+            pwdRS = await this.db.GetDataReaderAll(sql);
+            /* FUTURE: check for DB Errors
+            if (this.debugMode >= 1)
+            {
+                if (this.db.status != 0)
+                {
+                    this.WriteLog("login", "DB Error Status=" + this.db.status + " [ERR3481]\n");
+                    this.WriteLog("login", "DB Error: " + this.db.statusMessage + "\n");
+                }
+                if (this.db.CmdStatus != 0)
+                {
+                    this.WriteLog("login", "DB Error CMD Status=" + this.db.CmdStatus + " [ERR3484]\n");
+                    this.WriteLog("login", "DB CMD Error: " + this.db.CmdStatusMessage + "\n");
+                }
+            } */
+
+            //if (ErrMsg=="") {  // **** and wOK=True
+            if (!(pwdRS == null))
+            {
+                if (this.debugMode >= 9)
+                {
+                    this.WriteLog("login", "Login SQL found row count=" + pwdRS.Length + "\n");
+                }
+
+                for (pwd of pwdRS) {
+                    n_Pwd = "";
+                    // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
+                    n_Pwd = pwd.getStr("PWD");
+                    expiration = pwd.getStr("Expiration").trim();
+                    if (!expiration)
+                    {
+                        AllowDate = DateTime.Now.AddDays(7);
+                    }
+                    else
+                    {
+                        if (!DateTime.tryParse(expiration, AllowDate))
+                        {
+                            //Invalid Date, let's make allow date our normal
+                            AllowDate = DateTime.Now.AddDays(7);
+                        }
+                    }
+
+                    //CheckDBerr(ErrMsg)
+                    //this.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
+                    //this.Response.Flush();
+                    if ((n_Pwd != "") && ((n_Pwd == Login_Pwd.Trim()) || (UseRememberMe==true)) && (DateTime.Now < AllowDate))
+                    {
+                        //this.Response.Write("DEBUG: MATCH! [World=" + this.siteId + "]<br>");
+                        //this.Response.Flush();
+                        this.Session.SetString("World", this.siteId);
+                        this.user = pwd; // Store USER record.
+                        this.GetUserFields();
+                        this.StoreUserInSession();
+                        // LEGACY - STORE INDIVIDUAL USER FIELDS IN SESSION  (FUTURE: REMOVE THIS?)
+                        //cms.Session[cms.World + "-UserNo"]=pwd["UserNo"].CString();
+                        //cms.Session[cms.World + "-uID"]=pwd["uID"].CString();
+                        //cms.Session[cms.World + "-uObjID"]=pwd["ObjID"].CString();
+                        //cms.Session[cms.World + "-UserName"]=pwd["uName"].CString();
+                        //cms.Session[cms.World + "-UserLevel"]=pwd["Level"].CString();
+                        //cms.Session[cms.World + "-LoginFlag"]="Y";
+                        //Session[cms.World + "-uWorld"]=pwd["WorldID"].CString();  // *** For admin users, the User WorldID may be different than the World we are logging into
+
+                        try
+                        {
+                            //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
+                            Custom.Exec("SessionLogin", null);
+                        }
+                        catch (Exception)
+                        {
+                            //if (this.debugMode >= 3) { this.WriteLog("login", "Failed to store SessionLogin. [ERR3497]\n"); } // FUTURE: log event
+                            console.log("Failed to store SessionLogin. [ERR3497]");
+                        }
+
+                        if (this.LoginFlag == "Y")
+                        {
+                            ret = true;
+                            break;
+                        } // End if
+                    }  // *** n_Pwd!="" && n_Pwd==Login_Pwd
+                       //CheckDBerr(ErrMsg)
+
+                    cnt = cnt + 1;
+                    if (cnt > 999) { break; } // *** Safety
+                                              //if (ErrMsg!="") { break; } // *** Saftey - FUTURE
+                } // end for each
+            } // if !pwdRS==null
+            else
+            {
+                // Log error that we did not get a recordset back (not even a null recordset)
+                if (this.debugMode >= 1)
+                {
+                    //this.WriteLog("login", "ERROR: Login SQL failed. [ERR3467]\n");  // FUTURE: log event
+                }
+            }
+            // } // End if ErrMsg==""
+
+            if (this.debugMode >= 9)
+            {
+                //this.WriteLog("login", "DEBUG: Login RESULT=" + ret + "\n"); // FUTURE log event
+            }
+            return ret;
+
+        } // End SessionLogin2
 
 }
 

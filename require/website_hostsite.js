@@ -1,7 +1,5 @@
 const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
-const iesCommonLib = require('./iesCommon.js');
-const iesCommon = new iesCommonLib();
 
 const { existsSync, readFileSync } = require('fs');
 const _siteID = 'hostsite';
@@ -40,7 +38,7 @@ class webEngine {
             filePath = filePath.replace(/\//g,'_');
         }
         if (filePath == '') {
-            filePath = iesCommon.getParamStr(cms,"DefaultPageID","home");
+            filePath = cms.getParamStr(cms,"DefaultPageID","home");
             fileType=='html'
         }
         // debugger
@@ -51,8 +49,8 @@ class webEngine {
         if (fileType=='html') {
             cms.resultType = 'html';
             cms.mimeType = 'text/html';
-            cms.fileFullPath = iesCommon.FindFileInFolders(filePath + '.cfg',
-                './websites/' + cms.siteID + '/pages/',
+            cms.fileFullPath = cms.FindFileInFolders(filePath + '.cfg',
+                './websites/' + cms.siteId + '/pages/',
                 './cmsCommon/pages/'
                 );
                 
@@ -109,8 +107,8 @@ class webEngine {
 
             // Lookup page template
             pageTemplate="layout_" + pageHead.getStr("Template") + ".cfg";
-            templatePath = iesCommon.FindFileInFolders(pageTemplate,
-                './websites/' + cms.siteID + '/templates/',
+            templatePath = cms.FindFileInFolders(pageTemplate,
+                './websites/' + cms.siteId + '/templates/',
                 './cmsCommon/templates/'
                 );
             if (!templatePath) {
@@ -119,23 +117,23 @@ class webEngine {
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
-            cms.Html = await iesCommon.ReplaceTags(template,pageHead,contentHtml,this,cms);
+            cms.Html = await cms.ReplaceTags(template,pageHead,contentHtml,this,cms);
 
         } else {
             // NON-HTML RESOURCES
             // cms.Html += 'DEBUGGER: get non-html file<br>pathExt=' + cms.pathExt +'<br>cms.url.pathname=' + cms.url.pathname + '<br>urlBasePath=' + cms.urlBasePath + '<br>';
             if (cms.urlBasePath.toLowerCase() == 'cmscommon') {
                 // look for file in cmsCommon
-                cms.fileFullPath = iesCommon.FindFileInFolders(cms.urlFileName,
+                cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
                 './' + cms.urlPathList.join('/')
                 );
             } else {
                 // look for file in SITE folder
-                cms.fileFullPath = iesCommon.FindFileInFolders(cms.urlFileName,
-                './websites/' + cms.siteID + '/' + cms.urlPathList.join('/')
+                cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
+                './websites/' + cms.siteId + '/' + cms.urlPathList.join('/')
                 );
             }
-            cms.mimeType = iesCommon.mime[cms.pathExt] || 'text/plain';
+            cms.mimeType = cms.mime[cms.pathExt] || 'text/plain';
             cms.resultType = 'file';
             cms.Html += 'DEBUGGER: cms.fileFullPath=[' + cms.fileFullPath + ']<br>mimeType=' + cms.mimeType;
             return;

@@ -1,7 +1,5 @@
 const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
-const iesCommonLib = require('./iesCommon.js');
-const iesCommon = new iesCommonLib();
 const iesDbClass = require('./iesDB/iesDbClass.js');
 // const iesDB = new iesDbClass();  // use cms.db instead
 // const jwt = require('jsonwebtoken');
@@ -51,12 +49,12 @@ class webEngine {
                         this.ProcessLangTag(ret.Param1, content, cms);
                         break;
                     case "tablesearch":
-                        let searchText = iesCommon.FormOrUrlParam(cms,"search","");
-                        let page = iesCommon.FormOrUrlParam(cms,"page",1);
+                        let searchText = cms.FormOrUrlParam(cms,"search","");
+                        let page = cms.FormOrUrlParam(cms,"page",1);
                         try { page = parseInt(page); }
                         catch { page = 1; }
                         if (page < 1) { page = 1; }
-                        iesCommon.PrepForJsonReturn(ret);
+                        cms.PrepForJsonReturn(ret);
                         await this.BuildTableSearch(cms, searchText, content, page, ret);
                         break;
                     default:
@@ -95,7 +93,7 @@ class webEngine {
             filePath = filePath.replace(/\//g, '_');
         }
         if (filePath == '') {
-            filePath = iesCommon.getParamStr(cms, "DefaultPageID", "home");
+            filePath = cms.getParamStr(cms, "DefaultPageID", "home");
             fileType == 'html'
         }
         // debugger
@@ -113,8 +111,8 @@ class webEngine {
         cms.db = new iesDbClass(dbConnect);
 
         //check for user logout
-        if (iesCommon.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
-            iesCommon.userSignedOut(cms);
+        if (cms.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+            cms.userSignedOut();
         }
 
         //check for user login  
@@ -135,10 +133,10 @@ class webEngine {
 
                     cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
 
-                    let user = { username: 'joe', userid: 1, userlevel: 9, siteid: cms.siteID };
+                    let user = { username: 'joe', userId: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
-                    iesCommon.userSignedIn(cms,user);
+                    cms.userSignedIn(user);
                     /*
                     const token = jwt.sign({ user }, cms.JWT_SECRET, {
                         expiresIn: cms.JWT_EXPIRES_IN,
@@ -147,11 +145,13 @@ class webEngine {
                     */
 
                 } else {
+                    cms.SessionLogin(username,password,cms.siteId);
+
                     this.errorMessage = 'login not successful';
                     // Invalidate Token
-                    iesCommon.userSignedOut(cms);
+                    cms.userSignedOut();
                     /*
-                    let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteID };
+                    let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     const token = jwt.sign({ user }, cms.JWT_SECRET, {
@@ -169,8 +169,8 @@ class webEngine {
         if (fileType == 'html') {
             cms.resultType = 'html';
             cms.mimeType = 'text/html';
-            cms.fileFullPath = iesCommon.FindFileInFolders(filePath + '.cfg',
-                './websites/' + cms.siteID + '/pages/',
+            cms.fileFullPath = cms.FindFileInFolders(filePath + '.cfg',
+                './websites/' + cms.siteId + '/pages/',
                 './cmsCommon/pages/'
             );
 
@@ -218,15 +218,15 @@ class webEngine {
             cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
             if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
             if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
-            if (cms.user.userlevel >= cms.minViewLevel) {
+            if (cms.user.userLevel >= cms.minViewLevel) {
                 if (cms.HEADER.contains("ResponseType")) {
                     cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
                 }
     
                 // Lookup page template (if HTML response expected)
                 pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
-                templatePath = iesCommon.FindFileInFolders(pageTemplate,
-                    './websites/' + cms.siteID + '/templates/',
+                templatePath = cms.FindFileInFolders(pageTemplate,
+                    './websites/' + cms.siteId + '/templates/',
                     './cmsCommon/templates/'
                 );
                 if (!templatePath) {
@@ -235,7 +235,7 @@ class webEngine {
                 }
                 //cms.Html += "Template found: " + templatePath + "<br>";
                 var template = readFileSync(templatePath, 'utf8');
-                cms.Html = await iesCommon.ReplaceTags(template, pageHead, contentHtml, this, cms);
+                cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, this, cms);
     
             } else {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
@@ -248,16 +248,16 @@ class webEngine {
             // cms.Html += 'DEBUGGER: get non-html file<br>pathExt=' + cms.pathExt +'<br>cms.url.pathname=' + cms.url.pathname + '<br>urlBasePath=' + cms.urlBasePath + '<br>';
             if (cms.urlBasePath.toLowerCase() == 'cmscommon') {
                 // look for file in cmsCommon
-                cms.fileFullPath = iesCommon.FindFileInFolders(cms.urlFileName,
+                cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
                     './' + cms.urlPathList.join('/')
                 );
             } else {
                 // look for file in SITE folder
-                cms.fileFullPath = iesCommon.FindFileInFolders(cms.urlFileName,
-                    './websites/' + cms.siteID + '/' + cms.urlPathList.join('/')
+                cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
+                    './websites/' + cms.siteId + '/' + cms.urlPathList.join('/')
                 );
             }
-            cms.mimeType = iesCommon.mime[cms.pathExt] || 'text/plain';
+            cms.mimeType = cms.mime[cms.pathExt] || 'text/plain';
             cms.resultType = 'file';
             cms.Html += 'DEBUGGER: cms.fileFullPath=[' + cms.fileFullPath + ']<br>mimeType=' + cms.mimeType;
             resolve(''); // success
@@ -341,9 +341,9 @@ class webEngine {
             }
         */
             // Load vocabsearch config file
-            let configName = cms.db.dbStr(iesCommon.Sanitize(iesCommon.FormOrUrlParam(cms,"config","")), 40, false);
+            let configName = cms.db.dbStr(cms.Sanitize(cms.FormOrUrlParam(cms,"config","")), 40, false);
             let vocabFile = "table_" + configName + ".cfg";
-            let vocabConfigPath = iesCommon.FindFileInFolders(vocabFile, iesCommon.getParamStr(cms, "ConfigFolder"));
+            let vocabConfigPath = cms.FindFileInFolders(vocabFile, cms.getParamStr(cms, "ConfigFolder"));
             if (!vocabConfigPath)
             {
 
@@ -361,7 +361,7 @@ class webEngine {
             }
 
             // ADD Build parameters for query
-            cfg.addToObjBase("siteid", cms.siteID);
+            cfg.addToObjBase("siteid", cms.siteId);
 
             // Get SQL WHERE query from config WITH parameter replacement
             let table = cfg.i("table").toStr(); // debugger
@@ -373,11 +373,11 @@ class webEngine {
 
             if (searchText.trim() != "")
             {
-                searchWhere = iesCommon.MakeSearch(vocabSearchFields, searchText, cms);
+                searchWhere = cms.MakeSearch(vocabSearchFields, searchText, cms);
             }
             
             // let where = cfg.i("where").toStr(""); // FUTURE: NEEDS TO Include tag replacement
-            let where = iesCommon.cfgParamStr(cfg, "where"); // Includes tag replacement
+            let where = cms.cfgParamStr(cfg, "where"); // Includes tag replacement
             if (searchWhere != "")
             {
                 where += " AND " + searchWhere;
@@ -390,7 +390,7 @@ class webEngine {
                 /*
                 let formField = tagSearch.i("formField").toStr().trim();
                 if (formField != "") {
-                    let matchList = iesCommon.FormOrUrlParam(cms,formField,"").trim();
+                    let matchList = cms.FormOrUrlParam(cms,formField,"").trim();
                     if (matchList != "") {
                         let searchType = tagSearch.i("type").toStr().trim().toLowerCase();
                         switch (searchType) {
@@ -399,7 +399,7 @@ class webEngine {
                               // If more than one item is specified, then WHERE-IN acts like an OR
                               let tableColumn = tagSearch.i("tableColumn").toStr().trim();
                               if (tableColumn != "") {
-                                  let newWhere = tableColumn + " in " + iesCommon.ConvertListToWhereIn(cms,matchList);
+                                  let newWhere = tableColumn + " in " + cms.ConvertListToWhereIn(cms,matchList);
                                   where += " AND " + newWhere;
                               }
                             break;
@@ -448,15 +448,15 @@ class webEngine {
             if (cfg.i("format").toStr().toLowerCase() != "json") { // format=html
 
                 // Create TABLE HEADER
-                let tblHeader = iesCommon.cfgParamStr(cfg, "TableHeader");  // With tag replacement
+                let tblHeader = cms.cfgParamStr(cfg, "TableHeader");  // With tag replacement
                 let tblRow = cfg.i("TableRow").toStr();  // NO TAG REPLACEMENT!!! (that comes later)
-                let tblFooter = iesCommon.cfgParamStr(cfg, "TableFooter");  // With tag replacement
+                let tblFooter = cms.cfgParamStr(cfg, "TableFooter");  // With tag replacement
                 Content.append(tblHeader + "\n");
 
                 // Create TABLE ROWS
                 recVocab.forEach (rec => {
                     Content.append(
-                        iesCommon.tagReplaceString(tblRow, rec)
+                        cms.tagReplaceString(tblRow, rec)
                     );
                 });
 
