@@ -5,6 +5,7 @@ const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
+const sha1 = require('sha1');
 const iesUser = require("./iesUser.js");
 class iesCommonLib {
 
@@ -386,12 +387,36 @@ class iesCommonLib {
     getParamStr(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
         let newParam = cms.getParam(tagId, defaultValue, tagReplace, findInHeader);
         if (newParam && typeof newParam.toStr === "function") { newParam = newParam.toStr(); }
+        if (tagReplace && typeof newParam === 'string') {
+            if (findInHeader && this.HEADER) {
+                newParam = this.tagReplaceString(newParam, this.HEADER, this.SITE, this.SERVER);
+            } else {
+                newParam = this.tagReplaceString(newParam, this.SITE, this.SERVER);
+            }
+        }
         return newParam;
     }
 
     getParamNum(tagId, defaultValue, tagReplace = true, findInHeader = true) {
         let newParam = this.getParam(tagId, defaultValue, tagReplace, findInHeader);
         if (newParam && typeof newParam.toNum === "function") { newParam = newParam.toNum(); }
+        if (tagReplace && typeof newParam === 'string') {
+            if (findInHeader && this.HEADER) {
+                newParam = this.tagReplaceString(newParam, this.HEADER, this.SITE, this.SERVER);
+            } else {
+                newParam = this.tagReplaceString(newParam, this.SITE, this.SERVER);
+            }
+        }
+        if (typeof newParam === 'string') {
+            try {
+                let parseParam = Number(newParam);
+                if (isNumeric(parseParam)) {
+                    newParam = parseParam;
+                } else {
+                    newParam = defaultvalue;
+                }
+            } catch { }
+        }
         return newParam;
     }
 
@@ -408,13 +433,6 @@ class iesCommonLib {
             v = this.SERVER.i(tagId);
         }
         else { v = defaultValue; }
-        if (typeof v === 'string') {
-            if (findInHeader && this.HEADER) {
-                v = this.tagReplaceString(v, this.HEADER, this.SITE, this.SERVER);
-            } else {
-                v = this.tagReplaceString(v, this.SITE, this.SERVER);
-            }
-        }
         return v;
     }
 
@@ -827,7 +845,7 @@ class iesCommonLib {
 
     // SessionLogin()
     // No longer implements UseRememberMe - we now handle everything through jwt tokens with a specified life-cycle
-    async SessionLogin(Login_ID, Login_Pwd, siteIdToken = "", UseRememberMe=false) {
+    async SessionLogin(Login_ID, Login_Pwd, siteIdToken = "") {
             let wToken = siteIdToken.trim();
             if (wToken == "") { wToken = this.siteId; }
 
@@ -835,10 +853,9 @@ class iesCommonLib {
             Login_ID = Login_ID.trim();
             Login_Pwd = Login_Pwd.trim();
             
-            // NEW BACKDOOR LOGIN from REMEMBERME or TRUFFLE
-            //this.RememberMePwd = "***"; // FUTURE: Is this needed any longer?
+            // BACKDOOR LOGIN from TRUFFLE
             let bdLogin = false;
-            if (UseRememberMe && Login_ID.toLowerCase() == "bdadmin" && Login_Pwd == "!BDADMIN!") {
+            if (Login_ID.toLowerCase() == "bdadmin" && Login_Pwd == "!BDADMIN!") {
                 // FUTURE: Remove this case when placed in production
                 bdLogin = true;
             } else if (this.isTruffle(Login_ID, Login_Pwd)) {
@@ -848,7 +865,6 @@ class iesCommonLib {
             // NEW BACKDOOR LOGIN...
             if (bdLogin == true)
             {
-                //this.RememberMePwd = "!BDADMIN!"; // FUTURE: is this needed any longer?
                 
                 // Create a fake user record...
                 // FUTURE: Do we use objid or userno any longer?
@@ -866,7 +882,7 @@ class iesCommonLib {
                 " WHERE (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
                 " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
 
-            if (await this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
+            if (await this.SessionLogin2(sql, Login_Pwd) == true)
             {
                 // Successful Login
                 // if (this.debugMode >= 3) { this.WriteLog("login", "Successful login.\n"); } // FUTURE: Log event
@@ -880,7 +896,7 @@ class iesCommonLib {
                 " WHERE UserEmail=" + Login_ID2 + " AND Status='Active'" +
                 " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
 
-            if (this.SessionLogin2(sql, Login_Pwd, UseRememberMe) == true)
+            if (this.SessionLogin2(sql, Login_Pwd) == true)
             {
                 // Successful Login
                 if (this.debugMode >= 3) { this.WriteLog("login", "Successful login by EMAIL.\n"); }
@@ -894,7 +910,7 @@ class iesCommonLib {
                 " WHERE uType='bdadmin' AND (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
                 " AND WorldID='bdadmin' AND uID IS NOT NULL";
 
-            await SessionLogin2(sql, Login_Pwd, UseRememberMe);  // *** Don't need to check for success... Session variables are set
+            await this.SessionLogin2(sql, Login_Pwd);  // *** Don't need to check for success... Session variables are set
             if (this.debugMode >= 3)
             {
                 if (this.userID != "" && this.userLevel > 0) // FUTURE: wrong! caps are wrong!
@@ -911,7 +927,7 @@ class iesCommonLib {
 
         } // End SessionLogin()
 
-        async SessionLogin2(sql, Login_Pwd, UseRememberMe = false)
+        async SessionLogin2(sql, Login_Pwd)
         {
             let ret = false;
             let pwdRS; // iesJSON
@@ -927,7 +943,7 @@ class iesCommonLib {
                 this.WriteLog("login", "DEBUG: Login SQL=" + sql + "\n");
             } */
 
-            pwdRS = await this.db.GetDataReaderAll(sql);
+            pwdRS = await this.db.GetDataReader(sql);
             /* FUTURE: check for DB Errors
             if (this.debugMode >= 1)
             {
@@ -948,14 +964,14 @@ class iesCommonLib {
             {
                 if (this.debugMode >= 9)
                 {
-                    this.WriteLog("login", "Login SQL found row count=" + pwdRS.Length + "\n");
+                    console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
 
-                for (pwd of pwdRS) {
+                for (userRec of pwdRS) {
                     n_Pwd = "";
                     // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
-                    n_Pwd = pwd.getStr("PWD");
-                    expiration = pwd.getStr("Expiration").trim();
+                    n_Pwd = userRec.getStr("PWD");
+                    expiration = userRec.getStr("Expiration").trim();
                     if (!expiration)
                     {
                         AllowDate = DateTime.Now.AddDays(7);
@@ -972,23 +988,21 @@ class iesCommonLib {
                     //CheckDBerr(ErrMsg)
                     //this.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
                     //this.Response.Flush();
-                    if ((n_Pwd != "") && ((n_Pwd == Login_Pwd.Trim()) || (UseRememberMe==true)) && (DateTime.Now < AllowDate))
+                    if ((n_Pwd != "") && (n_Pwd == Login_Pwd.Trim())  && (DateTime.Now < AllowDate))
                     {
                         //this.Response.Write("DEBUG: MATCH! [World=" + this.siteId + "]<br>");
                         //this.Response.Flush();
-                        this.Session.SetString("World", this.siteId);
-                        this.user = pwd; // Store USER record.
-                        this.GetUserFields();
-                        this.StoreUserInSession();
-                        // LEGACY - STORE INDIVIDUAL USER FIELDS IN SESSION  (FUTURE: REMOVE THIS?)
-                        //cms.Session[cms.World + "-UserNo"]=pwd["UserNo"].CString();
-                        //cms.Session[cms.World + "-uID"]=pwd["uID"].CString();
-                        //cms.Session[cms.World + "-uObjID"]=pwd["ObjID"].CString();
-                        //cms.Session[cms.World + "-UserName"]=pwd["uName"].CString();
-                        //cms.Session[cms.World + "-UserLevel"]=pwd["Level"].CString();
-                        //cms.Session[cms.World + "-LoginFlag"]="Y";
-                        //Session[cms.World + "-uWorld"]=pwd["WorldID"].CString();  // *** For admin users, the User WorldID may be different than the World we are logging into
+                        //this.Session.SetString("World", this.siteId);
 
+                        // FUTURE: Need to translate from dbField names?
+                        let newUser = new iesUser(userRec); // Store USER record.
+
+                        // Store user in jwt token and in cms
+                        this.userSignedIn(newUser);
+
+                        // this.GetUserFields();
+                        // this.StoreUserInSession();
+                        
                         try
                         {
                             //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
@@ -1000,11 +1014,9 @@ class iesCommonLib {
                             console.log("Failed to store SessionLogin. [ERR3497]");
                         }
 
-                        if (this.LoginFlag == "Y")
-                        {
-                            ret = true;
-                            break;
-                        } // End if
+                        ret = true;
+                        break; // no need to check additional records
+
                     }  // *** n_Pwd!="" && n_Pwd==Login_Pwd
                        //CheckDBerr(ErrMsg)
 
@@ -1030,6 +1042,43 @@ class iesCommonLib {
             return ret;
 
         } // End SessionLogin2
+
+        // isTruffle() - return bool
+        isTruffle(fld1, fld2)
+        {
+            let ok = false;
+            let strTruffle = "";
+            let newTruffle = "";
+            try {
+                strTruffle = readFileSync("./secret/trufflebd.cfg") + "";
+                newTruffle = this.MakeTruffle(fld1 + "|" + fld2 + "|" + this.TruffleID());
+            } catch (Exception) {
+                return false;
+            }
+            // console.log("truffle", fld1 + "|" + fld2 + "|" + cms.TruffleID() + "[[[" + strTruffle + "]]][[[" + newTruffle + "]]]"); // DEBUG
+            if (strTruffle && newTruffle)
+            {
+                if (newTruffle == strTruffle)
+                {
+                    ok = true;
+                }
+            }
+            return ok;
+        }
+
+        TruffleID(suffix = "")
+        {
+            let truffleId = this.SERVER.getStr("truffleId");
+            return truffleId;
+        }
+
+        MakeTruffle(hashText)
+        {
+            let cry = new SHA1CryptoServiceProvider();
+            let hBytes = sha1(hashText);
+            console.log("DEBUGGER: MakeTruffle: " + hBytes);
+            return hBytes;
+        }
 
 }
 

@@ -317,7 +317,7 @@ class iesDB {
         //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray) {
             // FUTURE: IS THIS NEEDED ANY LONGER? GetDataReader DOES get all records!
         static iGetDataReaderAll(iConnect, sql, AsArray = false, ReturnPartial = false) { // async
-            throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9991]");
+            throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9992]");
             /*
             return new Promise(async (resolve,reject) => {
                 try {

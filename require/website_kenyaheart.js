@@ -145,20 +145,22 @@ class webEngine {
                     */
 
                 } else {
-                    cms.SessionLogin(username,password,cms.siteId);
+                    await cms.SessionLogin(username,password,cms.siteId);
 
-                    this.errorMessage = 'login not successful';
-                    // Invalidate Token
-                    cms.userSignedOut();
-                    /*
-                    let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
-                    //var token = jwt.encode({user}, secretKey); 
+                    if (cms.userId >= 0) {
+                        this.errorMessage = 'login not successful';
+                        // Invalidate Token
+                        cms.userSignedOut();
+                        /*
+                        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
+                        //var token = jwt.encode({user}, secretKey); 
 
-                    const token = jwt.sign({ user }, cms.JWT_SECRET, {
-                        expiresIn: -1,
-                    });
-                    cms.newToken = token;
-                    */
+                        const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                            expiresIn: -1,
+                        });
+                        cms.newToken = token;
+                        */
+                    }
                 }
             }
 
