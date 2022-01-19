@@ -1,5 +1,6 @@
 const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
+const iesDbClass = require('./iesDB/iesDbClass.js');
 
 const { existsSync, readFileSync } = require('fs');
 const _siteID = 'hostsite';
@@ -8,7 +9,8 @@ var assignedSiteID = '';
 class webEngine {
 
     constructor(thisSiteID) {
-        assignedSiteID = thisSiteID;
+        this.assignedSiteID = thisSiteID;
+        this.errorMessage = '';
     	}
         
 
@@ -22,12 +24,16 @@ class webEngine {
 
     }
 
-    async CreateHtml(cms) {
+    CreateHtml(cms) { //async
+        return new Promise(async (resolve,reject) => {
+            try {
+        // ================================================ BEGIN
         var fileType = '';
         let pageHead = new iesJSON();
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
+        this.errorMessage = "";
 
        // if (this.invalidSiteID(cms)) { return; }
         cms.Html = "hostsite HTML<br>";
@@ -38,11 +44,78 @@ class webEngine {
             filePath = filePath.replace(/\//g,'_');
         }
         if (filePath == '') {
-            filePath = cms.getParamStr(cms,"DefaultPageID","home");
+            filePath = cms.getParamStr("DefaultPageID","home");
             fileType=='html'
         }
         // debugger
-        cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        cms.pageId = filePath;
+
+        // Setup DATABASE for connection (if needed) ... do not connect yet
+        let dbConnectJson = cms.SERVER.i("dbConnect");
+        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        let dbConnect = {
+            host: dbConnectJson.i("host").toStr()
+            ,user: dbConnectJson.i("user").toStr()
+            ,password: dbConnectJson.i("password").toStr()
+        };
+        cms.db = new iesDbClass(dbConnect);
+
+        //check for user logout
+        if (cms.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+            cms.userSignedOut();
+        }
+
+        //check for user login  
+
+        if (cms.pageId.toLowerCase() == 'login') {
+
+            let username = cms.body.username;
+            let password = cms.body.password;
+
+            // if username is correct and password 
+            // create a JWT and return it to frontend 
+            // redirect to the landing page  
+            // if invalid password display error message  
+            if (username || password) {
+                if (username == 'joe' && password == 'friendofFelix84') {
+
+                    this.errorMessage = 'login successful';
+
+                    cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
+
+                    let user = { username: 'joe', userId: 1, userLevel: 9, siteId: cms.siteId };
+                    //var token = jwt.encode({user}, secretKey); 
+
+                    cms.userSignedIn(user);
+                    /*
+                    const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                        expiresIn: cms.JWT_EXPIRES_IN,
+                    });
+                    cms.newToken = token;
+                    */
+
+                } else {
+                    await cms.SessionLogin(username,password,cms.siteId);
+
+                    if (cms.userId >= 0) {
+                        this.errorMessage = 'login not successful';
+                        // Invalidate Token
+                        cms.userSignedOut();
+                        /*
+                        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
+                        //var token = jwt.encode({user}, secretKey); 
+
+                        const token = jwt.sign({ user }, cms.JWT_SECRET, {
+                            expiresIn: -1,
+                        });
+                        cms.newToken = token;
+                        */
+                    }
+                }
+            }
+
+        }
 
         // FUTURE: Determine if path is located in root (shared common folders) or in Websites/<siteid>
         
@@ -50,14 +123,14 @@ class webEngine {
             cms.resultType = 'html';
             cms.mimeType = 'text/html';
             cms.fileFullPath = cms.FindFileInFolders(filePath + '.cfg',
-                './websites/' + cms.siteId + '/pages/',
-                './cmsCommon/pages/'
+                cms.getParamStr("PageFolder"),
+                cms.getParamStr("CommonPageFolder")
                 );
                 
             if (!cms.fileFullPath) {
                 // We didn't find the file - time to call it quits
                 cms.Html += 'file not found.<br>';
-                return;
+                reject('ERROR: Page not found. [ERR1111]');
             }
 
             // FUTURE: Can we read and parse this using iesCommon.LoadHtmlFile?
@@ -91,7 +164,7 @@ class webEngine {
             }
             if (pageErr != 0) {
                 cms.Html += "Page ERROR " + pageErr + ": pageHead.Status = " + pageHead.Status + "<br>";
-                return;
+                reject('ERROR: Page status error. [ERR5353]');
             }
 
             // Determine page permissions
@@ -99,46 +172,58 @@ class webEngine {
             cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
             if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
             if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
-            if (cms.user.level < cms.minViewLevel) {
+            if (cms.user.userLevel >= cms.minViewLevel) {
+                if (cms.HEADER.contains("ResponseType")) {
+                    cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
+                }
+    
+                // Lookup page template (if HTML response expected)
+                pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
+                templatePath = cms.FindFileInFolders(pageTemplate,
+                    './websites/' + cms.siteId + '/templates/',
+                    './cmsCommon/templates/'
+                );
+                if (!templatePath) {
+                    cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
+                    reject('ERROR: Template not found. [ERR5449]');
+                }
+                //cms.Html += "Template found: " + templatePath + "<br>";
+                var template = readFileSync(templatePath, 'utf8');
+                cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, this, cms);
+    
+            } else {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
                 cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
-                return;
+                resolve('Warning: permission denied. [WARN5111]');
             }
-
-            // Lookup page template
-            pageTemplate="layout_" + pageHead.getStr("Template") + ".cfg";
-            templatePath = cms.FindFileInFolders(pageTemplate,
-                './websites/' + cms.siteId + '/templates/',
-                './cmsCommon/templates/'
-                );
-            if (!templatePath) {
-                cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
-                return;
-            }
-            //cms.Html += "Template found: " + templatePath + "<br>";
-            var template = readFileSync(templatePath, 'utf8');
-            cms.Html = await cms.ReplaceTags(template,pageHead,contentHtml,this,cms);
 
         } else {
-            // NON-HTML RESOURCES
+            // NON-HTML/JSON RESOURCES
             // cms.Html += 'DEBUGGER: get non-html file<br>pathExt=' + cms.pathExt +'<br>cms.url.pathname=' + cms.url.pathname + '<br>urlBasePath=' + cms.urlBasePath + '<br>';
             if (cms.urlBasePath.toLowerCase() == 'cmscommon') {
                 // look for file in cmsCommon
                 cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
-                './' + cms.urlPathList.join('/')
+                    './' + cms.urlPathList.join('/')
                 );
             } else {
                 // look for file in SITE folder
                 cms.fileFullPath = cms.FindFileInFolders(cms.urlFileName,
-                './websites/' + cms.siteId + '/' + cms.urlPathList.join('/')
+                    './websites/' + cms.siteId + '/' + cms.urlPathList.join('/')
                 );
             }
             cms.mimeType = cms.mime[cms.pathExt] || 'text/plain';
             cms.resultType = 'file';
             cms.Html += 'DEBUGGER: cms.fileFullPath=[' + cms.fileFullPath + ']<br>mimeType=' + cms.mimeType;
-            return;
+            resolve(''); // success
         }
-        return;
+        resolve(''); // success
+        // ================================================ END
+            } catch (err) {
+                let errmsg = "ERROR: " + _siteID + ".CreateHtml(): " + err;
+                console.log(errmsg);
+                reject(errmsg);
+            }
+        });
     }
 
     CustomTags(ret, cms) { // async

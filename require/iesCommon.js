@@ -7,6 +7,9 @@ const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
 const sha1 = require('sha1');
 const iesUser = require("./iesUser.js");
+
+Date.prototype.addDays=function(d){return new Date(this.valueOf()+(24*60*60)*d);};
+
 class iesCommonLib {
 
     mime = {
@@ -41,13 +44,13 @@ class iesCommonLib {
                 // Add a menu template
                 // Leave ret.Processed=true - Even if the below fails, we do not want this parameter to fall through to another layer because we matched the tag.
                 let MenuName = ret.Param1.trim();
-                if (MenuName == "") { MenuName = this.getParamStr(cms, "DefaultMenu", "main"); }
-                //content.append("<!-- DEBUGGER MenuName=" + MenuName + ", TemplateFolder=" + this.getParamStr(cms,"TemplateFolder") + " -->");
+                if (MenuName == "") { MenuName = this.getParamStr("DefaultMenu", "main"); }
+                //content.append("<!-- DEBUGGER MenuName=" + MenuName + ", TemplateFolder=" + this.getParamStr("TemplateFolder") + " -->");
                 // Look for menu in the template folders: local then server
                 try {
-                    const menuPath = this.FindFileInFolders("menu_" + MenuName + ".cfg", this.getParamStr(cms, "TemplateFolder"), this.getParamStr(cms, "CommonTemplateFolder"));
+                    const menuPath = this.FindFileInFolders("menu_" + MenuName + ".cfg", this.getParamStr("TemplateFolder"), this.getParamStr("CommonTemplateFolder"));
                     //content.append("<!-- DEBUGGER menuPath=" + menuPath + " -->");
-                    const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.userLevel);
+                    const webBlock = this.LoadHtmlFile(menuPath, null, "", cms.user.userLevel);
                     content.append(webBlock.content + ''); // Not much error checking - it either works or doesn't
                 }
                 catch { }
@@ -57,9 +60,9 @@ class iesCommonLib {
 
                 try {
                     let FileName = ret.Param1.trim() + '.cfg';
-                    const filePath = this.FindFileInFolders(FileName, this.getParamStr(cms, "PageFolder"), this.getParamStr(cms, "CommonPageFolder"));
+                    const filePath = this.FindFileInFolders(FileName, this.getParamStr("PageFolder"), this.getParamStr("CommonPageFolder"));
                     //  content.append(filePath);
-                    const webBlock = this.LoadHtmlFile(filePath, null, "", cms.userLevel);
+                    const webBlock = this.LoadHtmlFile(filePath, null, "", cms.user.userLevel);
                     content.append(webBlock.content + '');
 
                 } catch (err) {
@@ -76,8 +79,8 @@ class iesCommonLib {
             case "track":
                 try {
                     let trackFile = (ret.Param1 || "track") + ".cfg"
-                    let trackPath = this.FindFileInFolders(trackFile, this.getParamStr(cms, "TemplateFolder"), this.getParamStr(cms, "BaseFolder"));
-                    const trackBlock = this.LoadHtmlFile(trackPath, null, "", cms.userLevel);
+                    let trackPath = this.FindFileInFolders(trackFile, this.getParamStr("TemplateFolder"), this.getParamStr("BaseFolder"));
+                    const trackBlock = this.LoadHtmlFile(trackPath, null, "", cms.user.userLevel);
                     content.append(trackBlock.content + ''); // Not much error checking - it either works or doesn't
                 }
                 catch { }
@@ -91,9 +94,19 @@ class iesCommonLib {
             case "siteid":
                 content.append(cms.siteId);
                 break;
+            case "siteengine":
+                content.append(cms.siteEngine);
+                break;
+            case "siteparameter":
+                content.append(cms.getParamStr(ret.Param1.trim(), '', true, false));
+                break;
+            case "sitedomains":
+                let siteDomains = cms.getParam('domains');
+                if (siteDomains) { content.append(siteDomains.jsonString || ''); }
+                break;
             case "who_am_i":
-                if (cms.userLevel > 0) {
-                    content.append(cms.user.username + " [id=" + cms.userId + ",level=" + cms.userLevel + ",site=" + cms.user.siteid + "]");
+                if (cms.user.userLevel > 0) {
+                    content.append(cms.user.username + " [id=" + cms.user.userId + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteid + "]");
                 } else {
                     content.append("User not logged in.");
                 }
@@ -105,14 +118,14 @@ class iesCommonLib {
                 let paramLvl = 999;
                 try { paramLvl = parseInt(ret.Param1); } catch { paramLvl = 999; }
 
-                if (cms.userLevel >= paramLvl) { pFlag = true; }
+                if (cms.user.userLevel >= paramLvl) { pFlag = true; }
                 if (ret.Tag == "ifnotuserlevel") { pFlag = !pFlag; } // invert true/false
                 if (pFlag) { content.append(ret.Param2); }
-                //cms.Response.Write("DEBUG: user level=" + cms.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+                //cms.Response.Write("DEBUG: user level=" + cms.user.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
                 break;
 
             default:
-                let vv = this.getParamStr(cms, ret.Tag, null, true, true);
+                let vv = this.getParamStr(ret.Tag, null, true, true);
                 if (vv === null) {
                     ret.Processed = false;
                 } else {
@@ -352,12 +365,12 @@ class iesCommonLib {
         // *** .js file may be in the Template Folder or the Root folder.
         let ret = "";
         let strFile = subTag;
-        if (strFile.trim() == "") { strFile = this.getParamStr(cms, "Default_JS", "main"); }  //FUTURE: Put "main" as a parameter Default_JS in config file
+        if (strFile.trim() == "") { strFile = this.getParamStr("Default_JS", "main"); }  //FUTURE: Put "main" as a parameter Default_JS in config file
         strFile = strFile + ".js";
 
         let folders = [
-            this.getParamStr(cms, "sourceFolder", ""),
-            this.getParamStr(cms, "baseFolder", ""), // WorldFolder
+            this.getParamStr("sourceFolder", ""),
+            this.getParamStr("baseFolder", ""), // WorldFolder
         ];
 
         ret = this.ReadFileFrom(strFile, folders);
@@ -384,8 +397,8 @@ class iesCommonLib {
         return newValue;
     }  // End cfgParameterStr()
 
-    getParamStr(cms, tagId, defaultValue, tagReplace = true, findInHeader = true) {
-        let newParam = cms.getParam(tagId, defaultValue, tagReplace, findInHeader);
+    getParamStr(tagId, defaultValue, tagReplace = true, findInHeader = true) {
+        let newParam = this.getParam(tagId, defaultValue, tagReplace, findInHeader);
         if (newParam && typeof newParam.toStr === "function") { newParam = newParam.toStr(); }
         if (tagReplace && typeof newParam === 'string') {
             if (findInHeader && this.HEADER) {
@@ -817,7 +830,7 @@ class iesCommonLib {
     // Update the cms.user and also set cookie token with new jwt
     userSignedIn(newUser) {
         let userObj = new iesUser(newUser); // copies user attributes to a valid user object
-        const token = jwt.sign({ userObj }, this.JWT_SECRET, {
+        const token = jwt.sign({ user:userObj }, this.JWT_SECRET, {
             expiresIn: this.JWT_EXPIRES_IN,
         });
         this.newToken = token;
@@ -967,46 +980,31 @@ class iesCommonLib {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
 
-                for (userRec of pwdRS) {
+                for (const userRec of pwdRS) {
                     n_Pwd = "";
                     // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
-                    n_Pwd = userRec.getStr("PWD");
-                    expiration = userRec.getStr("Expiration").trim();
-                    if (!expiration)
+                    n_Pwd = userRec.PWD || null;
+                    expiration = userRec.Expiration || null; // FUTURE: this field is missing from the db?!?!
+                    const now = new Date();
+                    if (!expiration || !expiration.isDate())
                     {
-                        AllowDate = DateTime.Now.AddDays(7);
-                    }
-                    else
-                    {
-                        if (!DateTime.tryParse(expiration, AllowDate))
-                        {
-                            //Invalid Date, let's make allow date our normal
-                            AllowDate = DateTime.Now.AddDays(7);
-                        }
+                        AllowDate = now.addDays(7);
                     }
 
                     //CheckDBerr(ErrMsg)
                     //this.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
                     //this.Response.Flush();
-                    if ((n_Pwd != "") && (n_Pwd == Login_Pwd.Trim())  && (DateTime.Now < AllowDate))
+                    if ((n_Pwd != "") && (n_Pwd == Login_Pwd.trim())  && (now < AllowDate))
                     {
-                        //this.Response.Write("DEBUG: MATCH! [World=" + this.siteId + "]<br>");
-                        //this.Response.Flush();
-                        //this.Session.SetString("World", this.siteId);
-
                         // FUTURE: Need to translate from dbField names?
-                        let newUser = new iesUser(userRec); // Store USER record.
 
                         // Store user in jwt token and in cms
-                        this.userSignedIn(newUser);
-
-                        // this.GetUserFields();
-                        // this.StoreUserInSession();
+                        this.userSignedIn(userRec);
                         
                         try
                         {
                             //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
-                            Custom.Exec("SessionLogin", null);
+                            Custom.Exec(cms, "SessionLogin", null);
                         }
                         catch (Exception)
                         {

@@ -56,7 +56,7 @@ class webEngine {
             filePath = filePath.replace(/\//g,'_');
         }
 		 if (filePath == '') {
-            filePath = iesCommon.getParamStr(cms,"DefaultPageID","home");
+            filePath = iesCommon.getParamStr("DefaultPageID","home");
             fileType=='html'
         }
         // debugger
@@ -69,8 +69,8 @@ class webEngine {
             cms.resultType = 'html';
             cms.mimeType = 'text/html';
             cms.fileFullPath = iesCommon.FindFileInFolders(filePath + '.cfg',
-                './websites/' + cms.siteId + '/pages/',
-                './cmsCommon/pages/'
+                cms.getParamStr("PageFolder"),
+                cms.getParamStr("CommonPageFolder")
                 );
                 
             if (!cms.fileFullPath) {

@@ -9,7 +9,7 @@ const { existsSync, readFileSync } = require('fs');
 const { get } = require("http");
 const { resolve } = require("path");
 
-const _siteID = 'kenyaheart';
+const _siteID = 'iespanel';
 //var assignedSiteID = '';
 
 class webEngine {
@@ -56,6 +56,13 @@ class webEngine {
                         if (page < 1) { page = 1; }
                         cms.PrepForJsonReturn(ret);
                         await this.BuildTableSearch(cms, searchText, content, page, ret);
+                        break;
+                    case 'safucmd':
+                        cms.PrepForJsonReturn(ret);
+                        let retJson = { status: 'success' };
+                        // TODO - WORK HERE - WRITE FILE TO /var/www/iespanel/command with reboot_server command
+                        // First add file path to the iespanel/site.cfg
+                        ret.ReturnJson = JSON.stringify(retJson);
                         break;
                     default:
                         ret.Processed = false;

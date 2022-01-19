@@ -28,6 +28,20 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***************************  iesDB  **************************************
 // **************************************************************************
 //
+// NOTE: Current version of iesDB only supports one set of db connection credentials
+// FUTURE: Allow multiple named databases (sets of credentials)
+//
+// NOTE: Two approaches to using this library/factory
+//  1) cms.db should be set to a single instance of this factory.
+//     Upon the first call to read/write from/to the database, this factory will create
+//     a connection object and keep it open.
+//     subsequent calls use the same connection.
+//     When the cms object is destroyed, the connection is closed and destroyed
+//  2) You can call cms.db.createConnection to get a new/separate db connection object
+//     Use that object to interact with the database 1 or more times
+//     Close/destroy the object
+//     (this approach allows various sections of the code to act independant of each other
+//     but also may cause multiple "connect to database" actions in a single call)
 
 const iesJSON = require('../iesJSON/iesJsonClass.js');
 const iesDataReader = require('./iesDataReaderClass.js');
@@ -41,7 +55,7 @@ class iesDB {
     statusMessage = "";
     ConnectStatus = 0;
     iesConnection = null;
-    ConnectObj = null; // { host, user, password }
+    ConnectObj = null; // CONNECT CREDENTIALS: { host, user, password }
     CmdStatus = 0;
     CmdStatusMessage = "";
     // Store table definition for 1 table to make repetitive data writes to the same table faster.
@@ -119,6 +133,8 @@ class iesDB {
         });
     } // end Open()
 
+    // Close() - only call this after we are done all DB work
+    // modified code to close the connection after all processing is complete (in app.js)
     Close(ignore = false) { // async
         return new Promise(async (resolve,reject) => {
             try
@@ -148,7 +164,7 @@ class iesDB {
     setConnectObj(iConnectObj) {  // async
         return new Promise(async (resolve,reject) => {
             try {
-                await this.Close();
+                //await this.Close();
                 this.ConnectObj = iConnectObj;
                 resolve(true);
             } catch (err) {
@@ -237,7 +253,7 @@ class iesDB {
                     {
                         let dr = await this.iGetDataReader(this.iesConnection, sql);
                         if (dr) { resolve(dr); }
-                        if (NeedToClose) { await this.Close(); }
+                        //if (NeedToClose) { await this.Close(); }
                         return;
                     }
                     reject(this.errPipe(func,"[ERR7455]")); 
@@ -260,7 +276,7 @@ class iesDB {
                                 reject(this.errPipe(func,"ERR7553",err2));
                             })
                             .finally( async () => {
-                                if (needToClose) { await this.Close(); } // await here so that we do not move on to next task before the close is done
+                                //if (needToClose) { await this.Close(); } // await here so that we do not move on to next task before the close is done
                             });
                     })
                     .catch(err1 => {
@@ -420,7 +436,7 @@ class iesDB {
                     let NeedToClose = false;
                     if (this.ConnectStatus != 1) { await this.Open(); NeedToClose = true; }
                     if (this.ConnectStatus == 1) { ret = await this.iGetFirstRow(this.iesConnection, sql); }
-                    if (NeedToClose) { await this.Close(); }
+                    //if (NeedToClose) { await this.Close(); }
                     resolve(ret);  // Error
                 } catch (err) {
                     console.log("ERROR: GetFirstRow(): " + err);

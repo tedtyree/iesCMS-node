@@ -293,7 +293,7 @@ http.createServer(async (req, res) => {
                         var decoded = jwt.decode(token, cms.JWT_SECRET);
                         if (decoded && decoded.user) {
                               // FUTURE: Expire token if it is pased due
-                              let expDate = user.expires;
+                              let expDate = decoded.exp;
                               if (expDate && expDate < Date.now()) {
                                     cms.setUser(new iesUser(decoded.user));
                               } else {
@@ -332,7 +332,7 @@ http.createServer(async (req, res) => {
             }
 
             // Verify user.siteid - if incorrect, null-out the user and related permissions
-            if (cms.user.siteid != cms.siteId) { cms.noUser(); }
+            if (cms.user.siteId != cms.siteId) { cms.noUser(); }
 
             // Read Site config (first check if config already loaded)
             var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteId);
@@ -364,10 +364,12 @@ http.createServer(async (req, res) => {
             try {
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
                         debugLog += "thisEngine.CreateHtml()\n";
+                        cms.siteEngine = cms.siteId;
                         await cms.thisEngine.CreateHtml(cms);
                   } else {
                         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
                               debugLog += "hostsiteEngine.CreateHtml()\n";
+                              cms.siteEngine = "hostsite";
                               // We leave a reference to thisEngine in case it has Custom Tags
                               await cms.hostsiteEngine.CreateHtml(cms);
                         }
@@ -375,6 +377,8 @@ http.createServer(async (req, res) => {
             } catch (e) {
                   cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
                   cms.resultType = 'html';
+            } finally {
+                  if (cms.db) { cms.db.Close(); } // close DB connection if needed
             }
       } // end if(cmsSiteID)
 

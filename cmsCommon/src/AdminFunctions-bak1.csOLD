@@ -157,7 +157,7 @@ public class cmsAdmin
 	
     public void AdminTags(cmsReturn ret)
     {
-		//cms.Response.Write("DEBUG: userlevel=" + cms.UserLevel + "<br>"); // DEBUG
+		//cms.Response.Write("DEBUG: userlevel=" + cms.user.userLevel + "<br>"); // DEBUG
         ret.Processed = true;
         StringBuilder Content = new StringBuilder();
 		//Content.Append("DEBUG: Tag=" + ret.Tag + "(" + ret.Param1 + "," + ret.Param2 + " )<br>");  //DEBUG
@@ -252,7 +252,7 @@ public class cmsAdmin
 									iesJSON jHead=new iesJSON(subHeader);
 									int adminEditLevel=jHead["adminEditLevel"].ToInt(999);
 									string objID=jHead["objid"].CString().Trim();
-									if (adminEditLevel<999 && cms.UserLevel>=adminEditLevel && objID!="") {
+									if (adminEditLevel<999 && cms.user.userLevel>=adminEditLevel && objID!="") {
 										// User has edit permissions (and EDIT MODE is turned on)
 										subPage="<div class='adminEditDiv'><input type='button' onClick='OpenAdminEditPage(" + objID + ");'></div>" + subPage;
 									}
@@ -281,7 +281,7 @@ public class cmsAdmin
 				//break;
 			case "admin_block":
 				string sBlockPath="", GenAdminBlock="", sName="";
-				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+				if (cms.user.userLevel>=SITE.MinAdminLevel) { 
 					//*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page.  (future, check if page is editable?!)
 					//*** Here we reference admin_main.cfg  (or if [[admin_block:alias]] specified then admin_alias.cfg)	
 					sName=ret.Param1.Trim();
@@ -296,7 +296,7 @@ public class cmsAdmin
 							Content.Append(File.ReadAllText(sBlockPath));
 						}
 					}
-				} // end if (cms.UserLevel>=SITE.MinAdminLevel)
+				} // end if (cms.user.userLevel>=SITE.MinAdminLevel)
 				break;
 			case "admin_menulink_flag":
 				Content.Append("true");
@@ -309,7 +309,7 @@ public class cmsAdmin
 				//*** This tag is to be used in the admin_block
 				//*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
 				//*** FUTURE: Check if page is editable
-				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+				if (cms.user.userLevel>=SITE.MinAdminLevel) { 
 					string EditURL="", LinkTitle="",tsWiki="";
 					tsWiki="admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
 
@@ -332,7 +332,7 @@ public class cmsAdmin
 				break;
 			case "admin_menu_link":
 				//*** This tag is to be used in the admin_block
-				if (cms.UserLevel>=SITE.MinAdminLevel) { 
+				if (cms.user.userLevel>=SITE.MinAdminLevel) { 
 					Content.Append("<a hRef='" + SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
 				}
 				break;
@@ -423,15 +423,15 @@ public class cmsAdmin
 				bool pFlag=false;
 				int paramLvl = 999;
 				try { paramLvl=Int32.Parse(ret.Param1); } catch {paramLvl=999;}
-				if (cms.UserLevel>=paramLvl) { pFlag=true; }
+				if (cms.user.userLevel>=paramLvl) { pFlag=true; }
 				if (ret.Tag=="ifnotuserlevel") { pFlag=!pFlag; } // invert true/false
 				if (pFlag) { Content.Append(ret.Param2); }
-				//cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+				//cms.Response.Write("DEBUG: user level=" + cms.user.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
 				break;
 			case "ifuserisadmin": 
 			case "ifnotuserisadmin":
 				bool admFlag=false;
-				if (cms.UserLevel>=SITE.MinAdminLevel) { admFlag=true; }
+				if (cms.user.userLevel>=SITE.MinAdminLevel) { admFlag=true; }
 				if (ret.Tag=="ifnotuserisadmin") { admFlag=!admFlag; } // invert true/false
 				if (admFlag) { Content.Append(ret.Param1); }
 				break;
@@ -554,7 +554,7 @@ public class cmsAdmin
 	}
 	
 	public bool UserIsAdmin() {
-		if (cms.UserLevel>=SITE.MinAdminLevel) { return true; }
+		if (cms.user.userLevel>=SITE.MinAdminLevel) { return true; }
 		else { return false; }
 	}
 	
@@ -1060,7 +1060,7 @@ public void RemoveRememberMe() {
 		cms.db.Open();
 		if (Permit<=0) {
 			Content.Append("ERROR: Permission denied.");
-			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.user.userLevel.ToString() + "]"); }
 			return;
 			}
 		  else {
@@ -1156,7 +1156,7 @@ public void RemoveRememberMe() {
 		
 		if (Permit<=0) {
 			Content.Append("<br><br>ERROR: Permission denied.");
-			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.user.userLevel.ToString() + "]"); }
 			return;
 			}
 		Content.Append("<div class='msgBox' id='msgBox'></div>");
@@ -1544,7 +1544,7 @@ public void RemoveRememberMe() {
 		
 		if (Permit<=0) {
 			Content.Append("ERROR: Permission denied.");
-			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.UserLevel.ToString() + "]"); }
+			if (SITE.DebugMode>0) { Content.Append(" [UserLevel=" + cms.user.userLevel.ToString() + "]"); }
 			return;
 			}
 			
@@ -1669,8 +1669,8 @@ public void RemoveRememberMe() {
 		
 		// Check permissions
 		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
-		if (cms.UserLevel<EditSecLevel) {
-			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err4444]<br><br><br>");
+		if (cms.user.userLevel<EditSecLevel) {
+			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.user.userLevel + "," + EditSecLevel + "] [err4444]<br><br><br>");
 			return;
 			}
 			
@@ -1724,8 +1724,8 @@ public void RemoveRememberMe() {
 		
 		// Check permissions
 		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
-		if (cms.UserLevel<EditSecLevel) {
-			Content.Append("ERROR: Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err5555]");
+		if (cms.user.userLevel<EditSecLevel) {
+			Content.Append("ERROR: Invalid permissions.</b> [" + cms.user.userLevel + "," + EditSecLevel + "] [err5555]");
 			return;
 			}
 		
@@ -1755,8 +1755,8 @@ public void RemoveRememberMe() {
 		
 		// Check permissions
 		int EditSecLevel=editClass["EditSecLevel"].ToInt(999);
-		if (cms.UserLevel<EditSecLevel) {
-			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.UserLevel + "," + EditSecLevel + "] [err4444]<br><br><br>");
+		if (cms.user.userLevel<EditSecLevel) {
+			Content.Append("<br><br><b>Invalid permissions.</b> [" + cms.user.userLevel + "," + EditSecLevel + "] [err4444]<br><br><br>");
 			return;
 			}
 			
@@ -1931,7 +1931,7 @@ public void RemoveRememberMe() {
 				int lvl=0;
 				lvl=Util.ToInt(sFldValue);
 				if (lvl.ToString()!=sFldValue) { lvl=0; } // SAFETY!  FUTURE: Also need to flag an error here!
-				if (lvl<=cms.UserLevel) { Bucket.AddToObjBase(dbField,lvl); }
+				if (lvl<=cms.user.userLevel) { Bucket.AddToObjBase(dbField,lvl); }
 						  
 				} // if (dbField2=="level")
 			else {
@@ -2104,9 +2104,9 @@ string CleanFieldHtml(ref string sStr) {
 		int EditSecLevel=editlistj["EditSecLevel"].ToInt(99);
 		int AdminSecLevel=editlistj["AdminSecLevel"].ToInt(99);
 		// FUTURE: If flag OwnerCanEdit, then check the owner of the object and if that is this user, allow edit.
-		if (cms.UserLevel>=ViewSecLevel) { Permit=1; }   //Allow VIEW ONLY Mode
-		if (cms.UserLevel>=EditSecLevel) { Permit=3; }   //Allow Edit Mode
-		if (cms.UserLevel>=AdminSecLevel) { Permit=7; }  //Allow Admin Mode
+		if (cms.user.userLevel>=ViewSecLevel) { Permit=1; }   //Allow VIEW ONLY Mode
+		if (cms.user.userLevel>=EditSecLevel) { Permit=3; }   //Allow Edit Mode
+		if (cms.user.userLevel>=AdminSecLevel) { Permit=7; }  //Allow Admin Mode
 		return Permit;
 	}
 	
