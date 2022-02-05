@@ -5,7 +5,7 @@ const iesDbClass = require('./iesDB/iesDbClass.js');
 // const jwt = require('jsonwebtoken');
 
 
-const { existsSync, readFileSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync } = require('fs');
 const { get } = require("http");
 const { resolve } = require("path");
 
@@ -49,8 +49,8 @@ class webEngine {
                         this.ProcessLangTag(ret.Param1, content, cms);
                         break;
                     case "tablesearch":
-                        let searchText = cms.FormOrUrlParam(cms,"search","");
-                        let page = cms.FormOrUrlParam(cms,"page",1);
+                        let searchText = cms.FormOrUrlParam("search","");
+                        let page = cms.FormOrUrlParam("page",1);
                         try { page = parseInt(page); }
                         catch { page = 1; }
                         if (page < 1) { page = 1; }
@@ -59,9 +59,41 @@ class webEngine {
                         break;
                     case 'safucmd':
                         cms.PrepForJsonReturn(ret);
-                        let retJson = { status: 'success' };
+                        let retJson = { status: 'failed' };
+                        let cmd = cms.FormOrUrlParam("cmd");
+
                         // TODO - WORK HERE - WRITE FILE TO /var/www/iespanel/command with reboot_server command
                         // First add file path to the iespanel/site.cfg
+
+                        // Read command file
+                        let cpCmdFile = "cpCmd_" + cmd + ".json"
+                        let cpTemplate = cms.FindFileInFolders(cpCmdFile,
+                            cms.getParamStr("cpTemplateFolder") );
+                        if (cpTemplate) {
+                            // FUTURE TODO: make this async?
+                            let cmdText = readFileSync(cpTemplate, 'utf8').toString();
+
+                            // Generate timestamp
+                            let ts = cms.timestamp();
+
+                            // Replace tags :: FUTURE TODO - more elegant approach
+                            let now = new Date();
+                            let cfg1 = new iesJSON("{}");
+                            cfg1.add("current_datetime",now.toString());
+                            cfg1.add("timestamp",ts);
+                            cmdText = cms.tagReplaceString(cmdText, cfg1);
+
+                            // Write command file to safu Command folder
+                            let cmdFile = "cmd_" + cmd + "_" + ts + ".json";
+                            let cmdPath = cms.getParamStr("cpCommandFolder");
+                            if (cmdPath) {
+                                cmdPath += "/" + cmdFile;
+                                writeFileSync(cmdPath, cmdText); // FUTURE TODO: make this async + check for errors
+                                
+                                retJson = { status: 'success' };
+                            }
+                        } // end if (cpTemplate)
+
                         ret.ReturnJson = JSON.stringify(retJson);
                         break;
                     default:
@@ -128,7 +160,7 @@ class webEngine {
         cms.db = new iesDbClass(dbConnect);
 
         //check for user logout
-        if (cms.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+        if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
             cms.userSignedOut();
         }
 
@@ -150,7 +182,7 @@ class webEngine {
 
                     cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
 
-                    let user = { username: 'joe', userId: 1, userLevel: 9, siteId: cms.siteId };
+                    let user = { userName: 'Joe', userLogin: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     cms.userSignedIn(user);
@@ -164,19 +196,10 @@ class webEngine {
                 } else {
                     await cms.SessionLogin(username,password,cms.siteId);
 
-                    if (cms.userId >= 0) {
+                    if (cms.user.userKey < 0) {
                         this.errorMessage = 'login not successful';
                         // Invalidate Token
                         cms.userSignedOut();
-                        /*
-                        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
-                        //var token = jwt.encode({user}, secretKey); 
-
-                        const token = jwt.sign({ user }, cms.JWT_SECRET, {
-                            expiresIn: -1,
-                        });
-                        cms.newToken = token;
-                        */
                     }
                 }
             }
@@ -199,6 +222,7 @@ class webEngine {
                 reject('ERROR: Page not found. [ERR1111]');
             }
 
+            // FUTURE TODO: Make this async?
             var contentHtml = readFileSync(cms.fileFullPath, 'utf8').toString();
             // look for [[{ header }]]
             var p1 = contentHtml.indexOf('[[{');
@@ -253,6 +277,7 @@ class webEngine {
                     reject('ERROR: Template not found. [ERR5449]');
                 }
                 //cms.Html += "Template found: " + templatePath + "<br>";
+                // FUTURE TODO: Make this async?
                 var template = readFileSync(templatePath, 'utf8');
                 cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, this, cms);
     
@@ -360,7 +385,7 @@ class webEngine {
             }
         */
             // Load vocabsearch config file
-            let configName = cms.db.dbStr(cms.Sanitize(cms.FormOrUrlParam(cms,"config","")), 40, false);
+            let configName = cms.db.dbStr(cms.Sanitize(cms.FormOrUrlParam("config","")), 40, false);
             let vocabFile = "table_" + configName + ".cfg";
             let vocabConfigPath = cms.FindFileInFolders(vocabFile, cms.getParamStr("ConfigFolder"));
             if (!vocabConfigPath)
@@ -409,7 +434,7 @@ class webEngine {
                 /*
                 let formField = tagSearch.i("formField").toStr().trim();
                 if (formField != "") {
-                    let matchList = cms.FormOrUrlParam(cms,formField,"").trim();
+                    let matchList = cms.FormOrUrlParam(formField,"").trim();
                     if (matchList != "") {
                         let searchType = tagSearch.i("type").toStr().trim().toLowerCase();
                         switch (searchType) {

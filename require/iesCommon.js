@@ -5,7 +5,7 @@ const { existsSync, readFileSync } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
-const sha1 = require('sha1');
+const crypto = require('crypto')
 const iesUser = require("./iesUser.js");
 
 Date.prototype.addDays=function(d){return new Date(this.valueOf()+(24*60*60)*d);};
@@ -26,8 +26,6 @@ class iesCommonLib {
     constructor() { 
         this.debugMode = 0;
         this.user = {};
-        this.userId = -1;
-        this.userLevel = 0;
     }
 
     async AdminTags(ret, Custom, cms) {
@@ -104,9 +102,12 @@ class iesCommonLib {
                 let siteDomains = cms.getParam('domains');
                 if (siteDomains) { content.append(siteDomains.jsonString || ''); }
                 break;
+            case "mimic":
+                content.append(cms.mimic);
+                break;
             case "who_am_i":
                 if (cms.user.userLevel > 0) {
-                    content.append(cms.user.username + " [id=" + cms.user.userId + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteid + "]");
+                    content.append(cms.user.username + " [key=" + cms.user.userKey + ",login=" + cms.user.userLogin + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
                 } else {
                     content.append("User not logged in.");
                 }
@@ -449,16 +450,16 @@ class iesCommonLib {
         return v;
     }
 
-    FormOrUrlParam(cms, paramId, defaultValue = null) {
-        if (cms.body.hasOwnProperty(paramId)) {
-            return cms.body[paramId];
+    FormOrUrlParam(paramId, defaultValue = null) {
+        if (this.body.hasOwnProperty(paramId)) {
+            return this.body[paramId];
         }
-        return this.urlParam(cms, paramId, defaultValue);
+        return this.urlParam(paramId, defaultValue);
     }
 
-    urlParam(cms, paramId, defaultValue = null) {
+    urlParam(paramId, defaultValue = null) {
         try {
-            let v = cms.url.query[paramId];
+            let v = this.url.query[paramId];
             if (v) { return v; }
         } catch { }
         return defaultValue;
@@ -471,6 +472,7 @@ class iesCommonLib {
     }
 
     // **************** tagReplaceString()
+    // Each cfg1-4 is optional but if included should be an iesJSON object of replacement fields/tags
     tagReplaceString(inputString, cfg1, cfg2, cfg3, cfg4, lvl = 0) {
         var charPosition = 0;
         var beginning = 0;
@@ -822,14 +824,15 @@ class iesCommonLib {
     // Set the cms.user (does not affect the jwt token)
     setUser(newUser) {
         this.user = newUser;
-        this.userId = this.user.userid || -1; // default
-        this.userLevel = this.user.userlevel || 0; // default
+        //// UserKey = 0 is a valid Backdoor Admin
+        //if ((this.user.userKey + '') == '0') { this.userKey = 0; }
     }
 
     // userSignedIn()
     // Update the cms.user and also set cookie token with new jwt
-    userSignedIn(newUser) {
+    userSignedIn(newUser,siteIdOverride = null) {
         let userObj = new iesUser(newUser); // copies user attributes to a valid user object
+        if (siteIdOverride) { userObj.siteId = siteIdOverride; }
         const token = jwt.sign({ user:userObj }, this.JWT_SECRET, {
             expiresIn: this.JWT_EXPIRES_IN,
         });
@@ -846,7 +849,7 @@ class iesCommonLib {
             expiresIn: -1,
         });
         */
-        cms.newToken = '-';
+        this.newToken = '-';
     }
 
     // noUser()
@@ -868,10 +871,11 @@ class iesCommonLib {
             
             // BACKDOOR LOGIN from TRUFFLE
             let bdLogin = false;
-            if (Login_ID.toLowerCase() == "bdadmin" && Login_Pwd == "!BDADMIN!") {
-                // FUTURE: Remove this case when placed in production
-                bdLogin = true;
-            } else if (this.isTruffle(Login_ID, Login_Pwd)) {
+//            if (Login_ID.toLowerCase() == "bdadmin" && Login_Pwd == "!BDADMIN!") {
+//                // FUTURE: Remove this case when placed in production
+//                bdLogin = true;
+//            } else 
+            if (this.isTruffle(Login_ID, Login_Pwd)) {
                 bdLogin = true;
             }
 
@@ -880,8 +884,7 @@ class iesCommonLib {
             {
                 
                 // Create a fake user record...
-                // FUTURE: Do we use objid or userno any longer?
-                let newUser = {userno:0,objid:-2,userid:"dev",userlevel:9,username: Login_ID };
+                let newUser = {userKey:0,userLevel:9,userLogin:Login_ID,userName:LoginID,siteId: this.siteId };
                 this.userSignedIn(newUser);
                 return;
             }
@@ -891,9 +894,9 @@ class iesCommonLib {
 
             // *** FIRST ATTEMPT TO LOGIN USING uID (For large lists, make sure there is a key on Members(uID))
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
-            let sql = "SELECT * FROM members " +
-                " WHERE (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
-                " AND (WorldID='" + wToken + "') AND uID IS NOT NULL";
+            let sql = "SELECT * FROM users " +
+                " WHERE (userLogin=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND (siteId='" + wToken + "') AND userLogin IS NOT NULL";
 
             if (await this.SessionLogin2(sql, Login_Pwd) == true)
             {
@@ -902,7 +905,7 @@ class iesCommonLib {
                 return;
             }
 
-/* MODIFIED TO LOOK FOR UserID and EMAIL in one query above
+/* MODIFIED TO LOOK FOR UserLogin and EMAIL in one query above
             // *** SECOND ATTEMPT TO LOGIN USING UserEmail (No index - make take a little time for large tables)
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
             sql = "SELECT * FROM members " +
@@ -919,14 +922,14 @@ class iesCommonLib {
 
             // check for BackDoor login (bdadmin)
             //sql="SELECT UserNo, uID, ObjID, uName, PWD, WorldID, Expiration, " + sLevel + " FROM members " +
-            sql = "SELECT * FROM members " +
-                " WHERE uType='bdadmin' AND (uID=" + Login_ID2 + " OR UserEmail=" + Login_ID2 + ") AND Status='Active'" +
-                " AND WorldID='bdadmin' AND uID IS NOT NULL";
+            sql = "SELECT * FROM users " +
+                " WHERE userType='bdadmin' AND (userLogin=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND siteId='bdadmin' AND userLogin IS NOT NULL";
 
             await this.SessionLogin2(sql, Login_Pwd);  // *** Don't need to check for success... Session variables are set
             if (this.debugMode >= 3)
             {
-                if (this.userID != "" && this.userLevel > 0) // FUTURE: wrong! caps are wrong!
+                if (this.user.userLogin != "" && this.user.userLevel > 0)
                 {
                     //this.WriteLog("login", "Successful bd login.\n"); // FUTURE: log event
                     console.log("Successful bd login.");
@@ -999,7 +1002,7 @@ class iesCommonLib {
                         // FUTURE: Need to translate from dbField names?
 
                         // Store user in jwt token and in cms
-                        this.userSignedIn(userRec);
+                        this.userSignedIn(userRec,this.siteId); // Override siteId in case of backdoor login
                         
                         try
                         {
@@ -1048,7 +1051,7 @@ class iesCommonLib {
             let strTruffle = "";
             let newTruffle = "";
             try {
-                strTruffle = readFileSync("./secret/trufflebd.cfg") + "";
+                strTruffle = readFileSync(this.secretsFolder + "trufflebd.cfg") + "";
                 newTruffle = this.MakeTruffle(fld1 + "|" + fld2 + "|" + this.TruffleID());
             } catch (Exception) {
                 return false;
@@ -1066,16 +1069,28 @@ class iesCommonLib {
 
         TruffleID(suffix = "")
         {
-            let truffleId = this.SERVER.getStr("truffleId");
+            let truffleId = this.getParamStr("truffleId");
             return truffleId;
         }
 
         MakeTruffle(hashText)
         {
-            let cry = new SHA1CryptoServiceProvider();
-            let hBytes = sha1(hashText);
-            console.log("DEBUGGER: MakeTruffle: " + hBytes);
+            let hBytes = crypto.createHash('sha256').update(hashText).digest('hex');
+            console.log("DEBUGGER: MakeTruffle-IN: " + hashText);
+            console.log("DEBUGGER: MakeTruffle-OUT: " + hBytes);
             return hBytes;
+        }
+
+        timestamp() {
+            function pad(n) { return n < 10 ? "0" + n : n }
+            d = new Date();
+            dash = "-";
+            return d.getFullYear() + dash +
+                  pad(d.getMonth() + 1) + dash +
+                  pad(d.getDate()) + dash +
+                  pad(d.getHours()) + dash +
+                  pad(d.getMinutes()) + dash +
+                  pad(d.getSeconds())
         }
 
 }

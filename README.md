@@ -39,3 +39,10 @@ open a folder in the root installation and run npm install string-builder
 5) update other page links to remove ".html" or ".ashx" suffix
 6) migrate any custom tags (if needed, you will need to create a custom class for the website)
 7) test website locally for all functionality
+
+# Build backdoor login for top-level admin
+cd /util
+node makeTruffle.js
+Enter userid/pwd of BD Admin
+>> this reads /secrets/server.cfg (parameters: truffleId, ServerId)
+>> this generates /secrets/trufflebd.cfg

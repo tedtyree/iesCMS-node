@@ -102,6 +102,9 @@ class iesDB {
                 reject(this.statusMessage);
             }
 
+            this.ConnectStatus = 1;
+            resolve(true);
+/*
             try {
                 // FUTURE: Need to add error handling
                 this.iesConnection.connect((err) => {
@@ -130,6 +133,7 @@ class iesDB {
                 //throw new Error(this.statusMessage);
                 reject(this.statusMessage);
             }
+            */
         });
     } // end Open()
 
@@ -274,13 +278,13 @@ class iesDB {
                             })
                             .catch(err2 => {
                                 reject(this.errPipe(func,"ERR7553",err2));
-                            })
-                            .finally( async () => {
+//                            })
+//                            .finally( async () => {
                                 //if (needToClose) { await this.Close(); } // await here so that we do not move on to next task before the close is done
                             });
-                    })
-                    .catch(err1 => {
-                        reject(this.errPipe(func,"ERR7557",err1));
+//                    })
+//                    .catch(err1 => {
+//                        reject(this.errPipe(func,"ERR7557",err1));
                     });
             });
         }

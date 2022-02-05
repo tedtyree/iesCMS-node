@@ -14,7 +14,7 @@ class webEngine {
     	}
         
 
-    static invalidSiteID(cms) {
+    invalidSiteID(cms) {
         if (assignedSiteID != _siteID) {
             cms.err = 517;
             cms.errMessage = 'ERROR: webEngine missmatch: ' + assignedSiteID + ' != ' + _siteID;
@@ -62,7 +62,7 @@ class webEngine {
         cms.db = new iesDbClass(dbConnect);
 
         //check for user logout
-        if (cms.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+        if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
             cms.userSignedOut();
         }
 
@@ -78,41 +78,36 @@ class webEngine {
             // redirect to the landing page  
             // if invalid password display error message  
             if (username || password) {
+                /*
                 if (username == 'joe' && password == 'friendofFelix84') {
 
-                    this.errorMessage = 'login successful';
+                    //this.errorMessage = 'login successful';
 
-                    cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
-
-                    let user = { username: 'joe', userId: 1, userLevel: 9, siteId: cms.siteId };
+                    let user = { userName: 'Joe', userLogin: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     cms.userSignedIn(user);
-                    /*
+                    / *
                     const token = jwt.sign({ user }, cms.JWT_SECRET, {
                         expiresIn: cms.JWT_EXPIRES_IN,
                     });
                     cms.newToken = token;
-                    */
+                    * /
 
                 } else {
+                    */
                     await cms.SessionLogin(username,password,cms.siteId);
 
-                    if (cms.userId >= 0) {
+                    if (cms.user.userKey < 0) {
                         this.errorMessage = 'login not successful';
                         // Invalidate Token
                         cms.userSignedOut();
-                        /*
-                        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
-                        //var token = jwt.encode({user}, secretKey); 
-
-                        const token = jwt.sign({ user }, cms.JWT_SECRET, {
-                            expiresIn: -1,
-                        });
-                        cms.newToken = token;
-                        */
+                    } else {
+                        // login success
+                        // FUTURE: check for deeplink and route if specified
+                        cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
                     }
-                }
+                // } // else (username || password)
             }
 
         }

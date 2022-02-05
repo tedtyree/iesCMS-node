@@ -20,10 +20,10 @@ var forwardedHost = false;  // For PRODUCTION set this to true :: forces us to r
 
 let vStatic = null;
 let vDynamic = null;
-let mimic = null;
 
 const serverPort = 8118;
-const serverConfig = "./secrets/server.cfg";
+const serverSecretsFolder = "./secrets/";
+const serverConfig = serverSecretsFolder + "server.cfg";
 const websitePathTemplate = './websites/{{siteID}}/site.cfg';
 
 function requireDynamically(path) {
@@ -183,6 +183,7 @@ http.createServer(async (req, res) => {
       const q = 'z'; //url.parse(req.url,true).query;
       cms.url = url.parse(req.url, true);
       cms.SERVER = serverCfg;
+      cms.secretsFolder = serverSecretsFolder;
       cms.req = req;
 
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
@@ -244,6 +245,8 @@ http.createServer(async (req, res) => {
       cms.resultType = '';
       cms.mimeType = '';
       cms.redirect = null; // note: if this is set to a url and fileType = HTML or REDIRECT then CMS attempts a redirect
+      cms.newCookies = {};
+      
       /*
       let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
       try {
@@ -310,9 +313,10 @@ http.createServer(async (req, res) => {
 
       // This is already done above?
       //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
-
+      cms.mimic = '';
       if (cms.siteId) {
             // Mimic (can only mimic on hostsite)
+            // NOTE: Idea of enableMimic:true in site.cfg will not work because it is not loaded yet
             if (cms.siteId == 'hostsite') {
                   var override = '';
                   // check if mimic specified in URL
@@ -320,6 +324,7 @@ http.createServer(async (req, res) => {
                         override = cms.url.query.mimic;
                         // set mimic cookie
                         cms.newMimic = override;
+                        cms.newCookies.mimic = override;
                   } else {
                         // check for mimic cookie
                         if (cms.cookies.mimic) {
@@ -328,6 +333,7 @@ http.createServer(async (req, res) => {
                   }
                   if (override && override.toLowerCase() != 'none') {
                         cms.siteId = override;
+                        cms.mimic = override;
                   }
             }
 
@@ -382,11 +388,6 @@ http.createServer(async (req, res) => {
             }
       } // end if(cmsSiteID)
 
-      mimic = cms.cookies.mimic;
-      newCookies = {};
-      newCookies.mimic = mimic ? mimic : '';
-      newCookies.random = 'green toad';
-
       /* FUTURE: HOW TO HANDLE GET/POST/etc.
       if (req.method !== 'GET') {
             res.statusCode = 501;
@@ -425,6 +426,7 @@ http.createServer(async (req, res) => {
             if (cms.newToken) {
                   myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
             }
+            // FUTURE: TODO: Add cms.newCookies to the cookie list!
             myHead.push(['Content-Type', 'text/html']);
 
             if (cms.redirect) {
@@ -457,8 +459,8 @@ http.createServer(async (req, res) => {
                   + 'vStatic=' + vStatic + '\n'
                   + 'vDynamic=' + vDynamic + '\n'
                   + 'siteID=' + cms.siteId + '\n'
-                  + 'mimic=' + mimic + '\n'
-                  + 'newCookies=' + stringifyCookies(newCookies) + '\n'
+                  + 'mimic=' + cms.mimic + '\n'
+                  + 'newCookies=' + stringifyCookies(cms.newCookies) + '\n'
                   + 'Hello s53 World! [from node.js]\n'
                   + 'DIR List:' + JSON.stringify(siteList) + '\n'
                   + 'urlPathList:' + JSON.stringify(cms.urlPathList) + '\n'

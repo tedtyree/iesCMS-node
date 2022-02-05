@@ -21,9 +21,9 @@ class webEngine {
     }
 
     invalidSiteID(cms) {
-        if (this.assignedSiteID != _siteID) {
+        if (this.assignedSiteID != _siteID || cms.siteId != _siteID ) {
             cms.err = 517;
-            cms.errMessage = 'ERROR: webEngine missmatch: ' + this.assignedSiteID + ' != ' + _siteID;
+            cms.errMessage = 'ERROR: webEngine missmatch: ' + this.assignedSiteID + ' != ' + cms.siteId + ' != ' + _siteID ;
             return true;
         }
         return false;
@@ -49,8 +49,8 @@ class webEngine {
                         this.ProcessLangTag(ret.Param1, content, cms);
                         break;
                     case "tablesearch":
-                        let searchText = cms.FormOrUrlParam(cms,"search","");
-                        let page = cms.FormOrUrlParam(cms,"page",1);
+                        let searchText = cms.FormOrUrlParam("search","");
+                        let page = cms.FormOrUrlParam("page",1);
                         try { page = parseInt(page); }
                         catch { page = 1; }
                         if (page < 1) { page = 1; }
@@ -121,7 +121,7 @@ class webEngine {
         cms.db = new iesDbClass(dbConnect);
 
         //check for user logout
-        if (cms.urlParam(cms,"logout","").trim().toLowerCase() == 'true') {
+        if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
             cms.userSignedOut();
         }
 
@@ -143,7 +143,7 @@ class webEngine {
 
                     cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
 
-                    let user = { username: 'joe', userId: 1, userLevel: 9, siteId: cms.siteId };
+                    let user = { userName: 'Joe', userLogin: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     cms.userSignedIn(user);
@@ -157,19 +157,10 @@ class webEngine {
                 } else {
                     await cms.SessionLogin(username,password,cms.siteId);
 
-                    if (cms.userId >= 0) {
+                    if (cms.user.userKey < 0) {
                         this.errorMessage = 'login not successful';
                         // Invalidate Token
                         cms.userSignedOut();
-                        /*
-                        let user = { username: '', userid: -1, userlevel: 0, siteid: cms.siteId };
-                        //var token = jwt.encode({user}, secretKey); 
-
-                        const token = jwt.sign({ user }, cms.JWT_SECRET, {
-                            expiresIn: -1,
-                        });
-                        cms.newToken = token;
-                        */
                     }
                 }
             }
@@ -353,7 +344,7 @@ class webEngine {
             }
         */
             // Load vocabsearch config file
-            let configName = cms.db.dbStr(cms.Sanitize(cms.FormOrUrlParam(cms,"config","")), 40, false);
+            let configName = cms.db.dbStr(cms.Sanitize(cms.FormOrUrlParam("config","")), 40, false);
             let vocabFile = "table_" + configName + ".cfg";
             let vocabConfigPath = cms.FindFileInFolders(vocabFile, cms.getParamStr("ConfigFolder"));
             if (!vocabConfigPath)
@@ -402,7 +393,7 @@ class webEngine {
                 /*
                 let formField = tagSearch.i("formField").toStr().trim();
                 if (formField != "") {
-                    let matchList = cms.FormOrUrlParam(cms,formField,"").trim();
+                    let matchList = cms.FormOrUrlParam(formField,"").trim();
                     if (matchList != "") {
                         let searchType = tagSearch.i("type").toStr().trim().toLowerCase();
                         switch (searchType) {
