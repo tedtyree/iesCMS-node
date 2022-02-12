@@ -884,7 +884,7 @@ class iesCommonLib {
             {
                 
                 // Create a fake user record...
-                let newUser = {userKey:0,userLevel:9,userLogin:Login_ID,userName:LoginID,siteId: this.siteId };
+                let newUser = {userKey:0,userLevel:9,userLogin:Login_ID,userName:Login_ID,siteId: this.siteId };
                 this.userSignedIn(newUser);
                 return;
             }
