@@ -1,7 +1,7 @@
 //iesCommonLib
 // NOTE: This library/class is used to create the cms object.  Therefore all methods are accessible through the cms object
 const StringBuilder = require("string-builder");
-const { existsSync, readFileSync } = require('fs');
+const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
@@ -468,6 +468,37 @@ class iesCommonLib {
     PrepForJsonReturn(ret) {
         if (!ret.ReturnJson) {
             ret.ReturnJson = {};
+        }
+    }
+
+    setLogFolder() {
+        // FUTURE: specify log folder in site.cfg?
+        this.logFile = this.getParamStr("baseFolder","") + "/logs/log_" + this.timestamp() ;
+    }
+
+    logMessage(debugLevel=1,msg) {
+        try {
+            if ((this.debugMode >= debugLevel) && this.logFile) {
+                this.appendFile(this.logFile,msg + "\n");
+                // debugger - the line below is not needed unless we are debugging locally - can be commented out for production env
+                console.log(msg);
+            }
+        }
+        catch (errLogMsg) {
+            console.log("ERROR: Failed logMessage() " + errLogMsg.toString() + " [ERR1313]");
+        }
+    }
+
+    logError(errMsg) {
+        this.logMessage(0,"ERROR: " + errMsg); // errors are written even if debug mode is 0?  FUTURE: Fix this if not intended
+    }
+
+    appendFile(filePath,outputText) {
+        try {
+            appendFileSync(filePath,outputText); // FUTURE: Do we need certain options here?
+        }
+        catch (errAppendFile) {
+            console.log("ERROR: Failed appendFile() " + errAppendFile.toString() + " [ERR1314]");
         }
     }
 

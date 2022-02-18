@@ -10,6 +10,7 @@ const { Console } = require('console');
 const { parse, stringify } = require('querystring');// form submission 
 const jwt = require('jsonwebtoken');
 const { moveCursor } = require('readline');
+const { debuglog } = require('util');
 
 var websiteEngines = {};
 var debugLog = "";
@@ -185,6 +186,8 @@ http.createServer(async (req, res) => {
       cms.SERVER = serverCfg;
       cms.secretsFolder = serverSecretsFolder;
       cms.req = req;
+
+      debugLog = "app.js:http.createServer(): url=" + url.toString + "\n";
 
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
       cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
@@ -369,12 +372,12 @@ http.createServer(async (req, res) => {
             
             try {
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
-                        debugLog += "thisEngine.CreateHtml()\n";
+                        debugLog += "thisEngine.CreateHtml(): " + cms.siteId + "\n";
                         cms.siteEngine = cms.siteId;
                         await cms.thisEngine.CreateHtml(cms);
                   } else {
                         if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
-                              debugLog += "hostsiteEngine.CreateHtml()\n";
+                              debugLog += "hostsiteEngine.CreateHtml(): hostsite\n";
                               cms.siteEngine = "hostsite";
                               // We leave a reference to thisEngine in case it has Custom Tags
                               await cms.hostsiteEngine.CreateHtml(cms);

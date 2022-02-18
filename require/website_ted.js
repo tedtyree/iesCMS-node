@@ -18,6 +18,7 @@ class webEngine {
         if (this.assignedSiteID != _siteID || cms.siteId != _siteID) {
             cms.err = 517;
             cms.errMessage = 'ERROR: webEngine missmatch: ' + this.assignedSiteID + ' != ' + cms.siteId + ' != ' + _siteID ;
+            cms.logError(cms.errMessage);
             return true;
         }
         return false;
@@ -51,8 +52,14 @@ class webEngine {
         var templatePath;
 		this.errorMessage = "";
 
+        cms.debugMode = cms.getParamNum("debugMode",0);
+        cms.setLogFolder();
+
+        cms.Html = _siteID + " HTML<br>";
+        cms.logMessage(1, _siteID + ".CreateHTML(): for siteId=" + cms.siteId);
+
         if (this.invalidSiteID(cms)) { return; }
-        cms.Html = "website:[" + _siteID + "] HTML<br>";
+        
 		let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
         if (cms.pathExt == '' || cms.pathExt == 'htm' || cms.pathExt == 'html') {
@@ -61,10 +68,11 @@ class webEngine {
         }
 		 if (filePath == '') {
             filePath = cms.getParamStr("DefaultPageID","home");
-            fileType=='html'
+            fileType = 'html'
         }
         // debugger
-        // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        // cms.Html += 'Page file:[' + filePath + '][' + cms.pathExt + '] fileType=' + fileType + '<br>';
+        cms.logMessage(5,"Page file:[" + filePath + "][" + cms.pathExt + "] fileType=" + fileType);
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
@@ -141,6 +149,7 @@ class webEngine {
                 // We didn't find the file - time to call it quits
                 cms.Html += 'file not found.<br>';
                 reject('ERROR: Page not found. [ERR1111]');
+                return;
             }
 
 			// FUTURE: Can we read and parse this using iesCommon.LoadHtmlFile?
@@ -175,6 +184,7 @@ class webEngine {
             if (pageErr != 0) {
                 cms.Html += "Page ERROR " + pageErr + ": pageHead.Status = " + pageHead.Status + "<br>";
                 reject('ERROR: Page status error. [ERR5353]');
+                return;
             }
 			// Determine page permissions
             cms.minViewLevel = cms.SITE.i("defaultMinViewLevel").toNum(999); // default value
@@ -194,6 +204,7 @@ class webEngine {
             if (!templatePath) {
                 cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
                 reject('ERROR: Template not found. [ERR5449]');
+                return;
             }
             //cms.Html += "Template found: " + templatePath + "<br>";
             var template = readFileSync(templatePath, 'utf8');
@@ -228,8 +239,9 @@ class webEngine {
 			// ================================================ END
             } catch (err) {
                 let errmsg = "ERROR: " + _siteID + ".CreateHtml(): " + err;
-                console.log(errmsg);
-                reject(errmsg);
+                cms.logError(errmsg + " [ERR5211]");
+                reject("ERROR: [ERR5211]");
+                return;
             }
         });
     }

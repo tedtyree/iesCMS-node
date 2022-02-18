@@ -18,6 +18,7 @@ class webEngine {
         if (assignedSiteID != _siteID) {
             cms.err = 517;
             cms.errMessage = 'ERROR: webEngine missmatch: ' + assignedSiteID + ' != ' + _siteID;
+            cms.logError(cms.errMessage);
             return true;
         }
         return false;
@@ -35,8 +36,13 @@ class webEngine {
         var templatePath;
         this.errorMessage = "";
 
+        cms.debugMode = cms.getParamNum("debugMode",0);
+        cms.setLogFolder();
+
        // if (this.invalidSiteID(cms)) { return; }
-        cms.Html = "hostsite HTML<br>";
+        cms.Html = _siteID + " HTML<br>";
+        cms.logMessage(1, _siteID + ".CreateHTML(): for siteId=" + cms.siteId);
+
         let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
         if (cms.pathExt == '' || cms.pathExt == 'htm' || cms.pathExt == 'html') {
@@ -45,10 +51,11 @@ class webEngine {
         }
         if (filePath == '') {
             filePath = cms.getParamStr("DefaultPageID","home");
-            fileType=='html'
+            fileType = 'html'
         }
         // debugger
-        // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
+        // cms.Html += 'Page file:[' + filePath + '][' + cms.pathExt + '] fileType=' + fileType + '<br>';
+        cms.logMessage(5,"Page file:[" + filePath + "][" + cms.pathExt + "] fileType=" + fileType);
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
@@ -72,6 +79,7 @@ class webEngine {
 
             let username = cms.body.username;
             let password = cms.body.password;
+            cms.logMessage(3,"Login for user [" + username + "]");
 
             // if username is correct and password 
             // create a JWT and return it to frontend 
@@ -100,10 +108,12 @@ class webEngine {
 
                     if (cms.user.userKey < 0) {
                         this.errorMessage = 'login not successful';
+                        cms.logMessage(3,"LOGIN ERROR for user [" + username + "]");
                         // Invalidate Token
                         cms.userSignedOut();
                     } else {
                         // login success
+                        cms.logMessage(3,"Login successful for user [" + username + "]");
                         // FUTURE: check for deeplink and route if specified
                         cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
                     }
@@ -126,6 +136,7 @@ class webEngine {
                 // We didn't find the file - time to call it quits
                 cms.Html += 'file not found.<br>';
                 reject('ERROR: Page not found. [ERR1111]');
+                return;
             }
 
             // FUTURE: Can we read and parse this using iesCommon.LoadHtmlFile?
@@ -159,7 +170,9 @@ class webEngine {
             }
             if (pageErr != 0) {
                 cms.Html += "Page ERROR " + pageErr + ": pageHead.Status = " + pageHead.Status + "<br>";
+                cms.logError("Page Status Error: pageErr[" + pageErr + "], pageHead.Status[" + pageHead.Status + "] [ERR5353]");
                 reject('ERROR: Page status error. [ERR5353]');
+                return;
             }
 
             // Determine page permissions
@@ -180,7 +193,9 @@ class webEngine {
                 );
                 if (!templatePath) {
                     cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
+                    cms.logError("Template not found: pageTemplate[" + pageTemplate + "] [ERR5449]");
                     reject('ERROR: Template not found. [ERR5449]');
+                    return;
                 }
                 //cms.Html += "Template found: " + templatePath + "<br>";
                 var template = readFileSync(templatePath, 'utf8');
@@ -189,7 +204,9 @@ class webEngine {
             } else {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
                 cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
+                cms.logMessage(1,`Warning: permission denied: (${cms.user.level}/${cms.minViewLevel}) [WARN5111]`);
                 resolve('Warning: permission denied. [WARN5111]');
+                return;
             }
 
         } else {
@@ -209,14 +226,20 @@ class webEngine {
             cms.mimeType = cms.mime[cms.pathExt] || 'text/plain';
             cms.resultType = 'file';
             cms.Html += 'DEBUGGER: cms.fileFullPath=[' + cms.fileFullPath + ']<br>mimeType=' + cms.mimeType;
+            cms.logMessage(5,"Success: resultType[" + cms.resultType + "] [MSG5121]");
             resolve(''); // success
+            return;
         }
+        cms.logMessage(5,"Success: resultType[" + cms.resultType + "] [MSG5131]");
         resolve(''); // success
+        return;
         // ================================================ END
             } catch (err) {
                 let errmsg = "ERROR: " + _siteID + ".CreateHtml(): " + err;
                 console.log(errmsg);
+                cms.logError(errmsg + " [ERR5141]");
                 reject(errmsg);
+                return;
             }
         });
     }
@@ -243,11 +266,13 @@ class webEngine {
                 }
                 ret.ReturnContent += content.toString();
                 resolve(true);
+                return;
                 // =========================================== END
             } catch (err) {
                 let errmsg = "ERROR: " + _siteID + ".CustomTags(): " + err;
-                console.log(errmsg);
-                reject(errmsg);
+                cms.logError(errmsg + " [ERR5211]");
+                reject("ERROR: [ERR5211]");
+                return;
             }
         });
     }
