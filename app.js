@@ -11,6 +11,7 @@ const { parse, stringify } = require('querystring');// form submission
 const jwt = require('jsonwebtoken');
 const { moveCursor } = require('readline');
 const { debuglog } = require('util');
+var httpQueryId = 0;
 
 var websiteEngines = {};
 var debugLog = "";
@@ -186,6 +187,7 @@ http.createServer(async (req, res) => {
       cms.SERVER = serverCfg;
       cms.secretsFolder = serverSecretsFolder;
       cms.req = req;
+      cms.setHttpQueryId(httpQueryId++);
 
       debugLog = "app.js:http.createServer(): url=" + url.toString + "\n";
 

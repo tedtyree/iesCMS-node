@@ -3,6 +3,7 @@ const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
 
 const { existsSync, readFileSync } = require('fs');
+const { formatWithOptions } = require("util");
 const _siteID = 'hostsite';
 var assignedSiteID = '';
 
@@ -42,6 +43,7 @@ class webEngine {
        // if (this.invalidSiteID(cms)) { return; }
         cms.Html = _siteID + " HTML<br>";
         cms.logMessage(1, _siteID + ".CreateHTML(): for siteId=" + cms.siteId);
+        cms.logMessage(4, "URL: [" + cms.completeUrl() + "]");
 
         let filePath = decodeURI(cms.url.pathname).replace(/\\/g,'/');
         if (filePath && filePath.substr(0,1) == '/') { filePath = filePath.slice(1); }
@@ -72,6 +74,9 @@ class webEngine {
         if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
             cms.userSignedOut();
         }
+
+        if (!cms.form) { cms.form = {}; } // Future this is not needed if main cms engine creates cms.form
+        cms.form.formid = cms.body.form_id; // get the form_id from the form (if any)
 
         //check for user login  
 
@@ -121,6 +126,151 @@ class webEngine {
             }
 
         }
+
+        // ******************************* PROCESS FORMS...
+
+        else if (cms.form.formid) { // Check for form_id (not login page)
+            // Form is specified. lets process the form using a generic engine
+
+            // We need to replace tags in the emailSubject and Body...
+            //var emailTags = new iesJSON("{}");
+            //emailTags["World"].Value = cms.World;
+
+            // SET DEFAULT VALUES
+            cms.emailInfo = {};
+            cms.emailInfo.subject = cms.getParamStr("FORM_Subject_DEFAULT", "");  // Performs tag replacement
+            cms.emailInfo.sendto = cms.getParamStr("FORM_SendTo_DEFAULT", "");
+            cms.emailInfo.sendfrom = cms.getParamStr("FORM_SendFrom_DEFAULT", "");
+            cms.emailInfo.cc = cms.getParamStr("FORM_CC", "");
+            cms.emailInfo.bcc = cms.getParamStr("FORM_BCC", "");
+            cms.emailInfo.includeotherfields = "true";
+
+            // Get data fields from the Form
+            cms.readFormFields(cms.form,cms.body,cms.emailInfo);
+
+            // CheckForSpam
+            // FUTURE: Do we need to clip the FormFields? or just the message?  MaxMessageLength
+            var SpamLevel = 0;
+            var SpamReason = "";
+            var FullMessage = cms.emailInfo.body;
+
+            /* FUTURE: SpamFilter...
+            iesSpamFilter.debugLevel = 9; // DEBUG
+            iesSpamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
+            iesSpamFilter.CheckMessage(
+                cms.getParamStr("SpamFolder"),  // Performs tag replacement
+                cms.server.getParamStr("SpamFolderCommon"), // Performs tag replacement
+                FullMessage,
+                SpamLevel,
+                SpamReason);
+            */
+
+            // Indicate SPAM level in the email message			   
+            FullMessage += "SPAM LEVEL=" + SpamLevel + "<br>";
+            if (SpamReason)
+            {
+                FullMessage += "DEBUG: SPAM REASON=" + SpamReason + "<br>";
+            }
+
+            // Store email Body text into JSON object						 
+            cms.emailInfo.body = FullMessage; // Just in case message got clipped (also includes Spam Level)
+
+            // Check for Captcha...
+            var cpStatus = "";
+            var cpID = (cms.form.captchaid) ? cms.form.captchaid.trim() : '';
+            if (cpID)
+            {
+                var cpPWD = cms.form.captcha.trim();
+                // cpStatus = Admin.CheckCaptcha(cpID, cpPWD, world);  // FUTURE: Add captcha check
+                cms.form.captchaStatus = cpStatus;
+            }
+
+            var FormProcessedFlag = false;
+            var LogFormFlag = true;
+            var EmailFormFlag = true;
+            var CheckSpamFlag = true;
+            var FormError = "";
+
+            // Store parameters in FormFields so they will be available to CustomForms
+            //cms.form.FormID = FormID; // alread set above
+            cms.form.SpamLevel = SpamLevel;
+            cms.form.SpamReason = SpamReason;
+            cms.form.SubmitDate = cms.datetimeNormal();
+
+            // Custom Forms Processing (if specified)
+            if (cms.thisEngine && cms.thisEngine.CustomForms) {
+                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamFlag, cms);
+            } else if (cms.hostsiteEngine && cms.hostsiteEngine.CustomForms) {
+                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamFlag, cms);
+            }
+            if (FormError)
+            {
+                //strDefMsg+=vbNewLine + FormError + vbNewLine; // FUTURE: What is this for? Email the error to the admin?
+                this.errorMessage = FormError;
+            } // end if
+
+            // Log Form (if needed)
+            if (FormProcessedFlag == false && cms.pageId == "form_submit")
+            {
+                // Nothing to 'process' for form_submit.  Just log it and email it.
+                FormProcessedFlag = true;
+                LogFormFlag = true;
+                EmailFormFlag = true;
+            } // end if
+
+            // If this is SPAM don't send the email
+            if (SpamLevel > 0) { EmailFormFlag = false; }
+
+            // LOG/EMAIL form...
+            // If request was for runcmd then we don't do any of this because the CustomForm() routine already generated a response.
+            if (FormProcessedFlag == true && cms.pageId != "runcmd")
+            {
+
+                if (LogFormFlag == true)
+                {
+                    //cms.form.FormID = FormID; // alread set above
+                    //cms.form.SpamLevel = SpamLevel; // alread set above
+                    //cms.form.SpamReason = SpamReason; // alread set above
+                    //cms.form.SubmitDate = iesDB.dbDateTime(DateTime.Now, "DT", "", false); // already set above
+                    cms.SaveFormToLog(cms.form, false);
+                }
+
+                // Send Email Notification to website owner (if needed)
+                // Use default for FORM_Subject, FORM_SendTo
+                if (EmailFormFlag == true && (cpStatus == "" || cpStatus == "OK"))
+                {
+                    var eRet = cms.goSendEmail(cms.emailInfo);
+                    //Response.Write("DEBUG: eRet=" + eRet.jsonString + "<br>");  //DEBUG
+                }
+
+                // Check for errors/Display results
+                if (cpStatus && cpStatus != "OK")
+                {
+                    this.errorMessage = "Invalid verification code.";
+
+                    cms.pageId = cms.FormOrUrlParam("OnCaptchaGoTo").Trim();
+                    if (cms.pageId == "") { cms.pageId = "form_submit_captcha"; }
+                }
+                else
+                {
+                    if (this.errorMessage == "")
+                    {
+                        cms.pageId = cms.FormOrUrlParam("OnSuccessGoTo").Trim();
+                        if (cms.pageId == "") { cms.pageId = "form_submit_ok"; }
+                    }
+                    else
+                    {
+                        cms.pageId = cms.FormOrUrlParam("OnErrorGoTo").Trim();
+                        if (cms.pageId == "") { cms.pageId = "form_submit_error"; }
+                        // Leave errorMessage to be included in the HTML of form_submit_error
+                    } // end if (this.errorMessage=="")
+                } // end if (cpStatus && cpStatus!="OK")	
+
+            } // end if (FormProcessedFlag==true && cms.pageId != "runcmd")
+   
+        }
+
+        // ***************************************** END CODE FOR PROCESSING FORMS
 
         // FUTURE: Determine if path is located in root (shared common folders) or in Websites/<siteid>
         

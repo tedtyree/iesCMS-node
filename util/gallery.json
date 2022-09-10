@@ -1,0 +1,20 @@
+{
+style: "products1"
+,template: "template-products1.jpg"
+,photos: [
+{ image: "deanofstudents.jpg"
+   ,title: { 
+	en: "dean of students"
+	,sw: "mkuu wa wanafunzi" 
+	,kmb: "munene wa syana" }
+}
+,{
+   image: "schooldirector.jpg"
+   ,title: { 
+	en: "school director"
+	,sw: "mkuu wa shule" 
+	,kmb: "munene wa sukulu" }
+
+}
+]
+}

@@ -16,6 +16,7 @@ Use localhost:8118/home?mimic=<siteid> to mimic a specific website for testing
 Open app.js in the editor (select the app.js tab if not selected)
 Select Run > Start Debugging
 Select "Node.js"
+Navigate to http://localhost:8118
 
 # INSTALL
 copy entire iesCMS-node folder to server > /var/www/iescms
