@@ -1,14 +1,17 @@
 var http = require('http');
 var url = require('url');
+var axios = require('axios');
+const jwt = require('jsonwebtoken');
+const { parse, stringify } = require('querystring');// form submission 
+const { Console } = require('console');
+
 //const querystring = require('querystring');
 const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
 const iesJSON = require('./require/iesJSON/iesJsonClass.js');
 const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
-const { Console } = require('console');
-const { parse, stringify } = require('querystring');// form submission 
-const jwt = require('jsonwebtoken');
+
 const { moveCursor } = require('readline');
 const { debuglog } = require('util');
 var httpQueryId = 0;
@@ -191,25 +194,31 @@ http.createServer(async (req, res) => {
 
       debugLog = "app.js:http.createServer(): url=" + url.toString + "\n";
 
+      
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
       cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
 
       // Get post data using query string 
       try {
 
-            if (cms.req.method === 'POST') {
+            if (cms.req.method === 'POST' || cms.req.method === 'PATCH') {
 
                   const buffers = [];
                   for await (const chunk of req) {
                         buffers.push(chunk);
                   }
-                  const body = Buffer.concat(buffers).toString();
-
-
-                  console.log(
-                        parse(body)
-                  );
-                  cms.body = parse(body);
+                  cms.bodyText = Buffer.concat(buffers).toString();
+				  
+                  // Fake way to identify JSON payload vs. URL encoded payload
+                  if (cms.bodyText.trim().substring(0,1) == '{') {
+                        // JSON Payload
+                        cms.body = JSON.parse(cms.bodyText);
+                  } else {
+                        // URL encoded payload
+                        cms.body = parse(cms.bodyText);
+                  }
+                  // DEBUG
+                  // console.log( cms.body );
             }
       } catch { }
 

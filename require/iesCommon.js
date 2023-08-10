@@ -255,6 +255,7 @@ class iesCommonLib {
                     // Check if our return object include JSON
                     if (ret.ReturnJson) {
                         cms.ReturnJson = ret.ReturnJson;  // FUTURE Merge if we already have JSON in cms.ReturnJson??? (otherwise last one wins)
+                        cms.resultType = 'json';
                     }
 
                     // Check if our replacement string has [[tags]] that need to be replaced
@@ -481,6 +482,13 @@ class iesCommonLib {
     PrepForJsonReturn(ret) {
         if (!ret.ReturnJson) {
             ret.ReturnJson = {};
+        }
+    }
+
+    PrepForJsonReturn() {
+        this.returnType = 'json';
+        if (!this.ReturnJson) {
+            this.ReturnJson = {};
         }
     }
 
@@ -1154,6 +1162,20 @@ class iesCommonLib {
                   pad(d.getSeconds())
         }
 
+        dbDatetime() {
+            function pad(n) { return n < 10 ? "0" + n : n }
+            d = new Date();
+            var sepDate = "-";
+            var sepHours = ":";
+            return d.getFullYear() + sepDate +
+                  pad(d.getMonth() + 1) + sepDate +
+                  pad(d.getDate()) + ' ' +
+                  
+                  pad(d.getHours()) + sepHours +
+                  pad(d.getMinutes()) + sepHours +
+                  pad(d.getSeconds())
+        }
+
         readFormFields(target,source,emailInfo) {
           try {
             Object.assign(target,source);
@@ -1289,13 +1311,15 @@ class iesCommonLib {
         var transporter;
 
         //*** LOGIN WITH EMAIL ACCOUNT CREDENTIALS
-	    if (this.server.email_login || this.server.email_pwd) {
+        var p_email_login = this.getParamStr('email_login');
+        var p_email_pwd = this.getParamStr('email_pwd');
+	    if (p_email_login || p_email_pwd) {
             transporter = nodemailer.createTransport({
-                port: this.server.email_smtp_port,
-                host: this.server.email_smtp_server,
+                port: this.getParamStr('email_smtp_port'),
+                host: this.getParamStr('email_smtp_server'),
                 auth: {
-                    user: this.server.email_login,
-                    pass: this.server.email_pwd
+                    user: p_email_login,
+                    pass: p_email_pwd
                 }
           });
         }
@@ -1306,8 +1330,8 @@ class iesCommonLib {
         if (!errMsg) {
           
           var mailOptions = {
-            from: emailInfo.from,
-            to: emailInfo.to,
+            from: emailInfo.sendfrom,
+            to: emailInfo.sendto,
             cc: emailInfo.cc,
             bcc: emailInfo.bcc,
             subject: emailInfo.subject,
@@ -1332,7 +1356,19 @@ class iesCommonLib {
         }
     } // End GoSendEmail()
 	
+    // *************************************************************************************** SaveFormToLog()
+    saveFormToLog(strFormID, formData) {
 
+        var dt = this.dbDatetime();
+        var flds = JSON.stringify(formData);
+        var sql="INSERT INTO wLog (WorldID, FormID, SubmitDate, Params) " +
+            " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', '" + flds.replace(/'/g,"''") + "')";
+        
+        this.db.ExecuteSQL(sql)
+
+        //*** FUTURE: Check for database errors using .then().catch()
+
+    } // End Function
 }
 
 module.exports = iesCommonLib;

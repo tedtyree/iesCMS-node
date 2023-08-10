@@ -29,6 +29,37 @@ class webEngine {
     CreateHtml(cms) { //async
         return new Promise(async (resolve,reject) => {
             try {
+        // API Passthrough (if enabled - ie. only if api_passthrough_path and api_passthrough_url are defined)
+        let api_passthrough_path = cms.getParamStr("api_passthrough_path","").trim().toLowerCase();
+        if (api_passthrough_path) {
+            if (cms.url.pathname.substr(0,api_passthrough_path.length).toLowerCase() == api_passthrough_path) {
+              cms.PrepForJsonReturn();
+              cms.ReturnJson.content = '{"error":"error-001"}'; // default error if we do not process the api call
+
+              let api_passthrough_url = cms.getParamStr("api_passthrough_url","").trim();
+              if (api_passthrough_url) {
+                
+                // FORWARD /api REQUESTS TO ANOTHER PORT OR SERVER
+                try {
+                    let api = await axios({
+                        url: api_passthrough_url + cms.url.pathname,
+                        method: cms.req.method || 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        data: cms.bodyText
+                    });
+                    cms.ReturnJson.content = JSON.stringify(api.data);
+                } catch (e) { 
+                    cms.ReturnJson.content = JSON.stringify({"error":e.message});
+                    return; 
+                } // end try
+              } // end if (api_passthrough_url)
+              return; // exit and don't run any of the below
+            }// end if
+        }// end if (api_passthrough_path)
+        
+
         // ================================================ BEGIN
         var fileType = '';
         let pageHead = new iesJSON();
@@ -232,7 +263,7 @@ class webEngine {
                     //cms.form.SpamLevel = SpamLevel; // alread set above
                     //cms.form.SpamReason = SpamReason; // alread set above
                     //cms.form.SubmitDate = iesDB.dbDateTime(DateTime.Now, "DT", "", false); // already set above
-                    cms.SaveFormToLog(cms.form, false);
+                    cms.saveFormToLog(cms.form.formid, cms.form);
                 }
 
                 // Send Email Notification to website owner (if needed)
@@ -349,7 +380,9 @@ class webEngine {
                 }
                 //cms.Html += "Template found: " + templatePath + "<br>";
                 var template = readFileSync(templatePath, 'utf8');
-                cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, this, cms);
+                //Check to see if thisEngine has CustomTags defined. (may or may not be the same as 'this')
+                var thisCustom = (cms.thisEngine && cms.thisEngine.CustomTags) ? cms.thisEngine : cms.hostsiteEngine;
+                cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, thisCustom, cms);
     
             } else {
                 cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
