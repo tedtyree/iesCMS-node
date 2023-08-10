@@ -5,8 +5,10 @@ const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto')
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const iesUser = require("./iesUser.js");
+const { formatWithOptions } = require("util");
 
 Date.prototype.addDays=function(d){return new Date(this.valueOf()+(24*60*60)*d);};
 
@@ -26,6 +28,7 @@ class iesCommonLib {
     constructor() { 
         this.debugMode = 0;
         this.user = {};
+        this.httpQueryId = "0-0";
     }
 
     async AdminTags(ret, Custom, cms) {
@@ -138,6 +141,16 @@ class iesCommonLib {
         ret.ReturnContent += content.toString();
     }
 
+    setHttpQueryId(httpSeqNumber) {
+        function pad(n) { return n < 10 ? "0" + n : n }
+        var d = new Date();
+        var dash = "-";
+        this.httpQueryId = d.getFullYear() +
+                pad(d.getMonth() + 1) +
+                pad(d.getDate()) + dash +
+                httpSeqNumber;
+    }
+
 
     // **************** ReplaceTags()
     async ReplaceTags(inputString, header, content, Custom, cms, lvl = 0) {
@@ -242,6 +255,7 @@ class iesCommonLib {
                     // Check if our return object include JSON
                     if (ret.ReturnJson) {
                         cms.ReturnJson = ret.ReturnJson;  // FUTURE Merge if we already have JSON in cms.ReturnJson??? (otherwise last one wins)
+                        cms.resultType = 'json';
                     }
 
                     // Check if our replacement string has [[tags]] that need to be replaced
@@ -471,6 +485,13 @@ class iesCommonLib {
         }
     }
 
+    PrepForJsonReturn() {
+        this.returnType = 'json';
+        if (!this.ReturnJson) {
+            this.ReturnJson = {};
+        }
+    }
+
     setLogFolder() {
         // FUTURE: specify log folder in site.cfg?
         this.logFile = this.getParamStr("baseFolder","") + "/logs/log_" + this.timestamp() ;
@@ -479,13 +500,13 @@ class iesCommonLib {
     logMessage(debugLevel=1,msg) {
         try {
             if ((this.debugMode >= debugLevel) && this.logFile) {
-                this.appendFile(this.logFile,msg + "\n");
+                this.appendFile(this.logFile,this.httpQueryId + ": " + msg + "\n");
                 // debugger - the line below is not needed unless we are debugging locally - can be commented out for production env
                 console.log(msg);
             }
         }
         catch (errLogMsg) {
-            console.log("ERROR: Failed logMessage() " + errLogMsg.toString() + " [ERR1313]");
+            console.log(this.httpQueryId + ": ERROR: Failed logMessage() " + errLogMsg.toString() + " [ERR1313]");
         }
     }
 
@@ -498,8 +519,12 @@ class iesCommonLib {
             appendFileSync(filePath,outputText); // FUTURE: Do we need certain options here?
         }
         catch (errAppendFile) {
-            console.log("ERROR: Failed appendFile() " + errAppendFile.toString() + " [ERR1314]");
+            console.log(this.httpQueryId + ":ERROR: Failed appendFile() " + errAppendFile.toString() + " [ERR1314]");
         }
+    }
+
+    completeUrl() {
+        return `${this.req.url}`;
     }
 
     // **************** tagReplaceString()
@@ -1124,6 +1149,226 @@ class iesCommonLib {
                   pad(d.getSeconds())
         }
 
+        datetimeNormal() {
+            function pad(n) { return n < 10 ? "0" + n : n }
+            d = new Date();
+            var sepDate = "/";
+            var sepHours = ":";
+            return (d.getMonth() + 1) + sepDate +
+                  d.getDate() + sepDate +
+                  d.getFullYear() + ' ' +
+                  pad(d.getHours()) + sepHours +
+                  pad(d.getMinutes()) + sepHours +
+                  pad(d.getSeconds())
+        }
+
+        dbDatetime() {
+            function pad(n) { return n < 10 ? "0" + n : n }
+            d = new Date();
+            var sepDate = "-";
+            var sepHours = ":";
+            return d.getFullYear() + sepDate +
+                  pad(d.getMonth() + 1) + sepDate +
+                  pad(d.getDate()) + ' ' +
+                  
+                  pad(d.getHours()) + sepHours +
+                  pad(d.getMinutes()) + sepHours +
+                  pad(d.getSeconds())
+        }
+
+        readFormFields(target,source,emailInfo) {
+          try {
+            Object.assign(target,source);
+            
+            if (emailInfo) {
+
+                // add parameters as text to the email body
+                var sBold = "";
+                var sBold2 = "";
+                var strDefMsg = "";
+                var siteTitle = this.getParamStr("SiteTitle");
+                if (emailInfo.isHtml) { 
+                    sBold="<B>";
+                    sBold2="</B>";
+                }
+
+                strDefMsg = "********************************************************************\n" + 
+                        "********************************************************************\n" +
+                        "*** " + siteTitle + " - Web Form Submission\n" +
+                        "*** " + sBold + target.formId + sBold2 + "\n" +
+                        "********************************************************************\n" +
+                        "********************************************************************\n\n";
+            
+                // FUTURE: Can we specify a specific list of fields (fld_list) to include
+                //  rather than including all fields
+                Object.entries(source).forEach(([key, value]) => {
+                    var fld=key;
+                    var val=value;
+                    var chkBox = '_CHECKBOX';
+
+                    //*** WORK AROUND FOR CHECK BOX!!!  (should have suffix "_CHECKBOX")
+                    if (fld.substr(0 - chkBox.length).toUpperCase() == chkBox) {
+                        fld = fld.substr(fld.length - chkBox.length);
+                        if (val) {
+                            val = "Yes"
+                        } else {
+                            val = "";
+                        } // end if (val)
+                    } // end if(fld.substr(0...
+
+                    if (fld.toLowerCase()!="form_id" && fld.toLowerCase()!="form_w") {    //**** form_id/form_w is already included in the header/footer
+                        if (fld.length + val.length > 100) {
+                                    //*** LONG STRING VALUE
+                                    strDefMsg += "\n" + sBold + fld + sBold2 + ":\n" + val + "\n\n";
+                        } else {
+                                    strDefMsg += sBold + fld + sBold2 + ": " + val + "\n";
+                        }
+                    }
+                    //If strFieldList<>"" Then strFieldList=strFieldList & ","
+                    //strFieldList=strFieldList & fld
+                    //If strParams<>"" Then strParams=strParams & "|"
+                    //strParams=strParams & fld & "=" & pEnv.wPakSafe(val)
+
+                    //*** Also put the fields into the frmObj
+                    //oForm.Param(pFld) = "" '*** just in case the next line fails, don't want left-over data.
+                    //oForm.Param(pFld) = Request.Form(val)
+
+                    //target[fld]=val //*** Not needed because we did an assign() above
+                }); // end forEach
+            
+
+    /* FUTURE: See note above about including specific fields vs. all fields
+	If FORM_IncludeOtherFields=True Then
+          For Each fld In Request.Form.Keys
+            'If LCase(Left(fld, 4)) = "fld_" Then
+	    If LCase(fld)<>"submit" AND LCase(fld)<>"reset" AND LCase(fld)<>"x" AND LCase(fld)<>"y" Then
+                'pFld = Mid(fld, 5)
+		pFld = fld
+                val = Request.Form.Item(fld) & ""
+
+                
+                 '*** WORK AROUND FOR CHECK BOX!!!  (should have suffix "_CHECKBOX")
+                 If UCase(Right(pFld, len(chkBox))) = chkBox Then
+                    pFld = Left(pFld, len(pFld) - len(chkBox))
+                    If val <> "" Then
+                        val = "Yes"
+                    Else
+                        val = ""
+                    End If
+                 End If
+
+                If not(objFields.ContainsKey(pFld)) Then
+
+		 If LCase(fld)<>"form_id" and LCase(fld)<>"form_w" Then    '**** form_id/form_w is already included in the header/footer
+                   If (Len(pFld) + Len(val)) > 100 Then
+                    '*** LONG STRING VALUE
+                    strDefMsg = strDefMsg & vbNewLine & sBold & pFld & sBold2 & ":" & vbNewLine & val & vbNewLine & vbNewLine
+                   Else
+                    strDefMsg = strDefMsg & sBold & pFld & sBold2 & ": " & val & vbNewLine
+                   End If
+		 End If
+
+		 If strFieldList<>"" Then strFieldList=strFieldList & ","
+		 strFieldList=strFieldList & pFld
+		 If strParams<>"" Then strParams=strParams & "|"
+		 strParams=strParams & pFld & "=" & pEnv.wPakSafe(val)
+
+                 ''*** Also put the fields into the frmObj
+                 'oForm.Param(pFld) = "" '*** just in case the next line fails, don't want left-over data.
+                 'oForm.Param(pFld) = Request.Form(val)
+
+		 objFields(pFld)=val
+
+		End If '**** Not(objFields.ContainsKey)
+	    End If '*****  If LCase(fld)<>"submit" AND LCase(fld)<>"reset"
+            'End If   '**** Left(fld,4)="fld_"
+          Next
+	End If
+	*/
+                //*** Add Footer...
+                strDefMsg += "\n\n";
+                var form_w =source.form_w || '';
+                if ( form_w.trim().toLowerCase() != this.siteId.trim().toLowerCase()) {
+                    strDefMsg += "(w:" + form_w + ":" + this.siteId + ")\n\n";
+                } else {
+                    strDefMsg += "(w:" + form_w + ")\n\n";
+                } //End If
+
+                emailInfo.body = strDefMsg;
+                emailInfo.isHtml = false;
+            }
+        } catch (exReadFormFields) {
+            var errorMsg = "ERROR: readFormFields(): [ERR4595] " + exReadFormFields;
+            if (target) { target.error=errorMsg; }
+            if (emailInfo) { emailInfo.body = errorMsg; }
+        }
+    } // end function readFormFields()
+
+  //*************************************************************************************** GoSendEmail()
+  //*** GoSendEmail() - Sends email to user/email/etc. defined by wObj object
+    goSendEmail(emailInfo) {
+        var errMsg="";
+        var transporter;
+
+        //*** LOGIN WITH EMAIL ACCOUNT CREDENTIALS
+        var p_email_login = this.getParamStr('email_login');
+        var p_email_pwd = this.getParamStr('email_pwd');
+	    if (p_email_login || p_email_pwd) {
+            transporter = nodemailer.createTransport({
+                port: this.getParamStr('email_smtp_port'),
+                host: this.getParamStr('email_smtp_server'),
+                auth: {
+                    user: p_email_login,
+                    pass: p_email_pwd
+                }
+          });
+        }
+
+        // Future: support other types of transporters
+
+
+        if (!errMsg) {
+          
+          var mailOptions = {
+            from: emailInfo.sendfrom,
+            to: emailInfo.sendto,
+            cc: emailInfo.cc,
+            bcc: emailInfo.bcc,
+            subject: emailInfo.subject,
+          };
+          if (emailInfo.isHtml) {
+              mailOptions.html = emailInfo.body;
+          }
+          else {
+              mailOptions.text = emailInfo.body;
+          }
+          
+          transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+              console.log(error);
+              return error; // error condition
+            } else {
+              console.log('Email sent: ' + info.response);
+              return null; // success
+            }
+          });
+
+        }
+    } // End GoSendEmail()
+	
+    // *************************************************************************************** SaveFormToLog()
+    saveFormToLog(strFormID, formData) {
+
+        var dt = this.dbDatetime();
+        var flds = JSON.stringify(formData);
+        var sql="INSERT INTO wLog (WorldID, FormID, SubmitDate, Params) " +
+            " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', '" + flds.replace(/'/g,"''") + "')";
+        
+        this.db.ExecuteSQL(sql)
+
+        //*** FUTURE: Check for database errors using .then().catch()
+
+    } // End Function
 }
 
 module.exports = iesCommonLib;

@@ -611,33 +611,40 @@ class iesDB {
                 }
             });	
         }
+
+        // This function should be modeled after this.GetDataReader
+        ExecuteSQL(sql) {
+            return new Promise(async (resolve,reject) => {
+                const func="ExecuteSQL()";
+                this.Open()
+                    .then( needToClose => {
+                        this.iExecuteSQL(this.iesConnection, sql)
+                            .then( dr => {
+                                resolve(dr);
+                            })
+                            .catch(err2 => {
+                                reject(this.errPipe(func,"ERR7753",err2));
+                            });
+                    });
+            });
+        }
+
+        // This function should be modeled after iGetDataReader()
+        iExecuteSQL(iConnect, sql) {
+            return new Promise(async (resolve,reject) => {
+                iConnect.query(sql, (err,data) => {
+                    if (err) { 
+                        this.status = -477; // query error
+                        this.statusMessage = "ERROR: Query failed: " + err.message;
+                        console.log(this.statusMessage);
+                        reject(this.statusMessage);
+                        }
+                    resolve(data);
+                });
+            });
+        }
+        
 /*
-        // NOTE! If we OPEN the connection here, the calling function needs to CLOSE the connection!
-        public bool ExecuteSQL(string sql)
-        {
-            if (ConnectStatus != 1) { Open(); }
-            if (ConnectStatus == 1) { return ExecuteSQL(iesConnection, sql); }
-            return false;  // Error
-        }
-
-        public static bool ExecuteSQL(MySqlConnection iConnect, string sql)
-        {
-            bool success = true;
-
-            MySqlCommand sCmd;
-            sCmd = new MySqlCommand(sql, iConnect);
-            try
-            {
-                sCmd.ExecuteNonQuery();
-            }
-            catch (Exception)
-            {
-                success = false;
-            }
-
-            return success;
-        }
-
         // ***********
         // ***********  
         // *********** SaveRecord()
