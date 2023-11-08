@@ -3,6 +3,7 @@
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
 const iesJSON = require('./iesJSON/iesJsonClass.js');
+const iesSpamFilter = require('./iesSpamFilter/iesSpamFilterClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -72,8 +73,6 @@ class iesCommonLib {
 
                 break;
 
-            //case "pageid": // this is handled by cms.HEADER
-
             case "tagz":
                 ret.ReturnContent = "tagz_content";
                 break;
@@ -105,6 +104,9 @@ class iesCommonLib {
                 let siteDomains = cms.getParam('domains');
                 if (siteDomains) { content.append(siteDomains.jsonString || ''); }
                 break;
+            case "pageid": // used to rely on cms.HEADER but that is a bad idea because it requires the admin to put pageid in each page's header section
+                content.append(cms.pageId);
+                break;
             case "mimic":
                 content.append(cms.mimic);
                 break;
@@ -128,6 +130,42 @@ class iesCommonLib {
                 //cms.Response.Write("DEBUG: user level=" + cms.user.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
                 break;
 
+            case "dbcount":
+                let tbl = this.Sanitize(ret.Param1.trim(),100);
+                let where = " WHERE siteid = '" + cms.siteId + "' ";
+                this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
+                let tblRS = await this.db.GetDataReader('SELECT COUNT(*) AS CNT FROM ' + tbl + where);
+                if (!(tblRS == null)) {
+                        for (const tblRec of tblRS) { // should only be 1 row
+                            content.append(tblRec.CNT);
+                        }
+                    }
+                this.db.debugMode = 0; // TEMP DEBUG FUTURE REMOVE THIS
+                break;
+
+            case "dbtop":
+                let tbl2 = this.Sanitize(ret.Param1.trim(),100);
+                let where2 = " WHERE siteid = '" + cms.siteId + "' ";
+                let cnt2 = this.Sanitize(ret.Param2.trim(),40);
+                this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
+                let tblRS2 = await this.db.GetDataReader('SELECT * FROM ' + tbl2 + where2 + ' LIMIT ' + cnt2);
+                if (!(tblRS2 == null)) {
+                    for (const tblRec2 of tblRS2) { // should only be 1 row
+                        content.append(JSON.stringify(tblRec2) + '\n');
+                    }
+                }
+                this.db.debugMode = 0; // TEMP DEBUG FUTURE REMOVE THIS
+                break;
+            case "dbshowtables":
+                this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
+                let tblRS3 = await this.db.GetDataReader('SHOW TABLES');
+                if (!(tblRS3 == null)) {
+                    for (const tblRec3 of tblRS3) { // should only be 1 row
+                        content.append(JSON.stringify(tblRec3) + '\n');
+                    }
+                }
+                this.db.debugMode = 0; // TEMP DEBUG FUTURE REMOVE THIS
+                break;
             default:
                 let vv = this.getParamStr(ret.Tag, null, true, true);
                 if (vv === null) {
@@ -465,8 +503,16 @@ class iesCommonLib {
     }
 
     FormOrUrlParam(paramId, defaultValue = null) {
-        if (this.body.hasOwnProperty(paramId)) {
-            return this.body[paramId];
+		if (this.body) {
+		  if (this.body.hasOwnProperty) {
+			if (this.body.hasOwnProperty(paramId)) {
+				return this.body[paramId];
+			}
+		  } else {
+			if (Object.hasOwnProperty.bind(this.body)(paramId)) {
+				return this.body[paramId];
+			}
+		  }
         }
         return this.urlParam(paramId, defaultValue);
     }
@@ -486,7 +532,7 @@ class iesCommonLib {
     }
 
     PrepForJsonReturn() {
-        this.returnType = 'json';
+        this.resultType = 'json';
         if (!this.ReturnJson) {
             this.ReturnJson = {};
         }
@@ -1355,13 +1401,26 @@ class iesCommonLib {
 
         }
     } // End GoSendEmail()
+
+    // *************************************************************************************** SpamFilter
+    spamFilter;
+
+    configureSpamFilter(SetSpamConfigPath,SetSpamServerPath,SetSpamConfigFile,SetSpamLibFile) {
+        if (!SetSpamConfigPath) {
+            SetSpamConfigPath = this.SITE.getStr("SpamConfigPath") || this.SERVER.getStr("SpamConfigPath");
+        }
+        if (!SetSpamServerPath) {
+            SetSpamServerPath = this.SITE.getStr("SpamServerPath") || this.SERVER.getStr("SpamServerPath");
+        }
+        spamFilter = new iesSpamFilter(SetSpamConfigPath,SetSpamServerPath,SetSpamConfigFile,SetSpamLibFile);
+    }
 	
     // *************************************************************************************** SaveFormToLog()
     saveFormToLog(strFormID, formData) {
 
         var dt = this.dbDatetime();
         var flds = JSON.stringify(formData);
-        var sql="INSERT INTO wLog (WorldID, FormID, SubmitDate, Params) " +
+        var sql="INSERT INTO wLog (siteid, FormID, SubmitDate, Params) " +
             " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', '" + flds.replace(/'/g,"''") + "')";
         
         this.db.ExecuteSQL(sql)

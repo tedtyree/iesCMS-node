@@ -1,6 +1,6 @@
 var http = require('http');
 var url = require('url');
-var axios = require('axios');
+//var axios = require('axios');
 const jwt = require('jsonwebtoken');
 const { parse, stringify } = require('querystring');// form submission 
 const { Console } = require('console');
@@ -223,6 +223,34 @@ http.createServer(async (req, res) => {
       } catch { }
 
       if (!cms.body) { cms.body = {}; }
+
+
+      // EXPERIMENT TEST - FORWARD /api REQUESTS TO ANOTHER PORT OR SERVER
+      // FUTURE - REMOVE THIS TEST SECTION - DEBUG DEBUG DEBUG
+      //if (cms.url.pathname.substr(0,5).toLowerCase() == '/api_NOMATCH/') {
+      //      try {
+      //      let api = await axios({
+      //            url: 'https://api.maddash2u.com' + cms.url.pathname,
+      //            method: cms.req.method || 'GET',
+      //            headers: {
+      //                  'Content-Type': 'application/json'
+      //                },
+      //            data: cms.bodyText
+      //          });
+      //      } catch (e) { 
+      //            let myHeadJ = [];
+      //            myHeadJ.push(['Content-Type', 'application/json']);
+      //            res.writeHead(500, myHeadJ);
+      //            res.end(JSON.stringify({"error":e.message}));
+      //            return; 
+      //      }
+      //
+      //      let myHeadJ = [];
+      //      myHeadJ.push(['Content-Type', 'application/json']);
+      //      res.writeHead(200, myHeadJ);
+      //      res.end(JSON.stringify(api.data));
+      //      return; // exit and don't run any of the below
+      //}
 
       cms.noUser();
       const p = 'z'; //url.parse(req.url,true).pathname;

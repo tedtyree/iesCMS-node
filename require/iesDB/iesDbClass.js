@@ -62,7 +62,7 @@ class iesDB {
     TableForColumnNames = "";
     columnNames = null; // iesJSON object
     historyTable = "whistory"; // future: populate this parameter from SITE config or SERVER config
-
+    debugMode = 0; // set to 9 to get all error messages & detail (FUTURE: need to develop this further)
 
 	constructor(connectObj,dbClass) {
 		if (dbClass) { this.DBClass = dbClass; }
@@ -1242,8 +1242,9 @@ class iesDB {
 
         */
        errPipe(func,errId,errMessage = "") {
-        const errmsg = "ERROR: " + func + " [" + errId + "]";
+        let errmsg = "ERROR: " + func + " [" + errId + "]";
         console.log(errmsg + " " + errMessage);
+        if (this.debugMode > 5) { errmsg += " " + errMessage; }
         return(errmsg);
        }
 

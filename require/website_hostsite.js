@@ -1,7 +1,7 @@
 const StringBuilder = require("string-builder");
 const iesJSON = require('./iesJSON/iesJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
-
+const axios = require('axios');
 const { existsSync, readFileSync } = require('fs');
 const { formatWithOptions } = require("util");
 const _siteID = 'hostsite';
@@ -34,7 +34,7 @@ class webEngine {
         if (api_passthrough_path) {
             if (cms.url.pathname.substr(0,api_passthrough_path.length).toLowerCase() == api_passthrough_path) {
               cms.PrepForJsonReturn();
-              cms.ReturnJson.content = '{"error":"error-001"}'; // default error if we do not process the api call
+              cms.ReturnJson = {"error":"error-001"}; // default error if we do not process the api call
 
               let api_passthrough_url = cms.getParamStr("api_passthrough_url","").trim();
               if (api_passthrough_url) {
@@ -49,16 +49,18 @@ class webEngine {
                         },
                         data: cms.bodyText
                     });
-                    cms.ReturnJson.content = JSON.stringify(api.data);
+                    cms.ReturnJson = api.data;
                 } catch (e) { 
-                    cms.ReturnJson.content = JSON.stringify({"error":e.message});
+                    cms.ReturnJson = {"error":e.message, "data": (e.response)?e.response.data:'', "status":(e.response)?e.response.status:''};
+                    resolve('error-message: ' + e.message); // this is not an actual error condition but a failed attempt. return error message as json.
                     return; 
                 } // end try
               } // end if (api_passthrough_url)
+              resolve(''); // success
               return; // exit and don't run any of the below
             }// end if
         }// end if (api_passthrough_path)
-        
+         
 
         // ================================================ BEGIN
         var fileType = '';
@@ -71,7 +73,7 @@ class webEngine {
         cms.debugMode = cms.getParamNum("debugMode",0);
         cms.setLogFolder();
 
-       // if (this.invalidSiteID(cms)) { return; }
+       // if (this.invalidSiteID(cms)) { reject('invalidSiteID'); return; } // Commented out because "Hostsite" handles processing for other sites
         cms.Html = _siteID + " HTML<br>";
         cms.logMessage(1, _siteID + ".CreateHTML(): for siteId=" + cms.siteId);
         cms.logMessage(4, "URL: [" + cms.completeUrl() + "]");
@@ -181,30 +183,27 @@ class webEngine {
 
             // CheckForSpam
             // FUTURE: Do we need to clip the FormFields? or just the message?  MaxMessageLength
-            var SpamLevel = 0;
-            var SpamReason = "";
-            var FullMessage = cms.emailInfo.body;
+            SpamObj = { SpamFlag: 0
+                ,SpamReason: ""
+                ,FullMessage = cms.emailInfo.body
+            }
 
-            /* FUTURE: SpamFilter...
-            iesSpamFilter.debugLevel = 9; // DEBUG
-            iesSpamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
-            iesSpamFilter.CheckMessage(
-                cms.getParamStr("SpamFolder"),  // Performs tag replacement
-                cms.server.getParamStr("SpamFolderCommon"), // Performs tag replacement
-                FullMessage,
-                SpamLevel,
-                SpamReason);
-            */
+            cms.configureSpamFilter(cms.getParamStr("SpamFolder"),cms.server.getParamStr("SpamFolderCommon"));
+            SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body);
+            cms.spamFilter.debugLevel = 9; // DEBUG
+            cms.spamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
+
+            cms.spamFilter.CheckMessage(SpamObj);
 
             // Indicate SPAM level in the email message			   
-            FullMessage += "SPAM LEVEL=" + SpamLevel + "<br>";
-            if (SpamReason)
+            SpamObj.FullMessage += "SPAM LEVEL=" + SpamObj.SpamFlag + "<br>";
+            if (SpamObj.SpamReason)
             {
-                FullMessage += "DEBUG: SPAM REASON=" + SpamReason + "<br>";
+                SpamObj.FullMessage += "DEBUG: SPAM REASON=" + SpamObj.SpamReason + "<br>";
             }
 
             // Store email Body text into JSON object						 
-            cms.emailInfo.body = FullMessage; // Just in case message got clipped (also includes Spam Level)
+            cms.emailInfo.body = SpamObj.FullMessage; // Just in case message got clipped (also includes Spam Level)
 
             // Check for Captcha...
             var cpStatus = "";
@@ -224,8 +223,8 @@ class webEngine {
 
             // Store parameters in FormFields so they will be available to CustomForms
             //cms.form.FormID = FormID; // alread set above
-            cms.form.SpamLevel = SpamLevel;
-            cms.form.SpamReason = SpamReason;
+            cms.form.SpamLevel = SpamObj.SpamFlag;
+            cms.form.SpamReason = SpamObj.SpamReason;
             cms.form.SubmitDate = cms.datetimeNormal();
 
             // Custom Forms Processing (if specified)
@@ -279,19 +278,19 @@ class webEngine {
                 {
                     this.errorMessage = "Invalid verification code.";
 
-                    cms.pageId = cms.FormOrUrlParam("OnCaptchaGoTo").Trim();
+                    cms.pageId = cms.FormOrUrlParam("OnCaptchaGoTo","").trim();
                     if (cms.pageId == "") { cms.pageId = "form_submit_captcha"; }
                 }
                 else
                 {
                     if (this.errorMessage == "")
                     {
-                        cms.pageId = cms.FormOrUrlParam("OnSuccessGoTo").Trim();
+                        cms.pageId = cms.FormOrUrlParam("OnSuccessGoTo","").trim();
                         if (cms.pageId == "") { cms.pageId = "form_submit_ok"; }
                     }
                     else
                     {
-                        cms.pageId = cms.FormOrUrlParam("OnErrorGoTo").Trim();
+                        cms.pageId = cms.FormOrUrlParam("OnErrorGoTo","").trim();
                         if (cms.pageId == "") { cms.pageId = "form_submit_error"; }
                         // Leave errorMessage to be included in the HTML of form_submit_error
                     } // end if (this.errorMessage=="")
@@ -365,21 +364,25 @@ class webEngine {
                 if (cms.HEADER.contains("ResponseType")) {
                     cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
                 }
-    
-                // Lookup page template (if HTML response expected)
-                pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
-                templatePath = cms.FindFileInFolders(pageTemplate,
-                    './websites/' + cms.siteId + '/templates/',
-                    './cmsCommon/templates/'
-                );
-                if (!templatePath) {
-                    cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
-                    cms.logError("Template not found: pageTemplate[" + pageTemplate + "] [ERR5449]");
-                    reject('ERROR: Template not found. [ERR5449]');
-                    return;
+                var template = '';
+                if (cms.urlParam("contentonly","").trim().toLowerCase() == "true") {
+                    template  = "[[content_area]]";
+                } else {
+                    // Lookup page template (if HTML response expected)
+                    pageTemplate = "layout_" + pageHead.getStr("Template") + ".cfg";
+                    templatePath = cms.FindFileInFolders(pageTemplate,
+                        './websites/' + cms.siteId + '/templates/',
+                        './cmsCommon/templates/'
+                    );
+                    if (!templatePath) {
+                        cms.Html += "ERROR: Template not found: " + pageTemplate + "<br>";
+                        cms.logError("Template not found: pageTemplate[" + pageTemplate + "] [ERR5449]");
+                        reject('ERROR: Template not found. [ERR5449]');
+                        return;
+                    }
+                    //cms.Html += "Template found: " + templatePath + "<br>";
+                    template = readFileSync(templatePath, 'utf8');
                 }
-                //cms.Html += "Template found: " + templatePath + "<br>";
-                var template = readFileSync(templatePath, 'utf8');
                 //Check to see if thisEngine has CustomTags defined. (may or may not be the same as 'this')
                 var thisCustom = (cms.thisEngine && cms.thisEngine.CustomTags) ? cms.thisEngine : cms.hostsiteEngine;
                 cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, thisCustom, cms);
