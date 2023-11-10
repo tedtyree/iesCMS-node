@@ -54,74 +54,75 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 const fs = require('fs');
 const StringBuilder = require("string-builder");
+const iesJSON = require('../iesJSON/iesJsonClass.js');
 
 class iesSpamFilter {
 	
     debugLevel = 0; // Set this to a value of 1-9 to get a LOG of activity in debugMsg.
     debugMsg = "";
-    spamConfigPath = "";
-    spamServerPath = "";
+    spamFolderSite = "";
+    spamFolderCommon = "";
     spamConfigFile = "spam.cfg";
     spamLibFile = "spam-library.cfg";
     FolderSeparator = '/';
 
-    constructor(SetSpamConfigPath,SetSpamServerPath,SetSpamConfigFile,SetSpamLibFile) {
-		if (SetSpamConfigPath) { spamConfigPath = SetSpamConfigPath; }
-        if (SetSpamServerPath) { spamServerPath = SetSpamServerPath; }
-        if (SetSpamConfigFile) { spamConfigFile = SetSpamConfigFile; }
-        if (SetSpamLibFile) { spamLibFile = SetSpamLibFile; }
+    constructor(SpamFolderSite,SpamFolderCommon,SetSpamConfigFile,SetSpamLibFile) {
+		if (SpamFolderSite) { this.spamFolderSite = SpamFolderSite; }
+        if (SpamFolderCommon) { this.spamFolderCommon = SpamFolderCommon; }
+        if (SetSpamConfigFile) { this.spamConfigFile = SetSpamConfigFile; }
+        if (SetSpamLibFile) { this.spamLibFile = SetSpamLibFile; }
 	}
 
-    NewSpamObj(FullMessage = "", SpamFlag = 0, SpamReason = "") {
-        return {SpamFlag, SpamReason, FullMessage};
+    newSpamObj(FullMessage = "", SpamLevel = 0, SpamReason = "") {
+        return {SpamLevel, SpamReason, FullMessage};
     }
 
     // CheckMessage() - process FullMessage and determine if it is spam
     // Return: 0=not spam (or spam not checked), 1+ = recognized as spam with higher numbers indicating more likely to be spam.
     // Return: <0 Error/Warning and Spam not checked
     // NOTE: FullMessage is an input and an output.  If MaxMessageLength and ClipIfTooLong are set, this routine may clip the text message.
-    // NOTE: SpamObj = {FullMessage, SpamFlag, SpamReason}
+    // NOTE: SpamObj = {FullMessage, SpamLevel, SpamReason}
     CheckMessage(SpamObj)
     {
 
-        SpamObj.SpamFlag = 0;
+        SpamObj.SpamLevel = 0;
         SpamObj.SpamReason = "";
-        reason = "";
+        var reason = "";
 
         // Attempt to read spam.cfg file - if it does not exist, then this website does not check for spam
-        if (isNullOrWhiteSpace(spamConfigPath))
+        if (this.isNullOrWhiteSpace(this.spamFolderSite))
         {
-            SpamObj.SpamFlag = -1;
-            SpamObj.SpamReason = "spamConfigPath not specified.";
-            if (debugLevel > 0) { debugMsg = SpamObj.SpamReason; }
+            SpamObj.SpamLevel = -1;
+            SpamObj.SpamReason = "spamFolderSite not specified.";
+            if (this.debugLevel > 0) { this.debugMsg = SpamObj.SpamReason; }
             return;
         }
-        if (!Directory.Exists(spamConfigPath))
+        if (!fs.existsSync(this.spamFolderSite))
         {
-            SpamObj.SpamFlag = -2;
-            SpamObj.SpamReason = "SpamConfigPath not found: " + spamConfigPath;
-            if (debugLevel > 0) { debugMsg = SpamObj.SpamReason; }
+            SpamObj.SpamLevel = -2;
+            SpamObj.SpamReason = "spamFolderSite not found: " + this.spamFolderSite;
+            if (this.debugLevel > 0) { this.debugMsg = SpamObj.SpamReason; }
             return;
         }
-        fullPath = spamConfigPath + FolderSeparator + spamConfigFile;
-        if (!File.Exists(fullPath))
+        var fullPath = this.spamFolderSite + this.FolderSeparator + this.spamConfigFile;
+        if (!fs.existsSync(fullPath))
         {
-            SpamObj.SpamFlag = -3;
+            SpamObj.SpamLevel = -3;
             SpamObj.SpamReason = "SpamConfig file not found: " + fullPath;
-            if (debugLevel > 0) { debugMsg = SpamObj.SpamReason; }
+            if (this.debugLevel > 0) { this.debugMsg = SpamObj.SpamReason; }
             return;
         }
         // Load spam.cfg
-        spamCfg = new iesJSON();
+        var spamCfg = new iesJSON();
         spamCfg.DeserializeFlexFile(fullPath);
         if (spamCfg.Status != 0)
         {
-            SpamObj.SpamFlag = -4;
+            SpamObj.SpamLevel = -4;
             SpamObj.SpamReason = "SpamConfig did not load correctly: " + fullPath;
-            if (debugLevel > 0)
+            if (this.debugLevel > 0)
             {
-                debugMsg = SpamObj.SpamReason;
-                debugMsg += "\r\nDeserializeFlexFile error status: " + spamCfg.Status;
+                this.debugMsg = SpamObj.SpamReason;
+                this.debugMsg += "\r\nDeserializeFlexFile error status: " + spamCfg.Status;
             }
             return;
         }
@@ -129,15 +130,15 @@ class iesSpamFilter {
         // If SpamFilterOn!=TRUE then the filter is turned off and we should exit.
         if (!spamCfg.getBool("SpamFilterOn",false))
         {
-            SpamObj.SpamFlag = -5;
+            SpamObj.SpamLevel = -5;
             SpamObj.SpamReason = "Spam Filter turned off.  SpamFilterOn=" + spamCfg.getStr("SpamFilterOn");
-            if (debugLevel > 0) { debugMsg = SpamObj.SpamReason; }
+            if (this.debugLevel > 0) { this.debugMsg = SpamObj.SpamReason; }
             return;
         }
 
         // Limit length of message?  MaxMessageLength
         // IsSpamIfTooLong/ClipIfTooLong
-        MaxLength = spamCfg.getNum("MaxMessageLength",0);
+        var MaxLength = spamCfg.getNum("MaxMessageLength",0);
         if (MaxLength > 0)
         {
             if (SpamObj.FullMessage.Length > MaxLength)
@@ -146,126 +147,123 @@ class iesSpamFilter {
                 if (spamCfg.getBool("IsSpamIfTooLong",false))
                 {
                     // Identified SPAM
-                    SpamObj.SpamFlag += 1;
+                    SpamObj.SpamLevel += 1;
                     reason = "Exceeded MaxMessageLength: " + SpamObj.FullMessage.Length + "\r\n";
                     if (SpamReason.Length > 0) { SpamReason += ","; }
                     SpamReason += reason;
-                    if (debugLevel > 0) { debugMsg += "SPAM: " + reason; }
+                    if (this.debugLevel > 0) { this.debugMsg += "SPAM: " + reason; }
                 }
                 if (spamCfg.getBool("ClipIfTooLong",false))
                 {
                     // Clip message to MAX length
                     SpamObj.FullMessage = SpamObj.FullMessage.Substring(0, MaxLength);
-                    if (debugLevel > 0) { debugMsg += "CLIP MESSAGE TO MAX LENGTH: " + MaxLength + "\r\n"; }
+                    if (this.debugLevel > 0) { this.debugMsg += "CLIP MESSAGE TO MAX LENGTH: " + MaxLength + "\r\n"; }
                 }
             }
         }
         else
         {
-            if (debugLevel > 0) { debugMsg += "Do NOT check for MaxMessageLength\r\n"; }
+            if (this.debugLevel > 0) { this.debugMsg += "Do NOT check for MaxMessageLength\r\n"; }
         }
 
         // If MaxNonTextCharacters>0 then perform check...  Check for a count > the number specified.
-        MinCheckCount = spamCfg.getNum("MaxNonTextCharacters",0);
+        var MinCheckCount = spamCfg.getNum("MaxNonTextCharacters",0);
         if (MinCheckCount > 0)
         {
-            if (debugLevel > 0) { debugMsg += "Check For MaxNonTextCharacters: "; }
-            NonTextCount = 0;
-            txt = SpamObj.FullMessage.Replace("\r", "");
-            txt = txt.Replace("\n", "");
+            if (this.debugLevel > 0) { this.debugMsg += "Check For MaxNonTextCharacters: "; }
+            var NonTextCount = 0;
+            var txt = SpamObj.FullMessage.replace(/[a-zA-Z0-9! @#$%^~&*()_+\-=\[\]{};':\"\\|,.<>\/?\r\n]/g, "");
+            var NonTextCount = txt.length;
 
-            //NonTextCount = Regex.Matches(FullMessage, @"[^a-z 0-9]").Count;
-            //NonTextCount = Regex.Matches(txt, "[^a-zA-Z0-9! @#$%^~&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]").Count;
-            txt = Regex.Replace(txt, "[a-zA-Z0-9! @#$%^~&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]", "");
-            NonTextCount = txt.Length;
-
-            if (debugLevel > 0) { debugMsg += "Check For MaxNonTextCharacters: " + NonTextCount; }
+            if (this.debugLevel > 0) { this.debugMsg += "Check For MaxNonTextCharacters: " + NonTextCount; }
             if (NonTextCount >= MinCheckCount)
             {
                 // Identified SPAM
-                SpamObj.SpamFlag += 1;
+                SpamObj.SpamLevel += 1;
                 reason = "NonTextCharacters=" + NonTextCount + "\r\n";
                 if (SpamObj.SpamReason.Length > 0) { SpamObj.SpamReason += ","; }
                 SpamObj.SpamReason += reason;
-                if (debugLevel > 0) { debugMsg += "SPAM: " + reason; }
+                if (this.debugLevel > 0) { this.debugMsg += "SPAM: " + reason; }
             }
         }
         else
         {
-            if (debugLevel > 0) { debugMsg += "Do NOT Check For MaxNonTextCharacters\r\n"; }
+            if (this.debugLevel > 0) { this.debugMsg += "Do NOT Check For MaxNonTextCharacters\r\n"; }
         }
 
         // Now lets see if we should be checking spam using the spam-library.cfg
         if (spamCfg.getBool("CheckAgainstSpamLibrary",false))
         {
             // Check if local spam folder has its own spam-library.cfg
-            libPath = spamConfigPath + FolderSeparator + spamLibFile;
-            if (!File.Exists(libPath))
+            var libPath = this.spamFolderSite + this.FolderSeparator + this.spamLibFile;
+            if (!fs.existsSync(libPath))
             {
-                libPath = spamServerPath + FolderSeparator + spamLibFile;
-                if (!File.Exists(libPath)) { libPath = ""; }
+                libPath = this.spamFolderCommon + this.FolderSeparator + this.spamLibFile;
+                if (!fs.existsSync(libPath)) { libPath = ""; }
             }
-            if (isNullOrWhiteSpace(libPath))
+            if (this.isNullOrWhiteSpace(libPath))
             {
-                if (debugLevel > 0) { debugMsg += "Spam Library not found: " + spamLibFile + "\r\n"; }
+                SpamObj.SpamLevel = -7;
+                SpamObj.SpamReason = "Spam Library not found: " + this.spamLibFile;
+                if (this.debugLevel > 0) { this.debugMsg += "Spam Library not found: " + this.spamLibFile + "\r\n"; }
             }
             else
             {
 
                 //Read Library of SPAM Regex Defintions
-                spamLib = new iesJSON();
+                var spamLib = new iesJSON();
                 spamLib.DeserializeFlexFile(libPath);
                 if (spamLib.Status != 0)
                 {
                     reason = "SpamConfig did not load correctly: " + libPath;
                     if (SpamObj.SpamReason.Length > 0) { SpamObj.SpamReason += ","; }
                     SpamObj.SpamReason += reason;
-                    if (debugLevel > 0)
+                    if (this.debugLevel > 0)
                     {
-                        debugMsg += reason;
-                        debugMsg += "\r\nDeserializeFlexFile error status: " + spamLib.Status;
+                        this.debugMsg += reason;
+                        this.debugMsg += "\r\nDeserializeFlexFile error status: " + spamLib.Status;
                     }
                 }
                 else
                 {
                     // PROCESS CONFIG FILE
-                    spamArray = spamLib.toJsonArray(); // Convert iesJSON object to a javascript array
+                    var spamArray = spamLib.toJsonArray(); // Convert iesJSON object to a javascript array
                     for (const rx of spamArray)
                     {
-                        rxID = rx.getStr("id","");
-                        rxMatch = rx.getStr("regex","");
-                        if (!isNullOrWhiteSpace(rxMatch))
+                        var rxID = rx.getStr("id","");
+                        var rxMatch = rx.getStr("regex","");
+                        if (!this.isNullOrWhiteSpace(rxMatch))
                         {
                             try
                             {
-                                if (debugLevel > 2) { debugMsg += "Check Spam Regex: " + rxID + "\r\n"; }
+                                if (this.debugLevel > 2) { this.debugMsg += "Check Spam Regex: " + rxID + "\r\n"; }
 
                                 // Instantiate the regular expression object.
-                                r = new RegExp(rxMatch, "i");
+                                var r = new RegExp(rxMatch, "i");
 
                                 // Match the regular expression pattern against a text string.
-                                m = SpamObj.FullMessage.match(r);
+                                var m = SpamObj.FullMessage.match(r);
                                 if (m) // check for 1 or more matches
                                 {
-                                    SpamObj.SpamFlag += 1;
+                                    SpamObj.SpamLevel += 1;
                                     reason = "Found Spam Match: " + rxID + "\r\n";
                                     if (SpamObj.SpamReason.Length > 0) { SpamObj.SpamReason += ","; }
                                     SpamObj.SpamReason += reason;
-                                    if (debugLevel > 0) { debugMsg += reason; }
+                                    if (this.debugLevel > 0) { this.debugMsg += reason; }
                                 }
                             }
                             catch (regexErr)
                             {
-                                if (debugLevel > 0)
+                                if (this.debugLevel > 0)
                                 {
-                                    debugMsg += "ERROR: Regex failed: rxID=" + rxID + " Regex=" + rxMatch + "\r\n";
-                                    debugMsg += "REGEX ERROR MESSAGE: " + regexErr.message;
+                                    this.debugMsg += "ERROR: Regex failed: rxID=" + rxID + " Regex=" + rxMatch + "\r\n";
+                                    this.debugMsg += "REGEX ERROR MESSAGE: " + regexErr.message;
                                 }
                             }
-                        } // end if !isNullOrWhiteSpace(rxMatch)
+                        } // end if !this.isNullOrWhiteSpace(rxMatch)
                     } // End foreach
                 }
-            } // End if (isNullOrWhiteSpace(libPath))
+            } // End if (this.isNullOrWhiteSpace(libPath))
 
         } // End if (spamCfg.getBool("CheckAgainstSpamLibrary",false))
 

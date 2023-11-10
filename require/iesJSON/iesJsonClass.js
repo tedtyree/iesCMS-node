@@ -817,6 +817,7 @@ class iesJSON {
             let safety = jsonEndPoint+999;
             let ok = false;
             let breakBreak = false;
+            let storeStatus = iesJsonConstants.ST_BEFORE_ITEM;  // should not matter, but just in case
             while (meStatus >= 0 && this._status >= 0 && mePos.absolutePosition <= jsonEndPoint) {
                 c = meJsonString.charAt(mePos.absolutePosition);
                 if (mePos.absolutePosition < jsonEndPoint) { c2=meJsonString.substr(mePos.absolutePosition,2); } else { c2 = ""; }
@@ -923,12 +924,14 @@ class iesJSON {
                         if (this._UseFlexJson) {
                             if (c2=="//") { // start of to-end-of-line comment
                                 ok=true;
+                                storeStatus = meStatus;
                                 meStatus = iesJsonConstants.ST_EOL_COMMENT_POST;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
                             }
                             if (c2=="/*") { // start of asterix comment
                                 ok=true;
+                                storeStatus = meStatus;
                                 meStatus = iesJsonConstants.ST_AST_COMMENT_POST;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
@@ -954,16 +957,22 @@ class iesJSON {
                         if (c2==iesJsonConstants.NEWLINE) {
                             ok = true;
                             if(keepSP) { getSpace += c2; }
+                            meStatus = storeStatus;
+                            /* Replaced this logic with the line above that returns to the previous status
                             if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
                             else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            */
                             mePos.incrementLine(2);
                             continue; // NOTE: Here we must skip the end of the do loop so that we do not increment the counter again
                         }
                         else if (c=='\n' || c=='\r') {
                             ok = true;
                             if(keepSP) { getSpace += c; }
+                            meStatus = storeStatus;
+                            /* Replaced this logic with the line above that returns to the previous status
                             if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
                             else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            */
                         }
                         else { // absorb all comment characters
                             ok = true;
@@ -975,8 +984,11 @@ class iesJSON {
                         if (c2=="*/") {
                             ok = true;
                             if(keepSP) { getSpace += c2; }
+                            meStatus = storeStatus;
+                            /* Replaced this logic with the line above that returns to the previous status
                             if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
                             else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            */
                             mePos.increment(); // increment by 1 here - increments again at bottom of do loop
                         }
                         else { // absorb all comment characters

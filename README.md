@@ -47,3 +47,13 @@ node makeTruffle.js
 Enter userid/pwd of BD Admin
 >> this reads /secrets/server.cfg (parameters: truffleId, ServerId)
 >> this generates /secrets/trufflebd.cfg
+
+# Run app on server using pm2
+login to server using ssh
+sudo su - s57app
+cd /var/www/iescms
+pm2 start app.js  (see notes in server setup doc)
+pm2 list
+# restart app
+pm2 restart app
+

@@ -166,6 +166,14 @@ class iesCommonLib {
                 }
                 this.db.debugMode = 0; // TEMP DEBUG FUTURE REMOVE THIS
                 break;
+			case "debugmode":
+				content.append(this.debugMode);
+				break;
+				
+			case "logfile":
+				content.append(this.logFile);
+				break;
+				
             default:
                 let vv = this.getParamStr(ret.Tag, null, true, true);
                 if (vv === null) {
@@ -1405,14 +1413,14 @@ class iesCommonLib {
     // *************************************************************************************** SpamFilter
     spamFilter;
 
-    configureSpamFilter(SetSpamConfigPath,SetSpamServerPath,SetSpamConfigFile,SetSpamLibFile) {
-        if (!SetSpamConfigPath) {
-            SetSpamConfigPath = this.SITE.getStr("SpamConfigPath") || this.SERVER.getStr("SpamConfigPath");
+    configureSpamFilter(SpamFolderSite,SpamFolderCommon,SetSpamConfigFile,SetSpamLibFile) {
+        if (!SpamFolderSite) {
+            SpamFolderSite = this.getParamStr("SpamFolder","",true,false);
         }
-        if (!SetSpamServerPath) {
-            SetSpamServerPath = this.SITE.getStr("SpamServerPath") || this.SERVER.getStr("SpamServerPath");
+        if (!SpamFolderCommon) {
+            SpamFolderCommon = this.getParamStr("SpamFolderCommon","",true,false);
         }
-        spamFilter = new iesSpamFilter(SetSpamConfigPath,SetSpamServerPath,SetSpamConfigFile,SetSpamLibFile);
+        this.spamFilter = new iesSpamFilter(SpamFolderSite,SpamFolderCommon,SetSpamConfigFile,SetSpamLibFile);
     }
 	
     // *************************************************************************************** SaveFormToLog()
@@ -1422,7 +1430,7 @@ class iesCommonLib {
         var flds = JSON.stringify(formData);
         var sql="INSERT INTO wLog (siteid, FormID, SubmitDate, Params) " +
             " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', '" + flds.replace(/'/g,"''") + "')";
-        
+        //this.logMessage('DEBUG: sql=' + sql,0); // DEBUG FUTURE REMOVE THIS LINE
         this.db.ExecuteSQL(sql)
 
         //*** FUTURE: Check for database errors using .then().catch()

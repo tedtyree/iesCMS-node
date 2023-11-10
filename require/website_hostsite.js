@@ -183,20 +183,16 @@ class webEngine {
 
             // CheckForSpam
             // FUTURE: Do we need to clip the FormFields? or just the message?  MaxMessageLength
-            SpamObj = { SpamFlag: 0
-                ,SpamReason: ""
-                ,FullMessage = cms.emailInfo.body
-            }
-
-            cms.configureSpamFilter(cms.getParamStr("SpamFolder"),cms.server.getParamStr("SpamFolderCommon"));
-            SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body);
+            // FUTURE: Where do we check if setup indicates spam filtering yes/no
+            cms.configureSpamFilter(cms.getParamStr("SpamFolder","",true,false)||cms.getParamStr("SpamFolderCommon","",true,false));
+            var SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body);
             cms.spamFilter.debugLevel = 9; // DEBUG
             cms.spamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
 
             cms.spamFilter.CheckMessage(SpamObj);
 
             // Indicate SPAM level in the email message			   
-            SpamObj.FullMessage += "SPAM LEVEL=" + SpamObj.SpamFlag + "<br>";
+            SpamObj.FullMessage += "SPAM LEVEL=" + SpamObj.SpamLevel + "<br>";
             if (SpamObj.SpamReason)
             {
                 SpamObj.FullMessage += "DEBUG: SPAM REASON=" + SpamObj.SpamReason + "<br>";
@@ -218,20 +214,20 @@ class webEngine {
             var FormProcessedFlag = false;
             var LogFormFlag = true;
             var EmailFormFlag = true;
-            var CheckSpamFlag = true;
+            var CheckSpamLevel = true;
             var FormError = "";
 
             // Store parameters in FormFields so they will be available to CustomForms
             //cms.form.FormID = FormID; // alread set above
-            cms.form.SpamLevel = SpamObj.SpamFlag;
+            cms.form.SpamLevel = SpamObj.SpamLevel;
             cms.form.SpamReason = SpamObj.SpamReason;
             cms.form.SubmitDate = cms.datetimeNormal();
 
             // Custom Forms Processing (if specified)
             if (cms.thisEngine && cms.thisEngine.CustomForms) {
-                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamFlag, cms);
+                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamLevel, cms);
             } else if (cms.hostsiteEngine && cms.hostsiteEngine.CustomForms) {
-                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamFlag, cms);
+                FormError = cms.thisEngine.CustomForms(cms.form, cms.form.formid, FormProcessedFlag, LogFormFlag, EmailFormFlag, CheckSpamLevel, cms);
             }
             if (FormError)
             {
@@ -249,7 +245,7 @@ class webEngine {
             } // end if
 
             // If this is SPAM don't send the email
-            if (SpamLevel > 0) { EmailFormFlag = false; }
+            if (SpamObj.SpamLevel > 0) { EmailFormFlag = false; }
 
             // LOG/EMAIL form...
             // If request was for runcmd then we don't do any of this because the CustomForm() routine already generated a response.
