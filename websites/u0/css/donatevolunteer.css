@@ -1,0 +1,141 @@
+/************* Containers ************/
+
+.donateBodyTopRow,
+.donateBodyBottomRow {
+    margin: 3% 1%;
+}
+
+.donateBodyTopRowCard,
+.donateBodyBottomRowCard,
+.donateBodyTopRowPaymentCard {
+    margin: auto;
+    border-radius: 1.375rem;
+    box-shadow: 2px 2px 5px rgb(191, 190, 190);
+}
+
+.donateBodyTopRowPaymentCard {
+    width:50%;
+    margin: auto;
+    padding: 1%;
+    background-color: rgb(242, 238, 234);
+    border: none;
+}
+
+.donateBodyTopRowPaymentCardBody {
+    margin: auto;
+    width: 80%;
+}
+
+.donateBodyBottomRowCardImageBox {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+
+/*********** Headings ***********/
+
+.donateTopRowMainHeading,
+.donateBottomRowMainHeading,
+.donateBodyTopRowCardTitle,
+.donateBodyBottomRowCardTitle,
+.donateBodyTopRowPaymentCardSubTitle {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Serif Georgian', serif;
+    font-weight: bold;
+    font-size: 20pt;
+}
+
+/*********** Text ***********/
+
+.donateBodyTopRowCardText,
+.donateBodyBottomRowCardText,
+.donateBodyTopRowPaymentCardText {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Sans Georgian', sans-serif;
+}
+
+.donateBodyTopRowPaymentCardText {
+    font-weight: bold;
+    font-size: 12pt;
+}
+/*********** Images ***********/
+
+.fa-credit-card-alt {
+    margin:2%;
+    color: #246461;
+}
+
+figcaption {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Sans Georgian', sans-serif;
+}
+
+.donateBodyBottomRowCardFig {
+    width: 30%;
+}
+
+.donateBodyBottomRowCardImg {
+    width: 100%;
+    border:2px solid #246461;
+    box-shadow: 4px 5px 10px rgb(75, 132, 129);
+    border-radius: 1.375rem;
+    margin: 2% auto;
+    height: 60%;
+}
+
+/*********** Buttons ***********/
+
+.donateBodyTopRowCardBtn,
+.donateBodyBottomRowCardBtn {
+    width: 20%;
+}
+
+.donateBodyTopRowPaymentCardBtn {
+    width: 100%;
+    margin: 2%;
+}
+
+/******************************************/
+
+/*********** Media Queries ***********/
+
+/******************************************/
+
+@media screen and (max-width: 800px) {
+
+     /******** Headings *******/
+
+    .donateBodyTopRowPaymentCardSubTitle {
+        font-size: 16pt;
+    }
+
+}
+@media screen and (max-width: 700px) {
+
+     /******** Containers *******/
+
+    .donateBodyTopRowPaymentCard {
+        width:80%;
+    }
+
+    /******** Headings *******/
+
+    .donateBodyBottomRowPaymentCardSubTitle {
+        font-size: 10pt;
+    }
+
+    /*********** Buttons ***********/
+
+    .donateBodyTopRowCardBtn,
+    .donateBodyBottomRowCardBtn {
+        width: 40%;
+    }
+
+    .fa {
+        margin: auto;
+    }
+}

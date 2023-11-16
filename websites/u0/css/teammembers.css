@@ -1,0 +1,44 @@
+/************* Containers ************/
+
+.teamMemberCard{
+    margin: 1.5%;
+    padding: 2%;
+    border: 1px solid #246461;
+    border-radius: 1.375rem;
+    box-shadow: 2px 2px 5px rgb(191, 190, 190);
+    background-color: white;
+}
+
+/*********** Headings ***********/
+
+.teamMemberMainHeading {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Serif Georgian', serif;
+}
+
+.teamMemberCardTitle{
+    color: #246461;
+    font-family: 'Noto Serif Georgian', serif;
+    font-weight: bold;
+    text-align: center;
+    margin: 0.2em;
+}
+
+/*********** Text ***********/
+
+.teamMemberCardText {
+    color: #246461;
+    font-family: 'Noto Sans Georgian', sans-serif;
+    text-align: justify;
+}
+
+/********** Images  *********/
+
+.teamMemberCardImage {
+    margin: 0 auto;
+    display: block;
+    border-radius: 50%;
+    width:40%;
+}
+

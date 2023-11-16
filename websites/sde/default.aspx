@@ -2291,7 +2291,7 @@ Function Captcha(cSelect as String) as String
 
 	MakeBuyNow=""
 	MakeBuyNow=MakeBuyNow & "<form target=paypal action=""https://www.paypal.com/cgi-bin/webscr"" method=post class=Form2a style=""margin:2px;"">"
-	MakeBuyNow=MakeBuyNow & "<input type=image src=""/" & wWorld  & "/images/BuyNow.gif"" border=0 name=submit alt=""Purchase this item using PayPal - it's fast, free and secure! – Click here."">"
+	MakeBuyNow=MakeBuyNow & "<input type=image src=""/" & wWorld  & "/images/BuyNow.gif"" border=0 name=submit alt=""Purchase this item using PayPal - it's fast, free and secure! ï¿½ Click here."">"
 	MakeBuyNow=MakeBuyNow & "<input type=hidden name=add value=1>"
 	MakeBuyNow=MakeBuyNow & "<input type=hidden name=cmd value=""_cart"">"
 	MakeBuyNow=MakeBuyNow & "<input type=hidden name=business value=""cprheartstarters@aol.com"">"

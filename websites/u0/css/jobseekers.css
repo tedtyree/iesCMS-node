@@ -1,0 +1,155 @@
+/************* Containers ************/
+
+.jobBodyRow {
+    justify-content: space-evenly;
+    box-sizing: border-box;
+    margin-top: 5%;
+}
+
+/* Left Container */
+.jobBodyLeftCol {
+    padding: 2%;
+    border: 1px solid #246461;
+    border-radius: 1%;
+    box-shadow: 3px 3px 10px rgb(165, 165, 165);
+    background-color: white;
+}
+
+.jobBodyLeftColCard {
+    margin-bottom: 2.5%;
+    background-color: #F2EEEA;
+    border-radius: 1.375rem;
+    border: none;
+    box-shadow: 2px 2px 5px rgb(191, 190, 190);
+}
+
+/* Right Container */
+.jobBodyRightCol {
+    margin-left:1.5%;
+    padding: 2%;
+    border: 1px solid #246461;
+    border-radius: 1%;
+    box-shadow: 3px 3px 10px rgb(165, 165, 165);
+    background-color: white;
+}
+
+.jobBodyRightColCard {
+    margin-bottom: 1.5%;
+}
+
+.jobBodyRightColCardOverlay {
+    justify-content: center;
+    background-color: rgba(2, 2, 2, 0.7)!important;
+}
+
+/*********** Headings ***********/
+
+.jobMainHeading,
+.jobBodyLeftColHeading,
+.jobBodyRightColHeading {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Serif Georgian', serif;
+}
+
+/* Left */
+.jobBodyLeftColCardTitle {
+    color: #246461;
+    font-family: 'Noto Serif Georgian', serif;
+    font-weight: bold;
+}
+
+/* Right */
+.jobBodyRightColCardTitle {
+    color: white;
+    font-size: 20pt;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-left: 0.5em;
+}
+
+/*********** Text ***********/
+
+/* Left */
+.jobBodyLeftColCardText,
+.jobBodyLeftColCardText:hover,
+.jobBodyLeftColCardText:focus {
+    color: #246461;
+    font-family: 'Noto Sans Georgian', sans-serif;
+}
+
+/*********** Images ***********/
+
+/* Right */
+.jobBodyRightColCardImage {
+    height: 10vw;
+}
+
+.bi-laptop-fill,
+.bi-book-half,
+.bi-card-text {
+    width: 14%;
+}
+
+/******************************************/
+
+/*********** Media Queries ***********/
+
+/******************************************/
+
+@media screen and (max-width: 800px) {
+
+    /*********** Images ***********/
+
+    /* Right */
+    .jobBodyRightColCardImage {
+        height: 30vw;
+    }
+
+    .bi-laptop-fill,
+    .bi-book-half,
+    .bi-card-text {
+        width: 28%;
+    }
+}
+
+@media screen and (max-width: 660px) {
+
+    /*********** Headings ***********/
+
+    .jobBodyRightColCardTitle {
+        font-size: 16pt;
+    }
+
+    /*********** Images ***********/
+
+    /* Right */
+    .bi-laptop-fill,
+    .bi-book-half,
+    .bi-card-text {
+        width: 48%;
+    }
+}
+
+@media screen and (max-width: 550px) {
+
+    /*********** Images ***********/
+
+    /* Right */
+    .bi-laptop-fill,
+    .bi-book-half,
+    .bi-card-text {
+        width: 58%;
+    }
+}
+
+@media screen and (max-width: 450px) {
+
+    /*********** Images ***********/
+
+    /* Right */
+    .bi-laptop-fill,
+    .bi-book-half,
+    .bi-card-text {
+        display: none;
+    }
+}

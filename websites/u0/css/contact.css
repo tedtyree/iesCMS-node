@@ -1,0 +1,145 @@
+.profile-img{
+    max-width: 90%;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    margin: 0 auto;
+    display: block;
+
+    border-radius: 50%;
+    border: 3px solid #fff;
+}
+
+.m-t-5{
+    margin-top: 5px;   
+}
+
+div.body{
+    padding: 3%;
+}
+
+.div-btn{
+    margin: 0 auto;
+}
+
+.team-head-profile{
+    border-radius: 50%;
+    border: 3px solid #fff;
+}
+
+div > p{
+    margin: 1% 0;
+    padding: 0;
+}
+
+a {
+    color: #f96332;
+}
+
+.team-head-profile{
+border: 3px solid black;
+}
+
+.card {
+    background: #fff;
+    margin-bottom: 30px;
+    transition: .5s;
+    border: 0;
+    border-radius: 2.5em;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: relative;
+    width: 100%;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+}
+
+
+
+/****************** 
+    FORM STYLING 
+******************/
+.contact-btn{
+    margin: 0 1%;
+}
+
+
+.section-title h1{
+    color: #246461;
+}
+
+.contact-section {
+    background-color: white;
+    width: 60%;
+    margin: 0 auto;
+    border-radius: .5em;
+    padding: 1%;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+}
+
+hr{
+    margin-bottom: 5%;
+}
+
+.form-img{
+    width: 30%;
+    margin-right: 8%;
+}
+
+label{
+    white-space: nowrap;
+}
+
+.contact input, textarea{
+    background: #fff;
+    border: .5px solid #9F9F9F;
+    border-radius: 3px;
+    color: #232434;
+    padding: 3%;
+    padding-left: 5%;
+    -o-transition: all 0.3s ease 0s;
+    transition: all 0.3s ease 0s;
+    margin: 5% auto;
+}
+
+
+/*********** Headings ***********/
+
+.contactBodyBottomContainerHeading {
+    font-size: 20pt;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-left: 0.5em;
+    color: #246461;
+}
+
+/*********** Text ***********/
+
+.contactBodyBottomContainerLabel {
+    font-family: 'Noto Sans Georgian', sans-serif;
+}
+
+/*********** Images ***********/
+
+svg {
+    fill: #246461;
+    margin-right: 0.5em;
+}
+
+
+
+@media screen and (max-width: 980px) {
+
+    /*********** Containers ***********/
+
+    #contact-form label {
+        width: 100%;
+        display: block;
+    }
+}
+
+@media screen and (max-width: 769px) {
+
+    /*********** Images ***********/
+
+    .profile-img {
+        width: 40%;
+    }
+}

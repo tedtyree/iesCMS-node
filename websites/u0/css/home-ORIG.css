@@ -1,0 +1,158 @@
+/*********** Containers ***********/
+
+.homeBodyRow {
+    height: 100vh;
+    position: relative;
+    margin: auto;
+}
+
+.homeBodyLeftCol {
+    position: relative;
+    
+}
+
+.homeBodyRightCol {
+    position: relative;
+    z-index: 1;
+}
+
+/*********** Headings ***********/
+
+.homeBodyLeftColHeading{
+    font-family: 'Noto Serif Georgian', serif;
+    color: #882D17;
+}
+
+.homeBodyRightCol h1 {
+    position: absolute;
+    top: 50%;
+    left: 34%;
+    transform: translate(-50%, -45%);
+    z-index: 1;
+    background-color: #882D17;
+    padding: 1em;
+    color: white;
+    font-family: 'Noto Serif Georgian', serif;
+}
+
+.homeBodyRightColTop {
+	position: absolute;
+    top: 10%;
+    left: 50%;
+	width:10%;
+    /* transform: translate(-45%, -45%); */
+    z-index: 10;
+    background-color: #EB9125;
+    padding: 1em;
+    color: white;
+    font-family: 'Noto Serif Georgian', serif;
+}
+
+/*********** Text ***********/
+
+.homeBodyLeftColText{
+    margin-top: 0.5em;
+    font-family: 'Noto Sans Georgian', sans-serif;
+    color:#085466;
+    font-size: 16pt;
+    text-align: justify;
+}
+
+/*********** Images ***********/
+
+.homeBodyRightColImg {
+    margin-left: auto;
+    display: block;
+    width: 70%;
+    height: auto;
+}
+
+/*********** Buttons ***********/
+
+.homeBodyLeftColBtn{
+    width: 40%;
+}
+
+/*********** Footer ***********/
+
+.homeFooter{
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+}
+
+
+/******************************************/
+
+/*********** Media Queries ***********/
+
+/******************************************/
+
+@media screen and (max-width: 1112px) {
+
+    /*********** Headings ***********/
+
+    .homeBodyRightCol h1 {
+        font-size: 2rem;
+    }
+}
+
+@media screen and (max-width: 998px) {
+
+    /*********** Containers ***********/
+
+    .homeBodyRow {
+        height: auto;
+    }
+
+
+     /*********** Headings ***********/
+
+    .homeBodyRightCol h1 {
+        font-size: 1.5rem;
+    }
+
+    /*********** Text ***********/
+    
+    .homeBodyLeftColText{
+        text-align: left;
+    }
+
+}
+
+@media screen and (max-width: 765px) {
+
+    /*********** Text ***********/
+    
+    .homeBodyLeftColText{
+        text-align: justify;
+    }
+
+}
+
+@media screen and (max-width: 600px) {
+
+    /*********** Container ***********/
+    
+    .homeBodyLeftCol{
+        margin-bottom: 5%;
+    }
+
+}
+
+@media screen and (max-width: 485px) {
+
+     /*********** Headings ***********/
+
+    .homeBodyRightCol h1 {
+        font-size: 1.3rem;
+    }
+
+}
+
+
+
+
+
+
+

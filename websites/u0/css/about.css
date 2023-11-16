@@ -1,0 +1,49 @@
+/************* Containers ************/
+
+.aboutBodyTopRow,
+.aboutBodyMidRow,
+.aboutBodyBottomRow {
+    margin-bottom: 5%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/*********** Headings ***********/
+
+.aboutBodyMainHeading {
+    color: #4F8934;
+    text-align: center;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-bottom: 3%;
+}
+
+.aboutBodyTopLeftColHeading,
+.aboutBodyMidRightColHeading,
+.aboutBodyBottomLeftColHeading {
+    color:#882D17;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-bottom: 3%;
+}
+
+
+/*********** Text ***********/
+
+.aboutBodyTopLeftColText,
+.aboutBodyMidRightColText,
+.aboutBodyBottomLeftColText {
+    color:#882D17;
+    font-family: 'Noto Sans Georgian', sans-serif;
+    font-size: 16pt;
+    text-align: justify;
+}
+
+/*********** Images ***********/
+
+.aboutBodyTopRightColImg,
+.aboutBodyMidLeftColImg,
+.aboutBodyBottomRightColImg {
+    width: 90%;
+    height: 100%;
+    margin: auto;
+}

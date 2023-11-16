@@ -1,0 +1,107 @@
+/*********** Containers ***********/
+
+body {
+    background-color: #FFFFFF;
+    height: 100%;
+}
+
+/*********** Navigation ***********/
+
+.logo {
+    width: 25%;
+    margin-left: 10%;
+}
+
+.nav-item a {
+    color: #246461!important;
+    font-weight: bold;
+    font-size: 15pt;
+    font-family: 'Noto Serif Georgian', serif;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: #F2EEEA;
+}
+
+/*********** Common to all pages ***********/
+
+.bodyMainHeading {
+    color: #246461;
+    text-align: center;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-bottom: 3%;
+}
+
+/*********** Buttons ***********/
+
+.btn {
+    background-color: #EB9125;
+    border-radius: 1.375rem;
+    border: none;
+    float: right;
+    color: white;
+}
+
+.btn:hover {
+    background-color: #EB9125;
+    border-radius: 1.375rem;
+    border: none;
+    color: white;
+}
+
+.btn:active {
+    background-color: #EB9125!important;
+    color: white!important;
+}
+
+/*********** Footer ***********/
+
+.footer {
+    background-color: #246461;
+    margin-top:10%;
+}
+
+.footer p {
+    display: flex;
+    padding: 0.5%;
+    justify-content: space-between;
+    margin-bottom: 0; 
+}
+
+.footer span {
+    color: #246461;
+    font-family: 'Noto Sans Georgian', sans-serif;
+    color: white;
+}
+
+.footer span a {
+    color: #246461;
+    font-weight: bold;
+    font-family: 'Noto Sans Georgian', sans-serif;
+    color: white;
+}
+
+/******************************************/
+
+/*********** Media Queries ***********/
+
+/******************************************/
+
+@media screen and (max-width: 700px) {
+
+    /******** Containers *******/
+
+    body {
+        min-width: 375px;
+    }
+
+    /******** Navigation *******/
+
+    .logo {
+        width: 20%;
+    }
+}
+
+
+

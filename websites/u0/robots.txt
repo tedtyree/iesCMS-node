@@ -1,0 +1,8 @@
+# For all bots - do not visit the privatecontent page or the contact page
+# Not visiting the contact page should reduce the spam from testing the submit on the contact us form?
+User-agent: *
+Disallow: /privatecontent
+Disallow: /contact
+
+# Future: change this to XML and include the lastmodified tag (will this help search engines avoid queries on pages that have not changed?)
+Sitemap: https://u0.heartofkenya.com/sitemap.txt

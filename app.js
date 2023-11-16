@@ -288,6 +288,7 @@ http.createServer(async (req, res) => {
       cms.mimeType = '';
       cms.redirect = null; // note: if this is set to a url and fileType = HTML or REDIRECT then CMS attempts a redirect
       cms.newCookies = {};
+      cms.abort = false; // set to TRUE to abort the request
       
       /*
       let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
@@ -323,15 +324,26 @@ http.createServer(async (req, res) => {
                   appendFileSync(debugHttpFile, "ERROR: " + errMessage + "\n");
             }
             // We were getting peppered with odd URLs... so here we end the call rather than responding with the default hostsite
-            cms.resultType = 'abort';  // this will skip other response types
+            cms.abort = true;  // this will skip other response types
             res.connection.destroy();
+      }
+
+      // NOTE: ALL .cfg files are forbidden within iesCMS because they may contain sensitive information
+      if (cms.pathExt == 'cfg') {
+            err = 993; // ERR993
+            errMessage = "Invalid file extention: " + cms.pathExt + " [ERR" + err + "]";
+            if (debugMode > 0) {
+                  appendFileSync(debugHttpFile, "ERROR: " + errMessage + "\n");
+            }
+            cms.resultType = 'notfound';
+            cms.abort = true;  // this will skip other response types
       }
 
       // GET USER TOKEN - FUTURE: Move this to other location?
       // FUTURE: Do we need to read the jwt if we are requesting a non-html file/img/resource?
       // FUTURE: Include 2 exp date/time stamps - one causes verification every 1 hour if user is still valid
       //   the other is a long-term exp that determines how often the user needs to repeat the login process.
-      if (cms.cookies.token) {
+      if (cms.cookies.token && !cms.abort) {
             let token = cms.cookies.token;
             try {
                   if (jwt.verify(token, cms.JWT_SECRET)) {
@@ -356,7 +368,7 @@ http.createServer(async (req, res) => {
       // This is already done above?
       //cms.SERVER = serverCfg; // FUTURE: CLONE THIS JSON SO A WEBSITE ENGINE CANNOT MESS UP THE ORIGINAL
       cms.mimic = '';
-      if (cms.siteId) {
+      if (cms.siteId && !cms.abort) {
             // Mimic (can only mimic on hostsite)
             // NOTE: Idea of enableMimic:true in site.cfg will not work because it is not loaded yet
             if (cms.siteId == 'hostsite') {
@@ -438,6 +450,7 @@ http.createServer(async (req, res) => {
         }
       */
       let responseBuilt = false;
+      if (cms.abort && !cms.resultType) { cms.resultType = 'abort'; }
       if (cms.resultType == 'file') {
             if (!cms.fileFullPath) {
                   res.setHeader('Content-Type', 'text/plain');
@@ -544,6 +557,12 @@ http.createServer(async (req, res) => {
                   console.log(err.message);
             }
             res.end();
+            responseBuilt = true;
+      }
+      if (cms.resultType == 'notfound') {
+            res.setHeader('Content-Type', 'text/plain');
+            res.statusCode = 404;
+            res.end('Not found');
             responseBuilt = true;
       }
 

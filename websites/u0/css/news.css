@@ -1,0 +1,68 @@
+/************* Containers ************/
+
+.newsBodyCard {
+    margin-bottom: 5%;
+    background-color: #FFF;
+    border-radius: 1.375rem;
+    border: none;
+    box-shadow: 2px 2px 5px rgb(191, 190, 190);
+}
+
+/*********** Headings ***********/
+
+.newsBodyCardTitle {
+    font-size: 20pt;
+    font-family: 'Noto Serif Georgian', serif;
+    margin-left: 0.5em;
+    color: #246461;
+}
+
+/*********** Text ***********/
+
+.newsBodyCardText {
+    font-family: 'Noto Sans Georgian', sans-serif;
+}
+
+/*********** Buttons ***********/
+
+.btn{
+    background-color: #3E605F!important;
+    width: 40%;
+    margin-bottom: 0.5em;
+}
+
+/*********** Images ***********/
+
+.newsBodyCardImage{
+    margin: 0.6em 0 ;
+    width: 100%;
+    border-radius: 10%;
+}
+
+@media screen and (max-width: 1000px) {
+
+    /*********** Buttons ***********/
+
+    .btn {
+        width: 70%;
+        margin-right: 0.6em;
+    }
+}
+
+@media screen and (max-width: 750px) {
+
+    /*********** Images ***********/
+
+    .newsBodyCardImage{
+        width: 70%;
+        display: block;
+        margin: auto;
+    }
+
+    /*********** Buttons ***********/
+
+    .btn {
+        margin-top: 0.6em;
+    }
+}
+
