@@ -1193,8 +1193,8 @@ class iesCommonLib {
 
         timestamp() {
             function pad(n) { return n < 10 ? "0" + n : n }
-            d = new Date();
-            dash = "-";
+            let d = new Date();
+            let dash = "-";
             return d.getFullYear() + dash +
                   pad(d.getMonth() + 1) + dash +
                   pad(d.getDate()) + dash +
