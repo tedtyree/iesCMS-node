@@ -1205,7 +1205,7 @@ class iesCommonLib {
 
         datetimeNormal() {
             function pad(n) { return n < 10 ? "0" + n : n }
-            d = new Date();
+            let d = new Date();
             var sepDate = "/";
             var sepHours = ":";
             return (d.getMonth() + 1) + sepDate +
@@ -1218,7 +1218,7 @@ class iesCommonLib {
 
         dbDatetime() {
             function pad(n) { return n < 10 ? "0" + n : n }
-            d = new Date();
+            let d = new Date();
             var sepDate = "-";
             var sepHours = ":";
             return d.getFullYear() + sepDate +
