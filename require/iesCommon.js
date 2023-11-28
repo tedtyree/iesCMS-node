@@ -1255,9 +1255,10 @@ class iesCommonLib {
             
                 // FUTURE: Can we specify a specific list of fields (fld_list) to include
                 //  rather than including all fields
+                var form_w = '';
                 Object.entries(source).forEach(([key, value]) => {
                     var fld=key;
-                    var val=value;
+                    var val=(value + '').trim();
                     var chkBox = '_CHECKBOX';
 
                     //*** WORK AROUND FOR CHECK BOX!!!  (should have suffix "_CHECKBOX")
@@ -1269,6 +1270,8 @@ class iesCommonLib {
                             val = "";
                         } // end if (val)
                     } // end if(fld.substr(0...
+
+                    if (fld.toLowerCase()=="form_w") { form_w = val; }
 
                     if (fld.toLowerCase()!="form_id" && fld.toLowerCase()!="form_w") {    //**** form_id/form_w is already included in the header/footer
                         if (fld.length + val.length > 100) {
@@ -1341,8 +1344,8 @@ class iesCommonLib {
 	*/
                 //*** Add Footer...
                 strDefMsg += "\n\n";
-                var form_w =source.form_w || '';
-                if ( form_w.trim().toLowerCase() != this.siteId.trim().toLowerCase()) {
+                //var form_w =source.form_w || ''; // form_w is collected above
+                if ( form_w.toLowerCase() != this.siteId.trim().toLowerCase()) {
                     strDefMsg += "(w:" + form_w + ":" + this.siteId + ")\n\n";
                 } else {
                     strDefMsg += "(w:" + form_w + ")\n\n";
