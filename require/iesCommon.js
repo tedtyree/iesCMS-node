@@ -1424,12 +1424,15 @@ class iesCommonLib {
     }
 	
     // *************************************************************************************** SaveFormToLog()
-    async saveFormToLog(strFormID, formData) {
+    async saveFormToLog(strFormID, formData, maxLength=-1, spamLevel=0, spamReason='') {
 
         var dt = this.dbDatetime();
         var flds = JSON.stringify(formData);
-        var sql="INSERT INTO wlog (siteid, FormID, SubmitDate, Params) " +
-            " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', '" + flds.replace(/'/g,"''") + "')";
+        var sql="INSERT INTO wlog (siteid, FormID, SubmitDate, SpamLevel, SpamReason, Params) " +
+            " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', " + 
+            spamLevel + ", " + this.db.dbStr(spamReason,-1,true) + "," +
+            this.db.dbStr(flds,maxLength,true)
+            + ")";
         //this.logMessage(0,'DEBUG: sql=' + sql); // DEBUG FUTURE REMOVE THIS LINE
         await this.db.ExecuteSQL(sql);
 

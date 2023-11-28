@@ -111,5 +111,8 @@ dist
 # Websites that should not be in the repo 
 websites/kenyaheart
 
+# Archive file that are kept arround for reference or old version - but should not be in the repo
+archive/
+
 # Need to include bootstrap 'dist' folder
 !cmscommon/modules/bootstrap/dist

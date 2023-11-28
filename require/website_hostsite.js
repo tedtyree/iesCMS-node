@@ -258,7 +258,7 @@ class webEngine {
                     //cms.form.SpamLevel = SpamLevel; // alread set above
                     //cms.form.SpamReason = SpamReason; // alread set above
                     //cms.form.SubmitDate = iesDB.dbDateTime(DateTime.Now, "DT", "", false); // already set above
-                    await cms.saveFormToLog(cms.form.formid, cms.form);
+                    await cms.saveFormToLog(cms.form.formid, cms.form, 2000, SpamObj.SpamLevel, SpamObj.SpamReason);
                 }
 
                 // Send Email Notification to website owner (if needed)
