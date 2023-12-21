@@ -352,8 +352,11 @@ class webEngine {
             }
 
             // Determine page permissions
-            cms.minViewLevel = cms.SITE.i("defaultMinViewLevel").toNum(999); // default value
-            cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
+            //cms.minViewLevel = cms.SITE.i("defaultMinViewLevel").toNum(999); // default value
+            //cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
+            //cms.minAdminLevel = cms.SITE.i("defaultMinAdminLevel").toNum(999);
+            cms.setPermissionLevels();
+
             if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
             if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
             if (cms.user.userLevel >= cms.minViewLevel) {

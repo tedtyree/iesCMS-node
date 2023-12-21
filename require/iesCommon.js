@@ -173,6 +173,297 @@ class iesCommonLib {
 			case "logfile":
 				content.append(this.logFile);
 				break;
+
+            case "admin_block":
+                let sBlockPath = "";
+                let sName = "";
+                if (cms.user.userLevel >= cms.minAdminLevel)
+                {
+                    //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page.  (future, check if page is editable?!)
+                    //*** Here we reference admin_main.cfg  (or if [[admin_block:alias]] specified then admin_alias.cfg)	
+                    sName = ret.Param1.trim();
+                    if (sName == "") { sName = "block"; }
+                    sBlockPath = this.FindFileInFolders("admin_" + sName + ".cfg", this.getParamStr("TemplateFolder"), this.getParamStr("CommonTemplateFolder"));
+                    if (sBlockPath)
+                    {
+                        content.append(readFileSync(sBlockPath));
+                    }
+                } // end if (cms.UserLevel>= cms.minAdminLevel)
+                break;
+            /*
+            case "admin_edit_page":
+                string sBlockPath2 = "";
+                //int MinEditLevel=cms.wiki["header.mineditlevel"].ToInt(999);  // This is now done in default.aspx
+                //the theory is that this variable is actually not defined somehow? remove above if edit page on 215sports is fixed outside of this DSchwab 
+                if (cms.UserLevel >= cms.minAdminLevel)
+                {
+                    //Content.Append("DEBUG: UserLevel: " + cms.UserLevel + ", MinEditLevel: " + cms.minEditLevel + "<br>");
+                    //Content.Append("DEBUG: wiki[header]=" + cms.wiki["Header"].jsonString + "<br>");
+                    if (cms.UserLevel >= cms.minEditLevel)
+                    {
+                        sBlockPath2 = cms.SITE.TemplateFolder + "\\admin_edit_page.cfg";
+                        if (File.Exists(sBlockPath2))
+                        {
+                            Content.Append(readFileSync(sBlockPath2));
+                        }
+                        else
+                        {
+                            sBlockPath2 = cms.SERVER.TemplateFolder + "\\admin_edit_page.cfg";
+                            //Content.Append("DEBUG: Looking for [" + sBlockPath2 + "]");
+                            if (File.Exists(sBlockPath2))
+                            {
+                                Content.Append(readFileSync(sBlockPath2));
+                            }
+                        }
+                    }
+                } // end if (cms.UserLevel>= cms.minAdminLevel)
+                break;
+            case "admin-createpagelink":
+                // FUTURE: MOVE THIS TO AdminFunctions.cs ONCE SITE.MinCreateLevel is added to every config
+                if (cms.UserLevel >= cms.SITE.MinCreateLevel)
+                {
+                    Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
+                }
+                break;
+            case "admin_menulink_flag":
+                string adminMenuLink = cms.wiki["Header.ShowAdminMenuLink"].CString().Trim();
+                if (adminMenuLink == "") { adminMenuLink = "true"; } // default=true
+                Content.Append(adminMenuLink);
+                break;
+            case "admin_editpage_flag":
+                // Future: only show if in edit mode and user has high enough permissions to edit the page.
+                string editFlag = "false";
+                int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
+                if (minedit <= cms.UserLevel) { editFlag = "true"; }
+                Content.Append(editFlag);
+                break;
+            case "edit_page_link":
+                //*** This tag is to be used in the admin_block
+                //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
+                //*** FUTURE: Check if page is editable
+                if (cms.UserLevel >= cms.minAdminLevel)
+                {
+                    string EditURL = "", LinkTitle = "", tsWiki = "";
+                    tsWiki = "admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
+
+                    if (cms.wikiNotFound > 0)
+                    {
+                        //*** Wiki Page is missing - link to CREATE it...
+                        EditURL = tsWiki + "&obj=*new*&saveas=" + cms.RequestedPage;
+                        LinkTitle = "Create Page";
+                    }
+                    else
+                    {
+                        //*** Wiki Page exists - link to UPDATE it
+                        EditURL = tsWiki + "&id=" + cms.wiki["objid"].CString() + "&obj=" + cms.RequestedPage;
+                        LinkTitle = "Edit Page";
+                    }
+
+                    // FUTURE: check if this is a PRODUCT page
+                    //if ((Product_Page<>"") && (PageID==Product_Page)) { EditURL=EditProductsURL; }
+
+                    Content.Append("<a hRef=\"#\" onClick=\"Javascript:pup=window.open('" + EditURL + "','WObjEditor','menubar=no,status=no,width=950,height=700,toolbar=no,scrollbars=yes,location=no,directories=no,resizable=yes');pup.focus();return false;\" >" + LinkTitle + "</a>");
+
+                }
+                break;
+            case "admin_menu_link":
+                //*** This tag is to be used in the admin_block
+                if (cms.UserLevel >= cms.minAdminLevel)
+                {
+                    Content.Append("<a hRef='" + cms.SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
+                }
+                break;
+            case "err_block":
+            case "error_block":
+                string errText = cms.Session.GetString("errmsg").Trim();
+                if (errText == "") { errText = cms.ErrMsg; }
+                if (errText != "")
+                {
+                    Content.Append("<div class='error_block'>" + errText + "<div>");
+                }
+                break;
+            case "admin-get-editlistconfig":  // This may not be used any longer - now set as {{eclass}} tag within admin-editlist-table below
+                Content.Append(editlistconfig);
+                break;
+            case "admin-load-editconfig":
+                // This tag will load the editor config file if needed.  A response will be generated if there is an error.
+                // This tag is not mandatory, but it enables the display of a user-friendly response and it allows
+                // an override of the eclass config file name (Param1)
+                LoadEditListIfNeeded(ret.Param1);
+                if (editlisterror != "")
+                {
+                    Content.Append("<div id='adminerror'>ERROR: " + editlisterror + "</div>");
+                }
+                break;
+            case "admin-editlist-param":
+                LoadEditListIfNeeded();
+                try
+                {
+                    if (editlistj.Contains(ret.Param1))
+                    {
+                        iesJSON rParam = editlistj[ret.Param1];
+                        if (rParam.jsonType == "array" || rParam.jsonType == "object") {
+                            rParam.UseFlexJson = false;
+                            rParam.InvalidateJsonString();
+                            Content.Append(rParam.jsonString);
+                        } else {
+                            Content.Append(rParam.CString());
+                        }
+                    }
+                    else
+                    {
+                        Content.Append(ret.Param2 + "");
+                    }
+                }
+                catch (Exception) { }
+                break;
+            case "admin-editlist-table":
+                try
+                {
+                    string filePath2, tableHtml;
+                    string cols = "", colsHtml = "", jsCols = "";
+                    iesJSON rTags = new iesJSON("{}");
+
+                    // Look for editlist table HTML config file in the SERVER src folder.
+                    try
+                    {
+                        filePath2 = cms.SERVER.SourceFolder + "\\admin-editlist-table.cfg";
+                        tableHtml = readFileSync(filePath2);
+                    }
+                    catch { tableHtml = "<br><br>ERROR: Failed to load table config.  [err3498]<br><br>"; }
+                    LoadEditListIfNeeded();
+                    string SpecialFlags = editlistj["SpecialFlags"].ToStr().ToLower();
+                    string DisplayLength = editlistj["Paging"].ToStr("50");
+                    int pagingStart = Util.ToInt(cms.FormOrUrlParam("start"),0);
+                    if (editlisterror != "") { tableHtml = "<br><br>ERROR: " + editlisterror + "<br><br>"; }
+                    else
+                    {
+                        GetColumns(ref cols, ref colsHtml, ref jsCols); // gets json columns
+
+                        // Insert data into HTML
+                        rTags["eclass"].Value = cms.UrlParam("eclass");
+                        //rTags["editlist-header"].Value=colsHtml;
+
+                        rTags["editlist-columns"].Value = jsCols;
+                        rTags["editlist-primarykey"].Value = editlistj["PrimaryKey"].CString();
+                        string orderby2 = editlistj["OrderBy2"].CString().Trim();
+                        if (orderby2 != "") { 
+                            rTags["editlistorderby"].Value = ",\"order\": " + orderby2; 
+                            }
+                        rTags["paging"].Value = DisplayLength;
+                        if (SpecialFlags.IndexOf("serverside") >=0) {
+                            rTags["processing"].Value = ",\"processing\":true ";
+                            rTags["serverside"].Value = ",\"serverSide\":true ";
+                        }
+                    }
+                    Content.Append(Util.ReplaceTags(tableHtml, rTags, true, "{{", "}}"));
+                }
+                catch { }
+                break;
+            case "admin-editlist-data":
+                // Return item/record data in JSON form
+                GenerateJsonData(Content);
+                break;
+            case "admin-editlist-buttons":
+                // Create the Save/Close buttons, but only if specified in the eclass config
+                // Values that can be specified in SpecialFlags: SaveButton, CancelButton, SaveCloseButton, DeleteButton
+                GenerateFormButtons(Content);
+                break;
+            case "admin-editlist-form":
+                {
+                    ret.AllowRecursiveCall = false; // Do NOT replace [[tags]] recursively for this web form.
+                    GenerateForm(Content);
+                }
+                break;
+            case "admin-edit-row":
+                {
+                    // Used to edit a single record (usually not when selected from a list - always edit SAME record)
+                    ret.AllowRecursiveCall = false; // Do NOT replace [[tags]] recursively for this web form.
+                    GenerateForm(Content);
+                }
+                break;
+            case "block":
+                ProcessWebBlock(Content, ret);
+                break;
+            case "printform":
+                ret.AllowRecursiveCall = false;
+                GeneratePrintForm(Content);
+                break;
+            case "admin-editlist-save":
+                SaveEditForm(Content);
+                break;
+            case "admin-editconfig":
+                GenerateEditConfig(Content);
+                break;
+            case "admin-editrecord":
+                { // FUTURE: Why are we using this and not admin-editlist-form?
+                    GenerateEditRecord(Content);
+                }
+                break;
+            case "admin-saveconfig":
+                {
+                    SaveConfig(Content);
+                }
+                break;
+            case "admin_autofill":
+                string autofillTable = cms.FormOrUrlParam("table");
+                string autofillField = cms.FormOrUrlParam("field");
+                string autofillType = cms.FormOrUrlParam("type");
+                string autofillSubField = cms.FormOrUrlParam("subfield");
+                iesJSON autofill = new iesJSON("{}");
+                autofill["success"].Value = "false";
+                autofill["data"].Value = "";
+
+                string autoFillData = GenerateAutofillForm(autofillTable, autofillField, autofillType, autofillSubField);
+                if (!String.IsNullOrWhiteSpace(autoFillData))
+                {
+                    autofill["success"].Value = "true";
+                    autofill["data"].Value = autoFillData;
+                }
+                Content.Append(autofill.jsonString);
+                break;
+            case "admin-show-view":
+                // Show a custom form with data filled in from a DB record/object
+                // Config file specified by vClass
+                // Object ID specified by id
+                AdminShowView(Content);
+                break;
+            case "jsonlist":
+                iesJSON jsonListConfig = new iesJSON();
+                string webBlockPath = Util.FindFile("jsonlist_" + ret.Param1 + ".cfg", cms.SITE.ConfigFolder, cms.SERVER.ConfigFolder);
+                jsonListConfig.DeserializeFlexFile(webBlockPath);
+                // Check for Errors
+                if (jsonListConfig.Status != 0)
+                {
+                    cms.WriteLog("cmsCommon-AdminTags", "ERROR: jsonList: Failed to parse file: Param1=" + ret.Param1 + ", File=" + webBlockPath + "\n");
+                    // cms.WriteLog("DEBUG", "configPath1=" + cms.SITE.ConfigFolder + "\n");  // DEBUG
+                    // cms.WriteLog("DEBUG", "configPath2=" + cms.SERVER.ConfigFolder + "\n");  // DEBUG
+                }
+                else
+                {
+                    jsonListConfig.AddToObjBase("Tag", ret.Tag);
+                    jsonListConfig.AddToObjBase("Param1", ret.Param1);
+                    jsonListConfig.AddToObjBase("Param2", ret.Param2);
+                    jsonListConfig.AddToObjBase("Param3", ret.Param3);
+                    jsonListConfig.AddToObjBase("Param4", ret.Param4);
+                    string jsonListType = jsonListConfig["jsonListType"].ToStr().ToLower();
+                    switch (jsonListType)
+                    {
+                        case "fixedsql":
+                            string sqlSelect = Util.GetParamStr(jsonListConfig, "select", "", true, true);
+                            iesJSON webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
+                            Content.Append(webBlockResults.jsonString);
+                            break;
+                        default:
+                            cms.WriteLog("cmsCommon-AdminTags", "ERROR: jsonList: Invalid jsonListType: Param1=" + ret.Param1 + ", File=" + webBlockPath + "\n");
+                            break;
+                    }
+                }
+                break;
+            case "pagesearchresults":
+                PageSearchResults(Content);
+                break;
+            */
 				
             default:
                 let vv = this.getParamStr(ret.Tag, null, true, true);
@@ -531,6 +822,12 @@ class iesCommonLib {
             if (v) { return v; }
         } catch { }
         return defaultValue;
+    }
+
+    setPermissionLevels() {
+        this.minViewLevel = this.SITE.i("defaultMinViewLevel").toNum(999); // default value
+        this.minEditLevel = this.SITE.i("defaultMinEditLevel").toNum(999); // default value
+        this.minAdminLevel = this.SITE.i("defaultMinAdminLevel").toNum(999); // default value
     }
 
     PrepForJsonReturn(ret) {
