@@ -646,7 +646,7 @@ class iesCommonLib {
                             {
                                 filePath2 = this.FindFileInFolders("admin-editlist-table.cfg", this.getParamStr("SourceFolder"), this.getParamStr("CommonSourceFolder"));
                                 if (filePath2) {
-                                    tableHtml = readFileSync(filePath2);
+                                    tableHtml = readFileSync(filePath2) + "";
                                 }
                             }
                             catch { }
@@ -671,9 +671,9 @@ class iesCommonLib {
                                     rTags.add("eclass", cms.urlParam("eclass"));
                                     //rTags["editlist-header"].Value=colsHtml;
 
-                                    rTags.add("editlist-columns", jsCols);
-                                    rTags.add("editlist-primarykey", editlistj.getStr("PrimaryKey").trim());
-                                    let orderby2 = editlistj.getStr("OrderBy2").trim();
+                                    rTags.add("editlist-columns", out.ColsJS);
+                                    rTags.add("editlist-primarykey", this.editlistj.getStr("PrimaryKey").trim());
+                                    let orderby2 = this.editlistj.getStr("OrderBy2").trim();
                                     if (orderby2 != "") { 
                                         rTags.add("editlistorderby", ",\"order\": " + orderby2); 
                                         }
@@ -691,7 +691,7 @@ class iesCommonLib {
                                 content.append(tableHtml); // Error message
                             }
                         }
-                        catch { }
+                        catch (errTmp) {  content.append(errTmp + ""); }
                         break;
                     /*
                     case "admin-editlist-data":
@@ -1038,6 +1038,8 @@ class iesCommonLib {
                         break;
 
                         *** End of section from original cmsCommon.cs ***/
+
+            /* admin_block - same as above
             case "admin_block":
                 let sBlockPath = "";
                 let sName = "";
@@ -1054,7 +1056,7 @@ class iesCommonLib {
                     }
                 } // end if (cms.UserLevel>= cms.minAdminLevel)
                 break;
-            /*
+            
             case "admin_edit_page":
                 string sBlockPath2 = "";
                 //int MinEditLevel=cms.wiki["header.mineditlevel"].ToInt(999);  // This is now done in default.aspx
@@ -2714,6 +2716,7 @@ class iesCommonLib {
         // ****************   If SetNoMatchBlank=true Then the tag is replaced with ""
         // ****************   If SetNoMatchBlank=false Then the tag is left in the string.
         // ****************
+        // FUTURE: Do we need both ReplaceStringTags and tagReplaceString()
         ReplaceStringTags(inputString, tagValues /* iesjSON obj */, SetNoMatchBlank = true, startStr = "[[", endStr = "]]", lvl = 0)
         {
             let charPosition = 0;
@@ -2742,7 +2745,7 @@ class iesCommonLib {
                     else
                     {
                         // We found a match...
-                        let tag = inputString.substring(startPos + startStr.length, (endPos - startPos) - endStr.length);
+                        let tag = inputString.substring(startPos + startStr.length, endPos);
 
                         let replacement = "";
                         // Check to see if tagValues contains a value for this field.
@@ -2766,7 +2769,7 @@ class iesCommonLib {
                             if (SetNoMatchBlank == false) { replacement = startStr + tag + endStr; }
                         }
 
-                        data.append(inputString.substring(beginning, (startPos - beginning)));
+                        data.append(inputString.substring(beginning, startPos));
                         data.append(replacement);
                         beginning = endPos + endStr.length;
                     }  // End if (endPos<0) else
