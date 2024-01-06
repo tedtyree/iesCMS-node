@@ -514,12 +514,12 @@ $(function () {
 });
 
 function hideShowAdminLinks() {
-	if(ShowAdminMenuLink) {
+	if(typeof ShowAdminMenuLink !== 'undefined' && ShowAdminMenuLink) {
 		$('#admin_menu_link_btn').show();
 	} else {
 		$('#admin_menu_link_btn').hide();
 	}
-	if(ShowAdminEditPage) {
+	if(typeof ShowAdminEditPage !== 'undefined' && ShowAdminEditPage) {
 		$('#admin_editpage_link_btn').show();
 	} else {
 		$('#admin_editpage_link_btn').hide();

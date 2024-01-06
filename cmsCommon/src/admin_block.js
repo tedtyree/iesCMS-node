@@ -7,13 +7,13 @@
   
   function ShowAdminBlock() {
    //try { 
-	if (ShowAdminMenuLink) { 
+	if (typeof ShowAdminMenuLink !== 'undefined' && ShowAdminMenuLink) { 
 		document.getElementById("admin_menu_link_div").style.display = "block";
 	}
    //} catch (e1) { }
    
    //try { 
-    if (ShowAdminEditPage) { 
+    if (typeof ShowAdminEditPage !== 'undefined' && ShowAdminEditPage) { 
 		document.getElementById("admin_editpage_link_div").style.display = "block";
 	}
    //} catch (e2) { }

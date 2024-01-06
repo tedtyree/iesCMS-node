@@ -532,7 +532,7 @@ class iesDB {
             iesJSON rs = null;
 
             string ssWhere = sWhere.Trim();
-            if (!String.IsNullOrWhiteSpace(ssWhere)) { if (Left(ssWhere, 5).ToUpper() != "WHERE") { ssWhere = " WHERE " + ssWhere; } }
+            if (!this.isNullOrWhiteSpace(ssWhere)) { if (Left(ssWhere, 5).ToUpper() != "WHERE") { ssWhere = " WHERE " + ssWhere; } }
             sql = "SELECT " + sFields + " FROM " + sTable + ssWhere;
             rs = GetFirstRow(sql);
             if (!(rs == null))
@@ -663,7 +663,7 @@ class iesDB {
         {
             iesJSON keys = new iesJSON("[]");
             foreach (string strKey in primarykeys) {
-                if (!string.IsNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
+                if (!this.isNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
             }
             return SaveRecord(jSON, table, keys, newrec, pkIsNumeric, SpecifyPK, GetNewPK, MergeMode, SaveToHistory);
         }
@@ -773,12 +773,12 @@ class iesDB {
         public void SaveToHistory(iesJSON jRec, string table, string[] primarykeys) {
             iesJSON keys = new iesJSON("[]");
             foreach (string strKey in primarykeys) {
-                if (!string.IsNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
+                if (!this.isNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
             }
             SaveToHistory(jRec,table,keys);
         }
         public void SaveToHistory(iesJSON jRec, string table,iesJSON primarykeys) {
-            if (string.IsNullOrWhiteSpace(historyTable)) { return; } // Cannot save to history if table not specified
+            if (this.isNullOrWhiteSpace(historyTable)) { return; } // Cannot save to history if table not specified
 
             bool NeedToClose = false;
             if (ConnectStatus != 1) { Open(); NeedToClose = true; }
@@ -1241,6 +1241,10 @@ class iesDB {
         }
 
         */
+        isNullOrWhiteSpace( input ) {
+            return !input || !(input + '').trim();
+          }
+
        errPipe(func,errId,errMessage = "") {
         let errmsg = "ERROR: " + func + " [" + errId + "]";
         console.log(errmsg + " " + errMessage);

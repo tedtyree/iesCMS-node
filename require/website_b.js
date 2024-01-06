@@ -9,7 +9,7 @@ const { existsSync, readFileSync } = require('fs');
 const { get } = require("http");
 const { resolve } = require("path");
 
-const _siteID = 'kenyaheart';
+const _siteID = 'b';
 //var assignedSiteID = '';
 
 class webEngine {
@@ -85,7 +85,7 @@ class webEngine {
                             if (langTag.indexOf("@@")>=0) {
                                 content.append("[[lang|" + langTag + "]]"); // Will get processed as a [[lang|@@]] tag.
                             }
-                            else if (langTag.Length > 0) {
+                            else if (langTag.length > 0) {
                                 content.append(langTag); // Was not a language tag... append to content as usual
                             }
                             ret.Processed = true;
@@ -185,7 +185,7 @@ class webEngine {
                     string galleryUrl = @"/assets/" + ret.Param1.Trim() + @"/gallery/" + ret.Param2.Trim();
                     string galleryPath = cms.SITE.WebRootPath + @"\websites\" + cms.SITE.SiteID + @"\assets\" + ret.Param1 + @"\gallery\" + ret.Param2;
                     string galleryFile = "gallery";
-                    if (! string.IsNullOrWhiteSpace(ret.Param3)) { galleryFile = ret.Param3.Trim(); }
+                    if (! cms.isNullOrWhiteSpace(ret.Param3)) { galleryFile = ret.Param3.Trim(); }
                     string galleryConfig = galleryPath + @"\" + galleryFile + @".json";
                     
                     iesJSON gCfg = new iesJSON();
@@ -246,7 +246,7 @@ class webEngine {
                             + "data-likecount='" + likeCount + "' "
                             + "data-toggle=\"tooltip\" "
                             + "class='likes' " + likeTooltip + " >" + likeShort + "</div>";
-                    if (!string.IsNullOrWhiteSpace(ret.Param3)) {
+                    if (!cms.isNullOrWhiteSpace(ret.Param3)) {
                         likeBlock = "<div class='iconWrapper' " + likeTooltip + ">" 
                             + "<img src='" + ret.Param3 + "'>" 
                             + likeBlock + "</div>";

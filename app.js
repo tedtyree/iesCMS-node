@@ -12,8 +12,6 @@ const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 
-const { moveCursor } = require('readline');
-const { debuglog } = require('util');
 var httpQueryId = 0;
 
 var websiteEngines = {};
@@ -105,15 +103,15 @@ dlist.forEach(dDir => {
       try {
             if (existsSync(dPath)) {
                   //file exists
-                  let cfg = new iesJSON();
-                  cfg.DeserializeFlexFile(dPath);
-                  if (cfg.Status == 0 && cfg.jsonType == 'object') {
-                        let siteID = cfg.i("SITEID").toStr();
+                  let thiscfg = new iesJSON();
+                  thiscfg.DeserializeFlexFile(dPath);
+                  if (thiscfg.Status == 0 && thiscfg.jsonType == 'object') {
+                        let siteID = thiscfg.i("SITEID").toStr();
                         if (siteID != '' && siteID == dDir) {
-                              console.log('>>> SITEID: ' + cfg.i("SITEID").toStr());
+                              console.log('>>> SITEID: ' + thiscfg.i("SITEID").toStr());
                               siteList.push(siteID);
                               // loop through 
-                              let domainList = cfg.i('Domains');
+                              let domainList = thiscfg.i('Domains');
                               domainList.toJsonArray().forEach(oneDomain => {
                                     domainName = oneDomain.toStr().toLowerCase();
                                     // FUTURE: Check for duplicates - raise error
@@ -131,7 +129,7 @@ dlist.forEach(dDir => {
                   } else {
                         // Problem reading config...
                         console.log(">>> Failed to read site.cfg: /websites/" + dDir);
-                        console.log("status=" + cfg.Status + ", StatusMsg=" + cfg.StatusMsg);
+                        console.log("status=" + thiscfg.Status + ", StatusMsg=" + thiscfg.StatusMsg);
                   }
             }
 

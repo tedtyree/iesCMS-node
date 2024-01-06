@@ -415,6 +415,7 @@ class iesJSON {
         return this.v();
     }
     set thisValue(value) {
+        this.InvalidateJsonString(); // indicate that the JsonString has changed
         this._status = 0;
         this._jsonType = this.convertType(value);
         if (this._jsonType == 'string') {
@@ -512,7 +513,8 @@ class iesJSON {
         }
     } // end forEach()
 
-    addToObjBase (idx,value) {
+    // This replaces addToObjBase and addToArrayBase
+    addToBase (idx,value) {
         this.add(idx,value,false);
     }
 
@@ -521,7 +523,9 @@ class iesJSON {
         if (foundItem.Parent) {
             // Item exists... replace the value
             foundItem.thisValue = value;
+            this.InvalidateJsonString(); // indicate that the JsonString has changed.
         } else {
+            this.InvalidateJsonString(); // indicate that the JsonString has changed.
             // Item does not exist... we need to add the item (be aware of dotNotation)
             if (dotNotation && idx.indexOf('.')>=0) {
                 // FUTURE: WHAT TO DO HERE!!
@@ -1450,7 +1454,7 @@ class iesJSON {
     DeserializeFlexFile(FilePath, OkToClip = false, spacing_flag = -1, comments_flag = -1)
     {
         this.UseFlexJson = true;
-        if ((spacing_flag >= 0) || (comments_flag >= 0)) { keepSpacingAndComments(spacing_flag, comments_flag); }
+        if ((spacing_flag >= 0) || (comments_flag >= 0)) { this.keepSpacingAndComments(spacing_flag, comments_flag); }
         return this.DeserializeFile(FilePath, OkToClip);
     }
 

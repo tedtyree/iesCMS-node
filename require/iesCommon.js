@@ -173,6 +173,871 @@ class iesCommonLib {
 			case "logfile":
 				content.append(this.logFile);
 				break;
+
+                /*** from original cmsCommon.cs (DotNet version of CMS)
+                case "brand":
+                    case "brandid":
+                        string b = cms.SITE.BrandID;
+                        if (String.IsNullOrEmpty(b)) { b = cms.SERVER.BrandID; }
+                        Content.Append(b);
+                        break;
+
+                    case "expirepage":
+                        // FUTURE: Put this back - DEBUG TTyree 1/2019
+                        //cms.Response.Cache.SetExpires(DateTime.Now.AddSeconds(1));
+                        //cms.Response.Cache.SetCacheability(HttpCacheability.Public);
+                        //cms.Response.Cache.SetValidUntilExpires(true);
+                        //cms.Response.Expires = -1;
+                        break;
+
+
+                    case "logged_in":
+                        // *** Display User Logged-In info
+                        if (UserLoggedIn())
+                        {
+                            Content.Append("<span class='user'>User: " + cms.UserName + "&nbsp;&nbsp;</span><a href='" + cms.SITE.LOGIN_Page + "?logout=true' class='logout'>Logout</a>");
+                        }
+                        else
+                        {
+                            Content.Append("<a href='" + cms.SITE.LOGIN_Page + "?logout=true' class='login'>Login</a>");
+                        }
+                        break;
+                    case "username":
+                        Content.Append(cms.UserName);
+                        break;
+                    case "userobjid":
+                        Content.Append(cms.UserObjID);
+                        break;
+                    case "sessionid":
+                        Content.Append(cms.Session.Id);
+                        break;
+                    case "menu":
+                        // Leave ret.Processed=true - Even if the below fails, we do not want this parameter to fall through to another layer because we matched the tag.
+                        string MenuName = ret.Param1.Trim();
+                        if (MenuName == "") { MenuName = cms.SITE.DefaultMenu; }
+                        if (MenuName == "") { MenuName = "main"; }
+                        // Look for menu in the template folders: local then server
+                        try
+                        {
+                            iesJSON menuHeader = null;
+                            int menuStatus = -99;
+                            string menuErr = "";
+                            string menuPath = Util.FindFile("menu_" + MenuName + ".cfg", cms.SITE.TemplateFolder, cms.SERVER.TemplateFolder);
+                            string webBlock = Util.LoadHtmlFile(menuPath, out menuHeader, out menuStatus, out menuErr, "", cms.UserLevel);
+                            Content.Append(webBlock); // Not much error checking - it either works or doesn't
+                        }
+                        catch { }
+                        break;
+
+                    case "wikipage": // wiki page link
+                    case "page":
+                    case "p":
+                        // First version of wiki - param1=pageid, param2 (optional)=alias text for link
+                        string param1 = ret.Param1.Trim();
+                        string param2 = ret.Param2.Trim();
+                        string href1 = "#";
+                        if (param2 == "") { param2 = param1; }
+                        if (param1 != "")
+                        {
+                            href1 = param1.Replace(" ", "-"); // FUTURE: modify this to include actual wiki name.
+                        }
+                        Content.Append("<a href='" + href1 + "'>" + param2 + "</a>");
+                        break;
+
+                    case "wikilink":
+                    case "link":
+                    case "l":
+                        // First version of wiki - param1=URL, param2 (optional)=alias text for link
+                        string prm1 = ret.Param1.Trim();
+                        string prm2 = ret.Param2.Trim();
+                        if (prm2 == "") { prm2 = prm1; }
+                        if (prm1 == "") { prm1 = "#"; prm2 = "#"; }
+                        //FUTURE: way to specify 'do not open in new window'
+                        Content.Append("<a target='_blank' href='" + prm1 + "'>" + prm2 + "</a>");
+                        break;
+
+                    case "pageid":
+                        Content.Append(cms.PageID);
+                        break;
+
+                    case "domain":
+                        Content.Append(cms.SITE.Domain);
+                        break;
+
+                    case "sitetitle":
+                        Content.Append(cms.SITE.config["SiteTitle"].ToStr().Trim());
+                        break;
+
+                    case "title": // Title straight from page header
+                        Content.Append(cms.wiki["Header"]["Title"].ToStr().Trim());
+                        break;
+
+                    // *** NOTE: USE 'title' FOR TEXT VERSION OF PAGE TITLE
+                    case "page_title":
+                    case "page_title_tag":
+                        // Page_Title can either be specified by the WikiPage in the header,
+                        // or specified in the default.config file.  The header parameter overrides.
+                        string GenerateTag = "";
+                        GenerateTag = cms.wiki["Header"]["Page_Title"].ToStr().Trim();
+                        if (this.isNullOrWhiteSpace(GenerateTag))
+                        {
+                            GenerateTag = cms.SITE.config["Page_Title"].ToStr().Trim();
+                        }
+                        if (!this.isNullOrWhiteSpace(GenerateTag) && ret.Tag == "page_title_tag")
+                        {
+                            GenerateTag = "<title>" + GenerateTag + "</title>";
+                        }
+                        Content.Append(GenerateTag);
+                        break;
+
+                    case "description":
+                    case "page_description":
+                    case "description_tag":
+                        // Get from <<<Page Parameters?>>>
+                        string GenTag2 = "";
+                        GenTag2 = cms.wiki["Header"]["Page_Description"].ToStr().Trim();
+                        if (!this.isNullOrWhiteSpace(GenTag2) && ret.Tag == "description_tag")
+                        {
+                            GenTag2 = "<meta name=\"Description\" content=\"" + GenTag2 + "\">";
+                        }
+                        Content.Append(GenTag2);
+                        break;
+
+                    case "keywords":
+                    case "page_keywords":
+                    case "keywords_tag":
+                        string GenTag3 = "";
+                        GenTag3 = cms.wiki["Header"]["Page_Keywords"].ToStr().Trim();
+                        if (!this.isNullOrWhiteSpace(GenTag3) && ret.Tag == "keywords_tag")
+                        {
+                            GenTag3 = "<meta name=\"Keywords\" content=\"" + GenTag3 + "\">";
+                        }
+                        Content.Append(GenTag3);
+                        break;
+
+                    case "debug_message":
+                        // Add any debug messages that you would like to display
+                        // at the bottom of the page (or where the [[debug_message]] tag is located)
+                        // NOTE: Tag must be added to the template first
+
+                        //Content.Append("<br>DEBUG: SessionID: " + cms.Session.Id + "<br>");
+                        break;
+
+                    case "forwardto":
+                        string fwdto = ret.Param1;
+                        if (ret.Param2.Trim() != "")
+                        {
+                            fwdto += ":" + ret.Param2;
+                        }
+                        // DEBUG: FUTURE: FIX - put redirect back! TTyree 1/2019
+                        //Response.Redirect(fwdto);
+                        break;
+                    case "siteparameter":
+                        string jParam = cms.SITE.config[ret.Param1].ToStr();
+                        if (this.isNullOrWhiteSpace(jParam))
+                        {
+                            jParam = cms.SITE.config[ret.Param1].jsonString;
+                        }
+                        Content.Append(jParam);
+                        break;
+                    case "serverparameter":
+                        Content.Append(cms.SERVER.config[ret.Param1].ToStr());
+                        break;
+                    case "formparam":
+                    case "formparameter":
+                        Content.Append(cms.FormParam(ret.Param1.Trim()));
+                        break;
+
+                    case "urlparam":
+                        Content.Append(cms.UrlParam(ret.Param1.Trim()));
+                        break;
+
+                    case "formorurlparam":
+                        Content.Append(cms.FormOrUrlParam(ret.Param1.Trim()));
+                        break;
+
+                    case "subpage":
+                        // Leave ret.Processed=true - Even if below fails, we matched tag...
+                        // FUTURE: Handle ability to read Wiki objects here, too (currently, subpage must be a file)
+                        // NOTE: 3rd parameter can be a flag "noE" to indicate not to display the "e" button
+                        string subPage = "", subFileName;
+                        string editButton = "";
+                        subFileName = cms.SITE.PageFolder + "\\" + ret.Param1 + ".cfg";
+                        bool noE = false;
+                        if (ret.Param2.ToLower().IndexOf("noe") >= 0) { noE = true; }
+                        //Content.Append("DEBUG: subFileName=" + subFileName + "<br>");  // DEBUG
+                        if (!File.Exists(subFileName)) { subFileName = cms.SERVER.PageFolder + "\\" + cms.SITE.BrandID + "\\" + ret.Param1 + ".cfg"; }
+                        if (!File.Exists(subFileName)) { subFileName = cms.SERVER.PageFolder + "\\" + ret.Param1 + ".cfg"; }
+                        if (File.Exists(subFileName))
+                        {
+                            try
+                            {
+                                subPage = File.ReadAllText(subFileName);
+                                // quick and dirty... remove [[{ ... }]]
+                                int p = subPage.IndexOf("}]]");
+                                if (p > 0)
+                                {
+                                    string AdminEditMode = "";
+                                    try { AdminEditMode = cms.Session.GetString("AdminEditMode").ToLower(); } catch { }
+
+                                    AdminEditMode = "edit"; //debug FUTURE remove this line
+
+                                    if (AdminEditMode == "edit")
+                                    {
+                                        // If we are in edit mode - we need to check the MinEditSubpageLevel to determine if we should create an edit button for this subpage
+                                        try
+                                        {
+                                            int p0 = subPage.IndexOf("[[{");
+                                            if (p0 >= 0)
+                                            {
+                                                string subHeader = subPage.Substring(p0 + 2, p - p0 - 1);
+                                                iesJSON jHead = new iesJSON(subHeader);
+                                                jHead.UseFlexJson = true;
+                                                jHead.Deserialize(subHeader);
+
+                                                int MinEditSubpageLevel = jHead["MinEditLevel"].ToInt(999);
+                                                string objID = (ret.Param1.Trim()); //jHead["objid"].CString().Trim();
+
+                                                //Content.Append("here1: " + cms.UserLevel + ":" + MinEditSubpageLevel + ", " + objID); //debug
+                                                //Content.Append("here2: " + jHead.jsonString + "<br>");
+
+                                                if (MinEditSubpageLevel < 999 && cms.UserLevel >= MinEditSubpageLevel && objID != "" && noE == false)
+                                                {
+                                                    // User has edit permissions (and EDIT MODE is turned on)
+
+                                                    editButton = File.ReadAllText(cms.SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+                                                    editButton = editButton.Replace("[[objID]]", objID);
+                                                }
+                                            }
+                                        }
+                                        catch { }
+                                    }
+                                    subPage = substr(subPage, p + 3, subPage.Length);
+                                }  // NOTE: if length is longer than what is needed, substr returns entire remainder of string.
+                            }
+                            catch { }
+                        }
+                        else
+                        {
+                            if (cms.UserLevel >= cms.SITE.MinEditLevel && ret.Param1 != "" && noE == false)
+                            {
+                                // User has edit permissions - even though this page does not exist... lets allow the admin to create it by adding an 'e' edit button
+                                subPage = "&nbsp;"; // Edit button needs some text to associate with
+                                editButton = File.ReadAllText(cms.SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+                                editButton = editButton.Replace("[[objID]]", ret.Param1);
+                            }
+                        }
+                        Content.Append(subPage);
+                        Content.Append(editButton);
+                        if (ret.Param2.Trim().ToLower() == "notrecursive")
+                        {
+                            ret.AllowRecursiveCall = false;  // Do NOT replace [[tags]] recursively for this web form.
+                        }
+                        break;
+                    case "products_html":
+                        string products_html = GenerateProducts();
+                        Content.Append(products_html);
+                        break;
+
+                    case "random_photo":
+                        string random_photo = RandomPhoto(ret.Param1);
+                        Content.Append(random_photo);
+                        break;
+
+                    case "e":
+                        if (cms.UserLevel >= cms.SITE.MinEditLevel && ret.Param1 != "")
+                        {
+                            // User has edit permissions - create 'e' edit button
+                            string btnTxt = "&nbsp;"; // Edit button needs some text to associate with
+                            btnTxt += File.ReadAllText(cms.SERVER.TemplateFolder + "\\admin_edit_button.cfg");
+                            btnTxt = btnTxt.Replace("[[objID]]", ret.Param1);
+                            Content.Append(btnTxt);
+                        }
+                        break;
+                    case "track":
+                        // Look for track.cfg in the template folder.
+                        try
+                        {
+                            string filePath = cms.SITE.TemplateFolder + "\\track.cfg";
+                            Content.Append(File.ReadAllText(filePath));
+                        }
+                        catch { }
+
+                        break;
+                    case "now":
+                        // Tag to display Today's date/time
+                        // example: [[now:date]]
+                        string format = ret.Param2.Trim();
+                        switch (ret.Param1.Trim().ToLower())
+                        {
+                            case "date":
+                                if (this.isNullOrWhiteSpace(format)) { format = "MM/dd/yyyy"; }
+                                Content.Append(DateTime.Now.ToString(format));
+                                break;
+                            case "time":
+                                if (this.isNullOrWhiteSpace(format)) { format = "HH:mm:ss"; }
+                                Content.Append(DateTime.Now.ToString(format));
+                                break;
+                            case "datetime":
+                                if (this.isNullOrWhiteSpace(format)) { format = "MM/dd/yyyy HH:mm:ss"; }
+                                Content.Append(DateTime.Now.ToString(format));
+                                break;
+                                break;
+                        }
+                        break;
+                    case "imageviewercollection":
+                        //iesJSON imageList=new iesJSON("[]");
+                        //imageList.AddToArrayBase("scott");
+                        //imageList.AddToArrayBase("Ted");
+                        //Content.Append(imageList.jsonString);
+                        break;
+                    
+                    */
+                    case "admin_block":
+                            let sBlockPath = "";
+                            let sName = "";
+                            if (cms.user.userLevel >= cms.minAdminLevel)
+                            {
+                                //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page.  (future, check if page is editable?!)
+                                //*** Here we reference admin_main.cfg  (or if [[admin_block:alias]] specified then admin_alias.cfg)	
+                                sName = ret.Param1.trim();
+                                if (sName == "") { sName = "block"; }
+                                sBlockPath = this.FindFileInFolders("admin_" + sName + ".cfg", this.getParamStr("TemplateFolder"), this.getParamStr("CommonTemplateFolder"));
+                                if (sBlockPath)
+                                {
+                                    content.append(readFileSync(sBlockPath));
+                                }
+                            } // end if (cms.UserLevel>= cms.minAdminLevel)
+                            break;
+                    
+                    case "admin_edit_page":
+                        let sBlockPath2 = "";
+                        //int MinEditLevel=cms.wiki["header.mineditlevel"].ToInt(999);  // This is now done in default.aspx
+                        //the theory is that this variable is actually not defined somehow? remove above if edit page on 215sports is fixed outside of this DSchwab 
+                        if (cms.user.userLevel >= cms.minAdminLevel)
+                        {
+                            //Content.Append("DEBUG: UserLevel: " + cms.UserLevel + ", MinEditLevel: " + cms.MinEditLevel + "<br>");
+                            //Content.Append("DEBUG: wiki[header]=" + cms.wiki["Header"].jsonString + "<br>");
+                            if (cms.user.userLevel >= cms.minEditLevel)
+                            {
+                                sBlockPath2 = this.FindFileInFolders("admin_edit_page.cfg", this.getParamStr("TemplateFolder"), this.getParamStr("CommonTemplateFolder"));
+                                if (sBlockPath2)
+                                {
+                                    content.append(readFileSync(sBlockPath2));
+                                }
+                            }
+                        } // end if (cms.UserLevel>=SITE.MinAdminLevel)
+                        break;
+                    /*
+                    case "admin-createpagelink":
+                        // FUTURE: MOVE THIS TO AdminFunctions.cs ONCE SITE.MinCreateLevel is added to every config
+                        if (cms.UserLevel >= cms.SITE.MinCreateLevel)
+                        {
+                            Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
+                        }
+                        break;
+                    case "admin_menulink_flag":
+                        string adminMenuLink = cms.wiki["Header.ShowAdminMenuLink"].CString().Trim();
+                        if (adminMenuLink == "") { adminMenuLink = "true"; } // default=true
+                        Content.Append(adminMenuLink);
+                        break;
+                    case "admin_editpage_flag":
+                        // Future: only show if in edit mode and user has high enough permissions to edit the page.
+                        string editFlag = "false";
+                        int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
+                        if (minedit <= cms.UserLevel) { editFlag = "true"; }
+                        Content.Append(editFlag);
+                        break;
+                    case "edit_page_link":
+                        //*** This tag is to be used in the admin_block
+                        //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
+                        //*** FUTURE: Check if page is editable
+                        if (cms.UserLevel >= cms.SITE.MinAdminLevel)
+                        {
+                            string EditURL = "", LinkTitle = "", tsWiki = "";
+                            tsWiki = "admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
+
+                            if (cms.wikiNotFound > 0)
+                            {
+                                //*** Wiki Page is missing - link to CREATE it...
+                                EditURL = tsWiki + "&obj=*new*&saveas=" + cms.RequestedPage;
+                                LinkTitle = "Create Page";
+                            }
+                            else
+                            {
+                                //*** Wiki Page exists - link to UPDATE it
+                                EditURL = tsWiki + "&id=" + cms.wiki["objid"].CString() + "&obj=" + cms.RequestedPage;
+                                LinkTitle = "Edit Page";
+                            }
+
+                            // FUTURE: check if this is a PRODUCT page
+                            //if ((Product_Page<>"") && (PageID==Product_Page)) { EditURL=EditProductsURL; }
+
+                            Content.Append("<a hRef=\"#\" onClick=\"Javascript:pup=window.open('" + EditURL + "','WObjEditor','menubar=no,status=no,width=950,height=700,toolbar=no,scrollbars=yes,location=no,directories=no,resizable=yes');pup.focus();return false;\" >" + LinkTitle + "</a>");
+
+                        }
+                        break;
+                    case "admin_menu_link":
+                        //*** This tag is to be used in the admin_block
+                        if (cms.UserLevel >= cms.SITE.MinAdminLevel)
+                        {
+                            Content.Append("<a hRef='" + cms.SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
+                        }
+                        break;
+                    case "err_block":
+                    case "error_block":
+                        string errText = cms.Session.GetString("errmsg").Trim();
+                        if (errText == "") { errText = cms.ErrMsg; }
+                        if (errText != "")
+                        {
+                            Content.Append("<div class='error_block'>" + errText + "<div>");
+                        }
+                        break;
+                    case "admin-get-editlistconfig":  // This may not be used any longer - now set as {{eclass}} tag within admin-editlist-table below
+                        Content.Append(editlistconfig);
+                        break;
+                    case "admin-load-editconfig":
+                        // This tag will load the editor config file if needed.  A response will be generated if there is an error.
+                        // This tag is not mandatory, but it enables the display of a user-friendly response and it allows
+                        // an override of the eclass config file name (Param1)
+                        this.LoadEditListIfNeeded(ret.Param1);
+                        if (editlisterror != "")
+                        {
+                            Content.Append("<div id='adminerror'>ERROR: " + editlisterror + "</div>");
+                        }
+                        break;
+                    case "admin-editlist-param":
+                        this.LoadEditListIfNeeded();
+                        try
+                        {
+                            if (editlistj.Contains(ret.Param1))
+                            {
+                                iesJSON rParam = editlistj[ret.Param1];
+                                if (rParam.jsonType == "array" || rParam.jsonType == "object") {
+                                    rParam.UseFlexJson = false;
+                                    rParam.InvalidateJsonString();
+                                    Content.Append(rParam.jsonString);
+                                } else {
+                                    Content.Append(rParam.CString());
+                                }
+                            }
+                            else
+                            {
+                                Content.Append(ret.Param2 + "");
+                            }
+                        }
+                        catch (Exception) { }
+                        break;
+                    */
+                    case "admin-editlist-table":
+                        try
+                        {
+                            let filePath2="";
+                            let tableHtml="";
+                            let out = { Cols : [],
+                                ColsHtml : "",
+                                ColsJS : ""  // Json String
+                            };
+                            let rTags = new iesJSON("{}");
+                            let err = false;
+
+                            // Look for editlist table HTML config file in the SERVER src folder.
+                            try
+                            {
+                                filePath2 = this.FindFileInFolders("admin-editlist-table.cfg", this.getParamStr("SourceFolder"), this.getParamStr("CommonSourceFolder"));
+                                if (filePath2) {
+                                    tableHtml = readFileSync(filePath2);
+                                }
+                            }
+                            catch { }
+                            if (!tableHtml) { 
+                                tableHtml = "<br><br>ERROR: Failed to load table config.  [err3498]<br><br>"; 
+                                err = true;
+                            }
+                            else {
+                       
+                                this.LoadEditListIfNeeded();
+                                let SpecialFlags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+                                let DisplayLength = this.editlistj.getStr("Paging","50");
+                                let pagingStart = this.toInt(cms.FormOrUrlParam("start"),0); // FUTURE: Use this value?
+                                if (this.editlisterror != "") { 
+                                    tableHtml = "<br><br>ERROR: " + this.editlisterror + "<br><br>"; 
+                                    err = true;
+                                }
+                                else {
+                                    this.GetColumns(out); // gets json columns
+
+                                    // Insert data into HTML
+                                    rTags.add("eclass", cms.urlParam("eclass"));
+                                    //rTags["editlist-header"].Value=colsHtml;
+
+                                    rTags.add("editlist-columns", jsCols);
+                                    rTags.add("editlist-primarykey", editlistj.getStr("PrimaryKey").trim());
+                                    let orderby2 = editlistj.getStr("OrderBy2").trim();
+                                    if (orderby2 != "") { 
+                                        rTags.add("editlistorderby", ",\"order\": " + orderby2); 
+                                        }
+                                    rTags.add("paging", DisplayLength);
+                                    if (SpecialFlags.indexOf("serverside") >=0) {
+                                        rTags.add("processing", ",\"processing\":true ");
+                                        rTags.add("serverside", ",\"serverSide\":true ");
+                                    }
+                                }
+                            }
+                            if (!err) {
+                                content.append(await cms.ReplaceStringTags(tableHtml, rTags, true, "{{", "}}"));
+                            }
+                            else {
+                                content.append(tableHtml); // Error message
+                            }
+                        }
+                        catch { }
+                        break;
+                    /*
+                    case "admin-editlist-data":
+                        // Return item/record data in JSON form
+                        GenerateJsonData(Content);
+                        break;
+                    case "admin-editlist-buttons":
+                        // Create the Save/Close buttons, but only if specified in the eclass config
+                        // Values that can be specified in SpecialFlags: SaveButton, CancelButton, SaveCloseButton, DeleteButton
+                        GenerateFormButtons(Content);
+                        break;
+                    case "admin-editlist-form":
+                        {
+                            ret.AllowRecursiveCall = false; // Do NOT replace [[tags]] recursively for this web form.
+                            GenerateForm(Content);
+                        }
+                        break;
+                    case "admin-edit-row":
+                        {
+                            // Used to edit a single record (usually not when selected from a list - always edit SAME record)
+                            ret.AllowRecursiveCall = false; // Do NOT replace [[tags]] recursively for this web form.
+                            GenerateForm(Content);
+                        }
+                        break;
+                    case "block":
+                        ProcessWebBlock(Content, ret);
+                        break;
+                    case "printform":
+                        ret.AllowRecursiveCall = false;
+                        GeneratePrintForm(Content);
+                        break;
+                    case "admin-editlist-save":
+                        SaveEditForm(Content);
+                        break;
+                    case "admin-editconfig":
+                        GenerateEditConfig(Content);
+                        break;
+                    case "admin-editrecord":
+                        { // FUTURE: Why are we using this and not admin-editlist-form?
+                            GenerateEditRecord(Content);
+                        }
+                        break;
+                    case "admin-saveconfig":
+                        {
+                            SaveConfig(Content);
+                        }
+                        break;
+                    case "admin_autofill":
+                        string autofillTable = cms.FormOrUrlParam("table");
+                        string autofillField = cms.FormOrUrlParam("field");
+                        string autofillType = cms.FormOrUrlParam("type");
+                        string autofillSubField = cms.FormOrUrlParam("subfield");
+                        iesJSON autofill = new iesJSON("{}");
+                        autofill["success"].Value = "false";
+                        autofill["data"].Value = "";
+
+                        string autoFillData = GenerateAutofillForm(autofillTable, autofillField, autofillType, autofillSubField);
+                        if (!this.isNullOrWhiteSpace(autoFillData))
+                        {
+                            autofill["success"].Value = "true";
+                            autofill["data"].Value = autoFillData;
+                        }
+                        Content.Append(autofill.jsonString);
+                        break;
+                    case "admin-show-view":
+                        // Show a custom form with data filled in from a DB record/object
+                        // Config file specified by vClass
+                        // Object ID specified by id
+                        AdminShowView(Content);
+                        break;
+                    case "jsonlist":
+                        iesJSON jsonListConfig = new iesJSON();
+                        string webBlockPath = Util.FindFile("jsonlist_" + ret.Param1 + ".cfg", cms.SITE.ConfigFolder, cms.SERVER.ConfigFolder);
+                        jsonListConfig.DeserializeFlexFile(webBlockPath);
+                        // Check for Errors
+                        if (jsonListConfig.Status != 0)
+                        {
+                            cms.WriteLog("cmsCommon-AdminTags", "ERROR: jsonList: Failed to parse file: Param1=" + ret.Param1 + ", File=" + webBlockPath + "\n");
+                            // cms.WriteLog("DEBUG", "configPath1=" + cms.SITE.ConfigFolder + "\n");  // DEBUG
+                            // cms.WriteLog("DEBUG", "configPath2=" + cms.SERVER.ConfigFolder + "\n");  // DEBUG
+                        }
+                        else
+                        {
+                            jsonListConfig.AddToObjBase("Tag", ret.Tag);
+                            jsonListConfig.AddToObjBase("Param1", ret.Param1);
+                            jsonListConfig.AddToObjBase("Param2", ret.Param2);
+                            jsonListConfig.AddToObjBase("Param3", ret.Param3);
+                            jsonListConfig.AddToObjBase("Param4", ret.Param4);
+                            string jsonListType = jsonListConfig["jsonListType"].ToStr().ToLower();
+                            switch (jsonListType)
+                            {
+                                case "fixedsql":
+                                    string sqlSelect = Util.GetParamStr(jsonListConfig, "select", "", true, true);
+                                    iesJSON webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
+                                    Content.Append(webBlockResults.jsonString);
+                                    break;
+                                default:
+                                    cms.WriteLog("cmsCommon-AdminTags", "ERROR: jsonList: Invalid jsonListType: Param1=" + ret.Param1 + ", File=" + webBlockPath + "\n");
+                                    break;
+                            }
+                        }
+                        break;
+                    case "pagesearchresults":
+                        PageSearchResults(Content);
+                        break;
+                    case "galleria_image_list":
+                        string ThisGalleria = cms.FormOrUrlParam("folder");
+                        string galleriaFolder = cms.SITE.ContentFolder + "\\images\\photogalleries\\" + ThisGalleria;
+                        DirectoryInfo pg = new DirectoryInfo(galleriaFolder);
+                        foreach (string suffix in new string[] { "jpg", "png", "gif" })
+                        {
+                            FileInfo[] Files = pg.GetFiles("*." + suffix); //Getting cfg files
+                            int photonumber = 1;
+                            foreach (FileInfo ThisFile in Files)
+                            {
+                                Content.Append("<img src='content/images/photogalleries/" + ThisGalleria + "/" + ThisFile.Name + "' data-title='" + ThisGalleria + "-Photo " + photonumber + "'>");
+                                photonumber = photonumber + 1;
+                            }
+                        }
+                        break;
+                    case "photogallery":
+                        // Get template
+                        try
+                        {
+                            string photogalleryPath = cms.SITE.TemplateFolder + "\\block_photogallery.cfg";
+                            if (!File.Exists(photogalleryPath))
+                            {
+                                photogalleryPath = cms.SERVER.TemplateFolder + "\\block_photogallery.cfg";
+                            }
+                            Content.Append(File.ReadAllText(photogalleryPath));
+                        }
+                        catch { }
+                        break;
+                    case "photolist":
+                        //Content.Append("DEBUG: photo gallery list<br>");
+                        // FUTURE: TODO: Specify GalleryFolder in the SITE class
+                        string ThisGallery = cms.FormOrUrlParam("gallery");
+                        string ThisGalleryFolder = cms.SITE.ContentFolder + "\\images\\Galleries\\" + ThisGallery;
+                        //Content.Append("DEBUG ThisGallery=" + ThisGallery + "<br>");
+                        //Content.Append("DEBUG ThisGalleryFolder=" + ThisGalleryFolder + "<br>");
+
+                        // Get config file (if it exists)
+
+                        // Get list of photos (each image can have multiple versions based on the config file)
+
+                        // Detemrine if there are any new photos in the folder
+                        DirectoryInfo d = new DirectoryInfo(ThisGalleryFolder);
+                        foreach (string suffix in new string[] { "jpg", "png", "gif" })
+                        {
+                            FileInfo[] Files = d.GetFiles("*." + suffix); //Getting cfg files
+                            foreach (FileInfo ThisFile in Files)
+                            {
+                                Content.Append("<img border=0 src='/" + cms.SITE.World + "/content/images/galleries/" + ThisGallery + "/" + ThisFile.Name + "'>");
+                            }
+                        }
+                        // Make/Return the list of photos
+                        break;
+                    case "ifuserlevel":
+                    case "ifnotuserlevel":
+                        bool pFlag = false;
+                        int paramLvl = 999;
+                        try { paramLvl = Int32.Parse(ret.Param1); } catch { paramLvl = 999; }
+                        if (cms.UserLevel >= paramLvl) { pFlag = true; }
+                        if (ret.Tag == "ifnotuserlevel") { pFlag = !pFlag; } // invert true/false
+                        if (pFlag) { Content.Append(ret.Param2); }
+                        //cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+                        break;
+                    case "ifuserisadmin":
+                    case "ifnotuserisadmin":
+                        bool admFlag = false;
+                        if (cms.UserLevel >= cms.SITE.MinAdminLevel) { admFlag = true; }
+                        if (ret.Tag == "ifnotuserisadmin") { admFlag = !admFlag; } // invert true/false
+                        if (admFlag) { Content.Append(ret.Param1); }
+                        break;
+                    case "getcookie": // [[getcookie:<cookie_name>]]
+                        string cookieval1 = null;
+                        try {
+                            cookieval1 = cms.Request.Cookies[ret.Param1].ToString().Trim();
+                        } catch {}
+                        if(cookieval1!=null)
+                        {
+                            Content.Append(cookieval1);
+                        }
+                        break;
+                    case "ifcookieequals": // [[ifcookieequals:<cookie_name>:<compare_value>:<text_to_append>]]
+                        string cookieval2 = null;
+                        try {
+                            cookieval2 = cms.Request.Cookies[ret.Param1].ToString().Trim();
+                        } catch {}
+                        if (cookieval2 == ret.Param2.Trim())
+                        {
+                            Content.Append(ret.Param3);
+                        } else {
+                            Content.Append(ret.Param4);
+                        }
+                        break;
+                    case "runcmd":
+                        // runcmd IS PRIVATE - User must be level 3 or higher
+                        string cmd = cms.FormOrUrlParam("cmd");
+                        //cms.Response.Write("DEBUG:cmd=" + cmd + "<br>");
+                        RunCmd(cmd, Content);
+                        break;
+                    case "qcmd":
+                        // WARNING: qcmd IS PUBLIC and can be run WITHOUT PERMISSIONS
+                        string qcmd = cms.FormOrUrlParam("cmd");
+                        QCmd(qcmd, Content);
+                        break;
+                    case "errmsg":
+                        try { Content.Append(cms.Session.GetString("errmsg")); } catch { }
+                        break;
+                    case "captcha":
+                        //variables that IDK where they came from:
+                        //	baseFOLDER <- replaced with SERVER.BaseFolder
+                        //	wWorld <- made SITE.World
+                        //	SERVER_FOLDER <- made SITE.WorldFolder
+                        //	Captcha <- defined as a string
+                        //	cSelect
+                        string CaptchaID = "";
+                        int MAX_CAPTCHAS = 9999;
+                        string CaptchaFolder = "";
+                        string CaptchaURL = "";
+                        string CaptchaPrefix = "c";
+                        string CaptchaSuffix = ".gif";
+
+                        if (CaptchaFolder == "") //looks for captcha files in the specifically for this site
+                        {
+                            CaptchaFolder = cms.SITE.WorldFolder + "\\captcha";
+                            CaptchaURL = "/" + cms.SITE.World + "/captcha";
+                            if (Directory.Exists(CaptchaFolder) == false) //if it doesn't find them, use generic captcha files
+                            {
+                                CaptchaFolder = cms.SERVER.BaseFolder + "\\captcha";
+                                CaptchaURL = "/captcha";
+                            }
+                        }
+                        string f; //the file
+                        if (CaptchaID == "")
+                        {
+                            Random r = new Random();
+                            double Rnd = r.NextDouble();
+                            double n = ((MAX_CAPTCHAS * Rnd) + 1);
+                            int i = Convert.ToInt32(n); //This used to round, now it truncates
+                            int cLast = MAX_CAPTCHAS + 99;
+                            int c = MAX_CAPTCHAS;
+                            int safety = 999;
+
+                            while (true)
+                            {
+                                //The program cannot know how many captcha files there are. This while loop searches for
+                                //an existing file in a speedy (O(lgN)) manner
+                                if (i < cLast)
+                                {
+                                    //*** Check for captcha 
+                                    f = CaptchaFolder + "\\" + CaptchaPrefix + i + CaptchaSuffix;
+                                    //Response.Write("Check for " & f & "<br>")
+                                    if (File.Exists(f))
+                                    {
+                                        CaptchaID = i.ToString();
+                                        break;
+                                    }
+                                    cLast = i;
+                                }
+
+                                //*** Photo not found (move # down to lower 50% - thus looking for a lower number photo)
+                                c = c / 2;
+                                if (c <= 1)
+                                    break;
+                                if (i > c)
+                                    i = i - c;
+
+                                safety = safety - 1;
+                                if (safety <= 0)
+                                    break;
+                            }
+                        }
+
+                        //*** Check one last time for CaptchaID=1
+                        if (CaptchaID == "")
+                        {
+                            f = CaptchaFolder + "\\" + CaptchaPrefix + "1" + CaptchaSuffix;
+                            if (File.Exists(f))
+                                CaptchaID = "1";
+                        }
+
+                        //*** Must have selected a Captcha in order to continue...
+                        if (CaptchaID == "") { }
+                        //Then Exit Function //?
+                        //throw an exception here?
+
+                        //*** Generate the HTML that was requested...
+                        string Captcha = "";
+                        //can you put more information in tags and access it here, to get cSelect?
+                        switch (((ret.Param1).Trim()).ToLower())
+                        {
+                            case "":
+                                Captcha = "<table id='captchatable' border=0 cellpadding=0 cellspacing=0><tr><td>Please type the characters in the image:&nbsp;</td><td colspan=2><img border=0 src='" +
+                                    CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix + "'></td></tr>" +
+                                    "<tr><td><input type='text' name='captcha' id='captcha'><input type='hidden' name='captchaid' id='captchaid' value='" + CaptchaID + "'></td></tr></table>";
+                                break;
+                            case "title":
+                                Captcha = "Please type the characters in the image:";
+                                break;
+                            case "field":
+                                Captcha = "<input type='text' name='captcha' id='captcha'>";
+                                break;
+                            case "hidden":
+                                Captcha = "<input type='hidden' name='captchaid' id='captchaid' value='" + CaptchaID + "'>";
+                                break;
+                            case "img":
+                                Captcha = "<img border=0 src='" + CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix + "'>";
+                                break;
+                            case "imgurl":
+                                Captcha = CaptchaURL + "/" + CaptchaPrefix + CaptchaID + CaptchaSuffix;
+                                break;
+                            case "id":
+                                Captcha = CaptchaID;
+                                break;
+                            default:
+                                Captcha = "";
+                                break;
+                        }
+                        //what do I do with Captcha that I created? content.append it?
+                        Content.Append(Captcha);
+                        break;
+                    case "runutility":
+                        callRunUtility(cms.FormOrUrlParam("runClass"));
+                        break;
+                    case "remoteips": // DEBUG: List remote IPs
+                        string[] HeaderItems = ("HTTP_CLIENT_IP,HTTP_X_FORWARDED_FOR,HTTP_X_FORWARDED,HTTP_X_CLUSTER_CLIENT_IP,HTTP_FORWARDED_FOR,HTTP_FORWARDED,HTTP_VIA,REMOTE_ADDR,Basic,data")
+                            .Split(",");
+                        foreach (string item in HeaderItems)
+                        {
+                            try
+                            {
+                                Microsoft.Extensions.Primitives.StringValues value1;
+                                cms.Request.HttpContext.Request.Headers.TryGetValue(item, out value1);
+                                var v1 = value1.FirstOrDefault();
+
+                                //string val = cms.Request.Headers[item].ToString();
+                                Content.Append(item + "=" + v1 + "<br>\n");
+                            }
+                            catch (Exception) { }
+                        }
+                        Content.Append("RemoteAddr=" + cms.Request.HttpContext.Connection.RemoteIpAddress + "<br>\n");
+                        break;
+
+                        *** End of section from original cmsCommon.cs ***/
 				
             default:
                 let vv = this.getParamStr(ret.Tag, null, true, true);
@@ -531,6 +1396,12 @@ class iesCommonLib {
             if (v) { return v; }
         } catch { }
         return defaultValue;
+    }
+
+    setPermissionLevels() {
+        this.minViewLevel = this.SITE.i("defaultMinViewLevel").toNum(999); // default value
+        this.minEditLevel = this.SITE.i("defaultMinEditLevel").toNum(999); // default value
+        this.minAdminLevel = this.SITE.i("defaultMinAdminLevel").toNum(999); // default value
     }
 
     PrepForJsonReturn(ret) {
@@ -1442,6 +2313,200 @@ class iesCommonLib {
         //*** FUTURE: Check for database errors using .then().catch()
 
     } // End Function
+
+    // *******************************************************************************************
+    // *******************************************************************************************
+    // *******************************************************************************************
+    // Section to handle dynamic table edit/forms processing/record updates/etc
+
+    // EDITLIST - future:indicate success/failure
+    editlistconfig = ""; // static variable to hold name of most recent config that has been loaded
+    editlisterror = "";
+    editlistj = null;
+    LoadEditListIfNeeded(eClassOverride = "")
+    {
+        let eclass = eClassOverride.trim().toLowerCase();
+        this.editlisterror = "";
+        if (!eclass) { eclass = this.urlParam("eclass").trim().toLowerCase(); }
+        let eclassfile = "eclass-" + eclass + ".cfg";
+        if (eclass != this.editlistconfig)
+        {
+            //Need to load config file
+            let configpath = this.FindFileInFolders(eclassfile, this.getParamStr("ConfigFolder"), this.getParamStr("DefaultConfigFolder"), this.getParamStr("CommonConfigFolder"));
+            if (!configpath)
+            {
+                this.editlisterror = "Config file not found: " + eclassfile + " [err7971]";
+                return;
+            }
+            this.editlistj = new iesJSON();
+            this.editlistj.DeserializeFlexFile(configpath, false, 0, 0); // 0,0 does not keep Comments or Spacing
+            if (this.editlistj.Status == 0)
+            { // no JSON errors
+                this.editlistconfig = eclass;
+            }
+            else {
+                this.editlistconfig = ""; // Error loading config
+                // this.editlistj = null;  // Leave this object for now so we can debug errors. FUTURE: remove object?
+            }
+        }
+        if (this.editlistconfig == "" && this.editlisterror == "")
+        {
+            this.editlisterror = "Failed to load config file: " + eclassfile + " [" + this.editlistj.Status + "][err7972]\nERROR REASON: " + this.editlistj.statusMsg;
+        }
+    }
+
+    // Get a list of columns (string) from an editclass config file (JSON)
+    // Three output formats:
+    //   out.Cols=csv (comma separated list)
+    //   out.ColsHtml=html table header row
+    //   out.ColsJS=Javascript list of data field names (for jquery.datatables)
+    GetColumns(out)
+    {
+            let sField = "";
+            let sTitle = "";
+            let sWidth = 0;
+            let sAs = "";
+            let sClass = "";
+            let vClass = "";
+            let sFlags = "";
+            let noPrimaryKey = true;
+            let cols = new StringBuilder();
+            //StringBuilder colsHtml=new StringBuilder();
+            let jsCols = new iesJSON("[]");
+            var node; // to hold json Node
+            try
+            {
+                editlistj.i("SearchList").toJsonArray().forEach(fld =>
+                {
+                    sWidth = fld.getStr("Width").trim();
+                    sField = fld.getStr("Field").trim();
+                    sTitle = fld.getStr("Alias").trim();
+                    sClass = fld.getStr("Class").trim();
+                    vClass = fld.getStr("vClass").trim();
+                    sFlags = fld.getStr("Flags").trim();
+                    sAs = fld.getStr("As").trim();  // If field is a sub-query "(SELECT...) as Foo" then set As:Foo
+
+                    if (sField == editlistj.getStr("primaryKey").trim()) noPrimaryKey = false; //check if the field is a primary key
+                    if (cols.length > 0) { cols.append(","); }
+                    cols.append(sField);
+
+                    if (this.isNullOrWhiteSpace(sAs)) { sAs = sField; }  // If no AS then set AS to the field name.
+                    else { cols.append(" as " + sAs); } // Apply 'as' portion to Query field
+
+                    if (sTitle == "") { sTitle = sAs; }  // If no alias then set alias title to the field name.
+                    if (sWidth != "" && sWidth != "0")
+                    {
+                        //colsHtml.append("<td>" + sTitle + "</td>"); 
+                        node = new iesJSON("{}");
+                        node.add("sTitle", sTitle.replace(/`/g, ""));   // DEBUG: + "[" + sWidth + "]";
+                        if (sFlags.indexOf("l") >= 0) { node.add("class","editRow"); }
+                        node.add("data", sAs.replace(/`/g, ""));
+                        if (!this.isNullOrWhiteSpace(sClass)) { node.add("class", node.getStr("class") + " " + sClass); }
+                        if (!this.isNullOrWhiteSpace(vClass)) { node.add("vclass", vClass); }
+                        jsCols.addToBase(node);
+                    }
+                });
+                if (noPrimaryKey)
+                { //if there is still no primary key in the columns, then add one.
+                    cols.append("," + editlistj.getStr("primaryKey").trim());
+                }
+            }
+            catch { }
+            out.Cols = cols.toString();
+            //outColsHtml=colsHtml.toString();
+            out.ColsJS = jsCols.jsonString;
+        }
+
+        // ************************************************************************************************************
+        // **************** ReplaceStringTags() - alternate to ReplaceTags() that uses one set of JSON items to fill tags in one string
+        // **************** Replaces [[Tags]] with values from a iesJSON object.
+        // **************** If a [[Tag]] is not found in tagValues then...
+        // ****************   If SetNoMatchBlank=true Then the tag is replaced with ""
+        // ****************   If SetNoMatchBlank=false Then the tag is left in the string.
+        // ****************
+        ReplaceStringTags(inputString, tagValues /* iesjSON obj */, SetNoMatchBlank = true, startStr = "[[", endStr = "]]", lvl = 0)
+        {
+            let charPosition = 0;
+            let beginning = 0;
+            let startPos = 0;
+            let endPos = 0;
+            let data = new StringBuilder();
+
+            // Safety - keep from causing an infinite loop.
+            lvl = lvl + 1;
+            if (lvl > 99) { return inputString; }
+
+            do
+            {
+                // Let's look for our tags to replace
+                charPosition = inputString.indexOf(startStr, endPos);
+                if (charPosition >= 0)
+                {
+                    startPos = charPosition;
+                    endPos = inputString.indexOf(endStr, startPos);
+                    if (endPos < 0)
+                    {
+                        // We did not find a matching end ]].  Break out of loop.
+                        charPosition = -2;
+                    }
+                    else
+                    {
+                        // We found a match...
+                        let tag = inputString.substring(startPos + startStr.length, (endPos - startPos) - endStr.length);
+
+                        let replacement = "";
+                        // Check to see if tagValues contains a value for this field.
+                        if (tagValues.contains(tag))
+                        {
+                            // Yes it does.
+                            replacement = tagValues.getStr(tag);
+
+                            // Check if our replacement string has [[tags]] that need to be replaced
+                            let pt = replacement.indexOf(startStr);
+                            if (pt >= 0)
+                            {
+                                // Recursive call to replace [[tags]]
+                                let replace2 = this.ReplaceStringTags(replacement, tagValues, SetNoMatchBlank, startStr, endStr, lvl);
+                                replacement = replace2;
+                            }
+                        }
+                        else
+                        {
+                            // No it does not contain tag
+                            if (SetNoMatchBlank == false) { replacement = startStr + tag + endStr; }
+                        }
+
+                        data.append(inputString.substring(beginning, (startPos - beginning)));
+                        data.append(replacement);
+                        beginning = endPos + endStr.length;
+                    }  // End if (endPos<0) else
+                }  // End if (charPosition >= 0)
+            } while (charPosition >= 0);
+
+            if (beginning < (inputString.length))
+            {
+                data.append(inputString.substring(beginning));
+            }
+
+            return data.toString();
+        } // END ReplaceStringTags()
+
+
+    toInt(sObj, nDefault = 0) {
+        let ret = nDefault;
+        try {
+            ret = parseInt(sObj + "");
+        }
+        catch (Exception) {
+            ret = nDefault;
+        }
+        return ret;
+    }
+
+    isNullOrWhiteSpace( input ) {
+        return !input || !(input + '').trim();
+      }
+
 }
 
 module.exports = iesCommonLib;
