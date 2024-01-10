@@ -130,7 +130,7 @@ class iesJSON {
             this.createMetaIfNeeded();
             if (this._meta != null) { this._meta.statusMsg = value; }
             if (this._meta.msgLogOn) {
-                if (this._meta != null) { this._meta.msgLog.Add(value); }
+                if (this._meta != null) { this._meta.msgLog.add(value); }
             }
         }
 
@@ -414,7 +414,7 @@ class iesJSON {
     get thisValue() {
         return this.v();
     }
-    set thisValue(value) {
+    set thisValue(value) { // sets the value of the iesJSON object and the jsonType
         this.InvalidateJsonString(); // indicate that the JsonString has changed
         this._status = 0;
         this._jsonType = this.convertType(value);
@@ -513,34 +513,54 @@ class iesJSON {
         }
     } // end forEach()
 
-    // This replaces addToObjBase and addToArrayBase
-    addToBase (idx,value) {
-        this.add(idx,value,false);
+    // This replaces addToObjBase and addToArrayBase (if array, second argument is not needed)
+    addToBase (value,idx = '') {
+        this.add(value,idx,false);
     }
 
-    add (idx,value,dotNotation = true) {
-        let foundItem = this.i(idx,dotNotation);
-        if (foundItem.Parent) {
-            // Item exists... replace the value
-            foundItem.thisValue = value;
-            this.InvalidateJsonString(); // indicate that the JsonString has changed.
+    add (value,idx = '',dotNotation = true) {
+        var newV;
+        var debugType = typeof value;  /// debug debug debug
+        if (value === null) {  /// debug debug debug
+            console.log('is null');
+        }
+        if ((value !== null) && (typeof value === 'object') && (value.constructor.name === 'iesJSON')) {
+            newV = value; // FUTURE: clone?
         } else {
-            this.InvalidateJsonString(); // indicate that the JsonString has changed.
-            // Item does not exist... we need to add the item (be aware of dotNotation)
-            if (dotNotation && idx.indexOf('.')>=0) {
-                // FUTURE: WHAT TO DO HERE!!
+            newV = new iesJSON();
+            newV.thisValue = value; // This also sets the jsonType
+        }
+        newV.Parent = this;
+
+        // Can only add to an Object or Array
+        if (this._jsonType == 'object') {
+            let foundItem = this.i(idx,dotNotation);
+            if (foundItem.Parent) {
+                // Item exists... replace the value
+                foundItem.thisValue = value;  // this also sets jsonType
+                this.InvalidateJsonString(); // indicate that the JsonString has changed.
             } else {
-                // add item to this object - but verify that we are an object!
-                if (this._jsonType != 'object') {
-                    throw("ERROR: add() is only available for iesJSON object types.");
+                this.InvalidateJsonString(); // indicate that the JsonString has changed.
+                // Item does not exist... we need to add the item (be aware of dotNotation)
+                if (dotNotation && idx.indexOf('.')>=0) {
+                    // FUTURE: WHAT TO DO HERE!!
                 } else {
-                    let newV = new iesJSON();
-                    newV.thisValue = value;
-                    newV.key = idx;
-                    newV.Parent = this;
-                    this._value.push(newV);
-                }
-            }
+                    // add item to this object - but verify that we are an object!
+                    // if (this._jsonType != 'object') {
+                    //    throw("ERROR: add() is only available for iesJSON object types.");
+                    //} else {
+                        newV.key = idx;
+                        this._value.push(newV);
+                    //}
+                } // else
+            } // else
+        } else if (this._jsonType == 'array') {
+            this.InvalidateJsonString(); // indicate that the JsonString has changed.
+            // Always push array value onto the end of the array
+            newV.key = '';
+            this._value.push(newV);
+        } else {
+            throw("ERROR: add() is only available for iesJSON object or array types.");
         }
     }
 
@@ -802,9 +822,8 @@ class iesJSON {
             let getSpace = "";
             let meString = "";
             //if (trackingStats) { IncStats("stat_DeserializeMeI"); } // FUTURE-NEW
-
             this._status = 0;
-            this.StartPosition = start;  // store in meta (if ok to do so)
+            this.StartPosition = start.clone();  // store in meta (if ok to do so)
             let meStatus = iesJsonConstants.ST_BEFORE_ITEM;
             let quoteChar = '';
             this._key = null; // *** Default
@@ -813,7 +832,7 @@ class iesJSON {
             this._jsonType = iesJsonConstants.typeNull; // default
             let jsonEndPoint = meJsonString.length-1;
             
-            let mePos = start;  // iesJsonPosition USE THIS TO TRACK POSITION, THEN SET endpos ONCE DONE OR ON ERROR
+            let mePos = start.clone();  // iesJsonPosition USE THIS TO TRACK POSITION, THEN SET endpos ONCE DONE OR ON ERROR
             let keepSP = this.keepSpacing;
             let keepCM = this.keepComments;
 
@@ -859,7 +878,7 @@ class iesJSON {
                             this._jsonType=iesJsonConstants.typeArray;
                             mePos = this.DeserializeArray(meJsonString, mePos, keepSP, keepCM); 
                             meStatus = iesJsonConstants.ST_AFTER_ITEM;
-                            if (this._status != 0) { break; } // ERROR message should have already been generated.
+                            if (this._status != 0) { breakBreak=true; break; } // ERROR message should have already been generated.
                             }
                         else if (c == '"') { 
                             ok=true; 
@@ -1170,8 +1189,8 @@ class iesJSON {
                             
             // Store original JSON string and mark as "valid"
             if (this._status == 0) {
-                this._jsonString = meJsonString.substr(start.absolutePosition, 1 + mePos.absolutePosition - start.absolutePosition);
-                this._jsonString_valid = false;
+                this._jsonString = meJsonString.substr(start.absolutePosition, mePos.absolutePosition - start.absolutePosition);
+                this._jsonString_valid = true;
             }
             else {
                 this._jsonString = meJsonString;
@@ -1379,7 +1398,7 @@ class iesJSON {
                 */
                 if (jNew.Status != 0)
                 {
-                    this.StatusErr(-21, "Failed to find value in array pair. @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-21) [" + jNew.StatusMessage + "]");
+                    this.StatusErr(-21, "Failed to find value in array. @Line:" + mePos.lineNumber + " @Position:" + mePos.linePosition  + " (e-21) [" + jNew.StatusMessage + "]");
                     break;
                 }
                 else
@@ -1387,7 +1406,10 @@ class iesJSON {
                     // Note: Above, jNew.status=-11 indicates nothing was found where there should have been a value - for FLEX JSON this is legitimate.
                     // *** For all cases: object, array, string, number, boolean, or null
                     jNew.Parent = this;
-                    v.push(jNew);  // FUTURE: IS THIS WRONG? SHOULD WE CHECK TO SEE IF THE KEY ALREADY EXISTS? AS IS, THE FIRST VALUE WILL "overshadow" ANY SUBSEQUENT VALUE. MAYBE THIS IS OK.
+                    // If jNew is a blank string, then we need to create an empty array rather than an array with a null value. 
+                    if (jNew._jsonString.trim() != '') {
+                        v.push(jNew); 
+                    }
                     mePos = finalPos;
                 }
                         
@@ -1488,6 +1510,7 @@ class iesJSON {
 
         // Convert Javascript type to iesJSON type
         convertType(v) {
+            if (v === null) { return 'null'; }
             const vType = typeof(v);
             switch(vType) {
                 case 'bigint':

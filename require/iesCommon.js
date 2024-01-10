@@ -485,12 +485,6 @@ class iesCommonLib {
                                 break;
                         }
                         break;
-                    case "imageviewercollection":
-                        //iesJSON imageList=new iesJSON("[]");
-                        //imageList.AddToArrayBase("scott");
-                        //imageList.AddToArrayBase("Ted");
-                        //Content.Append(imageList.jsonString);
-                        break;
                     
                     */
                     case "admin_block":
@@ -668,19 +662,19 @@ class iesCommonLib {
                                     this.GetColumns(out); // gets json columns
 
                                     // Insert data into HTML
-                                    rTags.add("eclass", cms.urlParam("eclass"));
+                                    rTags.add(cms.urlParam("eclass"),"eclass");
                                     //rTags["editlist-header"].Value=colsHtml;
 
-                                    rTags.add("editlist-columns", out.ColsJS);
-                                    rTags.add("editlist-primarykey", this.editlistj.getStr("PrimaryKey").trim());
+                                    rTags.add(out.ColsJS,"editlist-columns");
+                                    rTags.add(this.editlistj.getStr("PrimaryKey").trim(),"editlist-primarykey");
                                     let orderby2 = this.editlistj.getStr("OrderBy2").trim();
                                     if (orderby2 != "") { 
-                                        rTags.add("editlistorderby", ",\"order\": " + orderby2); 
+                                        rTags.add(",\"order\": " + orderby2, "editlistorderby"); 
                                         }
-                                    rTags.add("paging", DisplayLength);
+                                    rTags.add(DisplayLength, "paging");
                                     if (SpecialFlags.indexOf("serverside") >=0) {
-                                        rTags.add("processing", ",\"processing\":true ");
-                                        rTags.add("serverside", ",\"serverSide\":true ");
+                                        rTags.add(",\"processing\":true ", "processing");
+                                        rTags.add(",\"serverSide\":true ", "serverside");
                                     }
                                 }
                             }
@@ -696,7 +690,7 @@ class iesCommonLib {
                     
                     case "admin-editlist-data":
                         // Return item/record data in JSON form
-                        this.GenerateJsonData(content);
+                        await this.GenerateJsonData(content);
                         break;
 
                     /*
@@ -777,11 +771,11 @@ class iesCommonLib {
                         }
                         else
                         {
-                            jsonListConfig.AddToObjBase("Tag", ret.Tag);
-                            jsonListConfig.AddToObjBase("Param1", ret.Param1);
-                            jsonListConfig.AddToObjBase("Param2", ret.Param2);
-                            jsonListConfig.AddToObjBase("Param3", ret.Param3);
-                            jsonListConfig.AddToObjBase("Param4", ret.Param4);
+                            jsonListConfig.addToBase(ret.Tag, "Tag");
+                            jsonListConfig.addToBase(ret.Param1, "Param1");
+                            jsonListConfig.addToBase(ret.Param2, "Param2");
+                            jsonListConfig.addToBase(ret.Param3, "Param3");
+                            jsonListConfig.addToBase(ret.Param4, "Param4");
                             string jsonListType = jsonListConfig["jsonListType"].ToStr().toLowerCase();
                             switch (jsonListType)
                             {
@@ -1309,11 +1303,11 @@ class iesCommonLib {
                 }
                 else
                 {
-                    jsonListConfig.AddToObjBase("Tag", ret.Tag);
-                    jsonListConfig.AddToObjBase("Param1", ret.Param1);
-                    jsonListConfig.AddToObjBase("Param2", ret.Param2);
-                    jsonListConfig.AddToObjBase("Param3", ret.Param3);
-                    jsonListConfig.AddToObjBase("Param4", ret.Param4);
+                    jsonListConfig.addToBase(ret.Tag, "Tag");
+                    jsonListConfig.addToBase(ret.Param1, "Param1");
+                    jsonListConfig.addToBase(ret.Param2, "Param2");
+                    jsonListConfig.addToBase(ret.Param3, "Param3");
+                    jsonListConfig.addToBase(ret.Param4, "Param4");
                     string jsonListType = jsonListConfig["jsonListType"].ToStr().toLowerCase();
                     switch (jsonListType)
                     {
@@ -1492,7 +1486,7 @@ class iesCommonLib {
     /* ************************ Edit Table / Edit Form ************************************* */
     /* ************************************************************************************* */
 
-    GenerateJsonData(content, idOverride = "", eClassOverride = "", includeHeader = true)
+    async GenerateJsonData(content, idOverride = "", eClassOverride = "", includeHeader = true)
         {
             let sql3 = "";
             let out = {
@@ -1543,7 +1537,7 @@ class iesCommonLib {
             {
                 try
                 {
-                    let w = this.MakeSearch(this.editlistj.i("SearchList"),searchText);
+                    let w = this.MakeSearch(out.Cols,searchText);
                     let w1 = "WorldID='" + this.siteId + "'";
                     if (flags.indexOf("noworldid") >= 0) { w1 = ""; }
                     if (w1 != "") { if (w != "") { w += " AND "; } w += "(" + w1 + ")"; }
@@ -1556,7 +1550,7 @@ class iesCommonLib {
                     if (w.trim() != "") { w = " WHERE " + w; }
                     let o = this.editlistj.getStr("OrderBy").trim();  // For datatables this does nothing - Try OrderBy2="[ [5, 'desc' ] ]"
                     if (o != "") { o = " ORDER BY " + o + " "; }
-                    sql3 = "SELECT " + out.acols + " FROM " + SearchTable + " " + w + o + limit;
+                    sql3 = "SELECT " + out.Cols + " FROM " + SearchTable + " " + w + o + limit;
                     /* DEBUG
                     using (StreamWriter writer = new StreamWriter(SITE.ConfigFolder + "\\temp-SQL.txt"))
                     {
@@ -1564,24 +1558,25 @@ class iesCommonLib {
                     } 
                     */
                     //this.Response.Write("DEBUG: connect=" + this.db.ConnectString + "<br><br>"); //DEBUG 
-                    let rData = this.db.GetDataReaderAll(sql3);
-                    let recordsTotal=this.db.GetCount(SearchTable,w);
+                    let rData = await this.db.GetDataReader(sql3);
+                    let recordsTotal=await this.db.GetCount(SearchTable,w);
                     let recordsFiltered=recordsTotal;
 
-                    jret.add("msg","success");
-                    jret.add("draw", this.FormOrUrlParam("draw")); // Return the DRAW id sent in the request (used to sync results)
-                    jret.add("recordsTotal", recordsTotal);
-                    jret.add("recordsFiltered", recordsFiltered);
-                    jret.add("data",rData);
-                    jret.add("sql",sql3); //DEBUG
+                    jret.add("success", "msg");
+                    jret.add(this.FormOrUrlParam("draw"), "draw"); // Return the DRAW id sent in the request (used to sync results)
+                    jret.add(recordsTotal, "recordsTotal");
+                    jret.add(recordsFiltered, "recordsFiltered");
+                    jret.add(rData, "data");
+                    jret.add(sql3, "sql"); //DEBUG
                     content.append(jret.jsonString);
                 }
-                catch
+                catch (ee3)
                 {
+                    console.log(ee3);
                     errmsg = "ERROR: Failed to get data records. [err4995]";
                     if (this.debugMode > 0) { errmsg += " SQL=" + sql3; }
-                    jret.add("data", new iesJSON("[]"));
-                    jret.add("error",errmsg);
+                    jret.add(new iesJSON("[]"), "data");
+                    jret.add(errmsg, "error");
                     content.append(jret.jsonString);
                 }
             } // end if-else (Permit<=0)
@@ -1609,9 +1604,9 @@ class iesCommonLib {
                 ext = MstrFile.getStr("FileExt").trim().toLowerCase();
                 FileNameField = MstrFile.getStr("FileNameField").trim();
                 hasHeader = MstrFile.getBool("IncludeJsonHeader");
-                tTags.add("pageFolder", this.SITE.PageFolder);
-                tTags.add("contentFolder", this.SITE.ContentFolder);
-                tTags.add("templateFolder", this.SITE.TemplateFolder);
+                tTags.add(this.SITE.PageFolder, "pageFolder");
+                tTags.add(this.SITE.ContentFolder, "contentFolder");
+                tTags.add(this.SITE.TemplateFolder, "templateFolder");
                 readPath = this.ReplaceStringTags(readPath, tTags, true, "{{", "}}");
                 //content.append("DEBUG: path=" + readPath + "\\" + prefix + "*" + ext + "  ");
 
@@ -1667,7 +1662,7 @@ class iesCommonLib {
                                                     jjValue = "<a href='" + fileNameNoExtension + "'>View</a>";
                                                     break;
                                             }
-                                            jjFile.add(fldName, jjValue);
+                                            jjFile.add(jjValue, fldName);
                                         }
                                     }
                                 }
@@ -1686,13 +1681,13 @@ class iesCommonLib {
             let jret = new iesJSON("{}");
             if (fileCount == 0)
             {
-                jret.add("msg", "no files found");
+                jret.add("no files found", "msg");
             }
             else
             {
-                jret.add("msg", "success");
+                jret.add("success", "msg");
             }
-            jret.add("data", rData);
+            jret.add(rData, "data");
             content.append(jret.jsonString);
             return;
         }
@@ -1958,7 +1953,7 @@ class iesCommonLib {
                             foreach (iesJSON df in Defaults)
                             {
                                 string dfValue = Util.ReplaceTags(df.CString(), rTags, false, "{{", "}}");
-                                jRec.AddToObjBase(df.Key, dfValue);
+                                jRec.addToBase(dfValue, df.Key);
                             } // end foreach
                         } // end if
                     } // end if
@@ -1972,7 +1967,7 @@ class iesCommonLib {
                     {
                         foreach (iesJSON ovr in Override)
                         {
-                            jRec.AddToObjBase(ovr.Key, ovr);
+                            jRec.addToBase(ovr, ovr.Key);
                         } // end foreach
                     } // end if
                 } // end if
@@ -2144,8 +2139,8 @@ class iesCommonLib {
 
                           iesJSON pListJson4 = new iesJSON("[]" );
 
-                        // pListJson4.AddToArrayBase(new iesJSON("[\"Main\",\"Main\"]"));
-                         //pListJson4.AddToArrayBase(new iesJSON("[\"Joe\",\"Joe\"]"));
+                        // pListJson4.addToBase(new iesJSON("[\"Main\",\"Main\"]"));
+                         //pListJson4.addToBase(new iesJSON("[\"Joe\",\"Joe\"]"));
 
                    string readPath = cms.SITE.TemplateFolder;
 
@@ -2162,10 +2157,10 @@ class iesCommonLib {
 
                                 iesJSON templateItem = new iesJSON("[]");  
 
-                                templateItem.Add(templatelayout);  
-                                templateItem.Add(templatelayout);   
+                                templateItem.add(templatelayout);  
+                                templateItem.add(templatelayout);   
 
-                                pListJson4.AddToArrayBase(templateItem);
+                                pListJson4.addToBase(templateItem);
                         }
                     }
                         sRet = GenerateDD(pListJson4, fID, fWidth, fValue, meViewOnly, meRequired, sClass, true, "");
@@ -2842,7 +2837,7 @@ class iesCommonLib {
                 }
             }
             if (htmlFile && ContentField.trim() != '') {
-                htmlFile.AddToObjBase(ContentField, fileContent);
+                htmlFile.addToBase(fileContent, ContentField);
             }
             if (errMsg == "") { status = 0; }
         } // End if (!String.IsNullOrEmpty(fileContent))
@@ -2854,7 +2849,7 @@ class iesCommonLib {
         return { content: fileContent, jsonHeader, foundHeader, status, errMsg };
     }
 
-    MakeSearch(oFields, oSearch, cms, mysqlDate = false) {
+    MakeSearch(oFields, oSearch, mysqlDate = false) {
         let p1cnt = 0;
         let p2cnt = 0;
         let qry = new StringBuilder();
@@ -2865,7 +2860,7 @@ class iesCommonLib {
         if (SearchList.length > 0) {
             p1cnt = 0;
             if (qry.length > 0) { qry.append(") AND ("); }
-            Searchlist.forEach(p1 => {
+            SearchList.forEach(p1 => {
                 if (mysqlDate) {
                     let DatePiece = this.SplitStr(p1, "/");
                     let strMonth = "";
@@ -2953,7 +2948,7 @@ class iesCommonLib {
 
     // *** SplitStr()
     // *** NOTE: NEEDED BECAUSE WE SPLIT BASED ON MORE THAN 1 CHARACTER
-    SplitStr(nString, CharList) {
+    SplitStr(inputString, CharList) {
         let cnt = 0;
         let LastF = 0;
         let ListLen = CharList.length;
@@ -2964,15 +2959,19 @@ class iesCommonLib {
         let newStr = "";
 
         let ret = [];
+
+        if (isNaN(inputString) || inputString === null) { return ret; } // cannot parse a null or error
+
+        let nString = inputString + '';
         if (nString.length <= 0) { return ret; }
         do {
             f = 999999;
             for (px = 0; px < ListLen; px++) {
-                s = nString.indexOf(CharList.substring(px, 1), LastF);
+                s = nString.indexOf(CharList.substr(px, 1), LastF);
                 if ((s > 0) && (s < f)) { f = s; }
             } // End for
             if (f >= 999999) { break; }
-            newStr = nString.substring(LastF, f - LastF);
+            newStr = nString.substr(LastF, f - LastF);
             if (newStr.trim() != "") {
                 cnt = cnt + 1;
                 ret.push(newStr);
@@ -2980,7 +2979,7 @@ class iesCommonLib {
             LastF = f + 1;
             if (safety-- <= 0) { break; }
         } while (true);
-        if (LastF < nString.length) { newStr = nString.substring(LastF, (nString.length) - LastF); }
+        if (LastF < nString.length) { newStr = nString.substr(LastF, (nString.length) - LastF); }
         if (newStr.trim() != "") {
             cnt = cnt + 1;
             ret.push(newStr);
@@ -3563,12 +3562,9 @@ class iesCommonLib {
             var node; // to hold json Node
             try
             {
+                let sep = '';
                 let a = this.editlistj.i("SearchList");
                 let b = a.toJsonArray();
-                b.forEach( (fld) =>
-                {
-                    console.log("hello world");
-                });
                 b.forEach( (fld) =>
                 {
                     sWidth = fld.getStr("Width").trim();
@@ -3579,9 +3575,9 @@ class iesCommonLib {
                     sFlags = fld.getStr("Flags").trim();
                     sAs = fld.getStr("As").trim();  // If field is a sub-query "(SELECT...) as Foo" then set As:Foo
 
-                    if (sField == this.editlistj.getStr("primaryKey").trim()) noPrimaryKey = false; //check if the field is a primary key
-                    if (cols.length > 0) { cols.append(","); }
-                    cols.append(sField);
+                    if (sField == this.editlistj.getStr("primaryKey").trim()) { noPrimaryKey = false; } //check if the field is a primary key
+                    cols.append(sep + sField);
+                    sep = ',';
 
                     if (this.isNullOrWhiteSpace(sAs)) { sAs = sField; }  // If no AS then set AS to the field name.
                     else { cols.append(" as " + sAs); } // Apply 'as' portion to Query field
@@ -3591,11 +3587,11 @@ class iesCommonLib {
                     {
                         //colsHtml.append("<td>" + sTitle + "</td>"); 
                         node = new iesJSON("{}");
-                        node.add("sTitle", sTitle.replace(/`/g, ""));   // DEBUG: + "[" + sWidth + "]";
+                        node.add(sTitle.replace(/`/g, ""),"sTitle");   // DEBUG: + "[" + sWidth + "]";
                         if (sFlags.indexOf("l") >= 0) { node.add("class","editRow"); }
-                        node.add("data", sAs.replace(/`/g, ""));
-                        if (!this.isNullOrWhiteSpace(sClass)) { node.add("class", node.getStr("class") + " " + sClass); }
-                        if (!this.isNullOrWhiteSpace(vClass)) { node.add("vclass", vClass); }
+                        node.add(sAs.replace(/`/g, ""),"data");
+                        if (!this.isNullOrWhiteSpace(sClass)) { node.add(node.getStr("class") + " " + sClass,"class"); }
+                        if (!this.isNullOrWhiteSpace(vClass)) { node.add(vClass, "vclass"); }
                         jsCols.addToBase(node);
                     }
                 });
@@ -3707,6 +3703,7 @@ class iesCommonLib {
         catch (Exception) {
             ret = nDefault;
         }
+        if (isNaN(ret) || ret === null) { return nDefault; }
         return ret;
     }
 
