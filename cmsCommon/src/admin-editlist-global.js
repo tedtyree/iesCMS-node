@@ -19,7 +19,7 @@ $(document).ready(function() {
 });
 
 function runSetCustom() {
-  set_custom();
+  if(typeof set_custom === "function") {set_custom();}
   buttonActions = {...defaultButtonActions, ...buttonActions};
 }
 
@@ -124,7 +124,7 @@ function editlist_settable() {
 		ShowPanel("loading");
 		$('.editArea').hide();
 		$('.editlist-form').html('');
-		$.get('admin-edit-form.ashx?eclass=' + eClass, { id: '*new*' }, function(data){
+		$.get('admin-edit-form?eclass=' + eClass, { id: '*new*' }, function(data){
 			if (data){
 				$('#editlist-form').html(data);
 				ShowPanel("form");
@@ -138,7 +138,7 @@ function OpenItem(itemID) {
   ShowPanel("loading");
   $(".editArea").hide();
   $(".editlist-form").html("");
-  $.get("admin-edit-form.ashx?eclass=" + eClass, { id: itemID }, function(
+  $.get("admin-edit-form?eclass=" + eClass, { id: itemID }, function(
     data
   ) {
     if (data) {
@@ -158,7 +158,7 @@ function ShowForm() {
   $(".editArea").hide();
   $(".editlist-form").html("");
   fDirty = false;
-  $.get("admin-edit-form.ashx?eclass=" + eClass, { id: recID }, function(data) {
+  $.get("admin-edit-form?eclass=" + eClass, { id: recID }, function(data) {
     if (data) {
       $("#editlist-form").html(data);
       ShowPanel("form");
@@ -232,7 +232,7 @@ function SaveItem(CloseAfter, ShowSuccessMessage, saveCmd) {
 */
     var cmd = saveCmd || 'save';
     $.post(
-      "admin-edit-save.ashx?cmd=" + cmd + "&eclass=" + eClass,
+      "admin-edit-save?cmd=" + cmd + "&eclass=" + eClass,
       $("#editlistform").serialize(),
       function(data) {
         SaveComplete(data, CloseAfter, ShowSuccessMessage);
@@ -325,7 +325,7 @@ function URLwithparams() {
   var ts = new Date().getTime();
   
   urlHistory = "&history=" + $("#fltHistory").is(":checked");
-  var url = "admin-edit-data.ashx?eclass=" + eClass + urlHistory + "&ts=" + ts;
+  var url = "admin-edit-data?eclass=" + eClass + urlHistory + "&ts=" + ts;
   return url;
 }
 

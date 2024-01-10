@@ -136,7 +136,7 @@ class iesCommonLib {
                 this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
                 let tblRS = await this.db.GetDataReader('SELECT COUNT(*) AS CNT FROM ' + tbl + where);
                 if (!(tblRS == null)) {
-                        for (const tblRec of tblRS) { // should only be 1 row
+                        for (const tblRec of tblRS) { // foreach, however should only be 1 row
                             content.append(tblRec.CNT);
                         }
                     }
@@ -150,7 +150,7 @@ class iesCommonLib {
                 this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
                 let tblRS2 = await this.db.GetDataReader('SELECT * FROM ' + tbl2 + where2 + ' LIMIT ' + cnt2);
                 if (!(tblRS2 == null)) {
-                    for (const tblRec2 of tblRS2) { // should only be 1 row
+                    for (const tblRec2 of tblRS2) { // foreach, however should only be 1 row
                         content.append(JSON.stringify(tblRec2) + '\n');
                     }
                 }
@@ -160,7 +160,7 @@ class iesCommonLib {
                 this.db.debugMode = 9; // TEMP DEBUG FUTURE REMOVE THIS
                 let tblRS3 = await this.db.GetDataReader('SHOW TABLES');
                 if (!(tblRS3 == null)) {
-                    for (const tblRec3 of tblRS3) { // should only be 1 row
+                    for (const tblRec3 of tblRS3) { // foreach, however should only be 1 row
                         content.append(JSON.stringify(tblRec3) + '\n');
                     }
                 }
@@ -223,7 +223,7 @@ class iesCommonLib {
                             int menuStatus = -99;
                             string menuErr = "";
                             string menuPath = Util.FindFile("menu_" + MenuName + ".cfg", cms.SITE.TemplateFolder, cms.SERVER.TemplateFolder);
-                            string webBlock = Util.LoadHtmlFile(menuPath, out menuHeader, out menuStatus, out menuErr, "", cms.UserLevel);
+                            string webBlock = Util.LoadHtmlFile(menuPath, out menuHeader, out menuStatus, out menuErr, "", cms.user.userLevel);
                             Content.Append(webBlock); // Not much error checking - it either works or doesn't
                         }
                         catch { }
@@ -345,15 +345,15 @@ class iesCommonLib {
                         break;
                     case "formparam":
                     case "formparameter":
-                        Content.Append(cms.FormParam(ret.Param1.Trim()));
+                        content.append(cms.FormParam(ret.Param1.Trim()));
                         break;
 
                     case "urlparam":
-                        Content.Append(cms.UrlParam(ret.Param1.Trim()));
+                        content.append(cms.urlParam(ret.Param1.Trim()));
                         break;
 
                     case "formorurlparam":
-                        Content.Append(cms.FormOrUrlParam(ret.Param1.Trim()));
+                        content.append(cms.FormOrUrlParam(ret.Param1.Trim()));
                         break;
 
                     case "subpage":
@@ -364,7 +364,7 @@ class iesCommonLib {
                         string editButton = "";
                         subFileName = cms.SITE.PageFolder + "\\" + ret.Param1 + ".cfg";
                         bool noE = false;
-                        if (ret.Param2.ToLower().IndexOf("noe") >= 0) { noE = true; }
+                        if (ret.Param2.toLowerCase().IndexOf("noe") >= 0) { noE = true; }
                         //Content.Append("DEBUG: subFileName=" + subFileName + "<br>");  // DEBUG
                         if (!File.Exists(subFileName)) { subFileName = cms.SERVER.PageFolder + "\\" + cms.SITE.BrandID + "\\" + ret.Param1 + ".cfg"; }
                         if (!File.Exists(subFileName)) { subFileName = cms.SERVER.PageFolder + "\\" + ret.Param1 + ".cfg"; }
@@ -378,7 +378,7 @@ class iesCommonLib {
                                 if (p > 0)
                                 {
                                     string AdminEditMode = "";
-                                    try { AdminEditMode = cms.Session.GetString("AdminEditMode").ToLower(); } catch { }
+                                    try { AdminEditMode = cms.Session.GetString("AdminEditMode").toLowerCase(); } catch { }
 
                                     AdminEditMode = "edit"; //debug FUTURE remove this line
 
@@ -398,10 +398,10 @@ class iesCommonLib {
                                                 int MinEditSubpageLevel = jHead["MinEditLevel"].ToInt(999);
                                                 string objID = (ret.Param1.Trim()); //jHead["objid"].CString().Trim();
 
-                                                //Content.Append("here1: " + cms.UserLevel + ":" + MinEditSubpageLevel + ", " + objID); //debug
+                                                //Content.Append("here1: " + cms.user.userLevel + ":" + MinEditSubpageLevel + ", " + objID); //debug
                                                 //Content.Append("here2: " + jHead.jsonString + "<br>");
 
-                                                if (MinEditSubpageLevel < 999 && cms.UserLevel >= MinEditSubpageLevel && objID != "" && noE == false)
+                                                if (MinEditSubpageLevel < 999 && cms.user.userLevel >= MinEditSubpageLevel && objID != "" && noE == false)
                                                 {
                                                     // User has edit permissions (and EDIT MODE is turned on)
 
@@ -419,7 +419,7 @@ class iesCommonLib {
                         }
                         else
                         {
-                            if (cms.UserLevel >= cms.SITE.MinEditLevel && ret.Param1 != "" && noE == false)
+                            if (cms.user.userLevel >= cms.SITE.MinEditLevel && ret.Param1 != "" && noE == false)
                             {
                                 // User has edit permissions - even though this page does not exist... lets allow the admin to create it by adding an 'e' edit button
                                 subPage = "&nbsp;"; // Edit button needs some text to associate with
@@ -429,7 +429,7 @@ class iesCommonLib {
                         }
                         Content.Append(subPage);
                         Content.Append(editButton);
-                        if (ret.Param2.Trim().ToLower() == "notrecursive")
+                        if (ret.Param2.Trim().toLowerCase() == "notrecursive")
                         {
                             ret.AllowRecursiveCall = false;  // Do NOT replace [[tags]] recursively for this web form.
                         }
@@ -445,7 +445,7 @@ class iesCommonLib {
                         break;
 
                     case "e":
-                        if (cms.UserLevel >= cms.SITE.MinEditLevel && ret.Param1 != "")
+                        if (cms.user.userLevel >= cms.SITE.MinEditLevel && ret.Param1 != "")
                         {
                             // User has edit permissions - create 'e' edit button
                             string btnTxt = "&nbsp;"; // Edit button needs some text to associate with
@@ -468,7 +468,7 @@ class iesCommonLib {
                         // Tag to display Today's date/time
                         // example: [[now:date]]
                         string format = ret.Param2.Trim();
-                        switch (ret.Param1.Trim().ToLower())
+                        switch (ret.Param1.Trim().toLowerCase())
                         {
                             case "date":
                                 if (this.isNullOrWhiteSpace(format)) { format = "MM/dd/yyyy"; }
@@ -507,7 +507,7 @@ class iesCommonLib {
                                 {
                                     content.append(readFileSync(sBlockPath));
                                 }
-                            } // end if (cms.UserLevel>= cms.minAdminLevel)
+                            } // end if (cms.user.userLevel>= cms.minAdminLevel)
                             break;
                     
                     case "admin_edit_page":
@@ -516,7 +516,7 @@ class iesCommonLib {
                         //the theory is that this variable is actually not defined somehow? remove above if edit page on 215sports is fixed outside of this DSchwab 
                         if (cms.user.userLevel >= cms.minAdminLevel)
                         {
-                            //Content.Append("DEBUG: UserLevel: " + cms.UserLevel + ", MinEditLevel: " + cms.MinEditLevel + "<br>");
+                            //Content.Append("DEBUG: UserLevel: " + cms.user.userLevel + ", MinEditLevel: " + cms.MinEditLevel + "<br>");
                             //Content.Append("DEBUG: wiki[header]=" + cms.wiki["Header"].jsonString + "<br>");
                             if (cms.user.userLevel >= cms.minEditLevel)
                             {
@@ -526,12 +526,12 @@ class iesCommonLib {
                                     content.append(readFileSync(sBlockPath2));
                                 }
                             }
-                        } // end if (cms.UserLevel>=SITE.MinAdminLevel)
+                        } // end if (cms.user.userLevel>=SITE.MinAdminLevel)
                         break;
                     /*
                     case "admin-createpagelink":
                         // FUTURE: MOVE THIS TO AdminFunctions.cs ONCE SITE.MinCreateLevel is added to every config
-                        if (cms.UserLevel >= cms.SITE.MinCreateLevel)
+                        if (cms.user.userLevel >= cms.SITE.MinCreateLevel)
                         {
                             Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
                         }
@@ -545,17 +545,17 @@ class iesCommonLib {
                         // Future: only show if in edit mode and user has high enough permissions to edit the page.
                         string editFlag = "false";
                         int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
-                        if (minedit <= cms.UserLevel) { editFlag = "true"; }
+                        if (minedit <= cms.user.userLevel) { editFlag = "true"; }
                         Content.Append(editFlag);
                         break;
                     case "edit_page_link":
                         //*** This tag is to be used in the admin_block
                         //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
                         //*** FUTURE: Check if page is editable
-                        if (cms.UserLevel >= cms.SITE.MinAdminLevel)
+                        if (cms.user.userLevel >= cms.SITE.MinAdminLevel)
                         {
                             string EditURL = "", LinkTitle = "", tsWiki = "";
-                            tsWiki = "admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
+                            tsWiki = "admin-editObject.ashx?world=" + cms.siteId + "&class=Edit-MainWikiPage";
 
                             if (cms.wikiNotFound > 0)
                             {
@@ -579,7 +579,7 @@ class iesCommonLib {
                         break;
                     case "admin_menu_link":
                         //*** This tag is to be used in the admin_block
-                        if (cms.UserLevel >= cms.SITE.MinAdminLevel)
+                        if (cms.user.userLevel >= cms.SITE.MinAdminLevel)
                         {
                             Content.Append("<a hRef='" + cms.SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
                         }
@@ -612,7 +612,7 @@ class iesCommonLib {
                         {
                             if (editlistj.Contains(ret.Param1))
                             {
-                                iesJSON rParam = editlistj[ret.Param1];
+                                iesJSON rParam = this.editlistj.i(ret.Param1);
                                 if (rParam.jsonType == "array" || rParam.jsonType == "object") {
                                     rParam.UseFlexJson = false;
                                     rParam.InvalidateJsonString();
@@ -693,11 +693,13 @@ class iesCommonLib {
                         }
                         catch (errTmp) {  content.append(errTmp + ""); }
                         break;
-                    /*
+                    
                     case "admin-editlist-data":
                         // Return item/record data in JSON form
-                        GenerateJsonData(Content);
+                        this.GenerateJsonData(content);
                         break;
+
+                    /*
                     case "admin-editlist-buttons":
                         // Create the Save/Close buttons, but only if specified in the eclass config
                         // Values that can be specified in SpecialFlags: SaveButton, CancelButton, SaveCloseButton, DeleteButton
@@ -780,7 +782,7 @@ class iesCommonLib {
                             jsonListConfig.AddToObjBase("Param2", ret.Param2);
                             jsonListConfig.AddToObjBase("Param3", ret.Param3);
                             jsonListConfig.AddToObjBase("Param4", ret.Param4);
-                            string jsonListType = jsonListConfig["jsonListType"].ToStr().ToLower();
+                            string jsonListType = jsonListConfig["jsonListType"].ToStr().toLowerCase();
                             switch (jsonListType)
                             {
                                 case "fixedsql":
@@ -854,15 +856,15 @@ class iesCommonLib {
                         bool pFlag = false;
                         int paramLvl = 999;
                         try { paramLvl = Int32.Parse(ret.Param1); } catch { paramLvl = 999; }
-                        if (cms.UserLevel >= paramLvl) { pFlag = true; }
+                        if (cms.user.userLevel >= paramLvl) { pFlag = true; }
                         if (ret.Tag == "ifnotuserlevel") { pFlag = !pFlag; } // invert true/false
                         if (pFlag) { Content.Append(ret.Param2); }
-                        //cms.Response.Write("DEBUG: user level=" + cms.UserLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
+                        //cms.Response.Write("DEBUG: user level=" + cms.user.userLevel + ", paramLvl=" + paramLvl + ", pFlag=" + pFlag.ToString() + "<br><br>");
                         break;
                     case "ifuserisadmin":
                     case "ifnotuserisadmin":
                         bool admFlag = false;
-                        if (cms.UserLevel >= cms.SITE.MinAdminLevel) { admFlag = true; }
+                        if (cms.user.userLevel >= cms.SITE.MinAdminLevel) { admFlag = true; }
                         if (ret.Tag == "ifnotuserisadmin") { admFlag = !admFlag; } // invert true/false
                         if (admFlag) { Content.Append(ret.Param1); }
                         break;
@@ -983,7 +985,7 @@ class iesCommonLib {
                         //*** Generate the HTML that was requested...
                         string Captcha = "";
                         //can you put more information in tags and access it here, to get cSelect?
-                        switch (((ret.Param1).Trim()).ToLower())
+                        switch (((ret.Param1).Trim()).toLowerCase())
                         {
                             case "":
                                 Captcha = "<table id='captchatable' border=0 cellpadding=0 cellspacing=0><tr><td>Please type the characters in the image:&nbsp;</td><td colspan=2><img border=0 src='" +
@@ -1021,7 +1023,7 @@ class iesCommonLib {
                     case "remoteips": // DEBUG: List remote IPs
                         string[] HeaderItems = ("HTTP_CLIENT_IP,HTTP_X_FORWARDED_FOR,HTTP_X_FORWARDED,HTTP_X_CLUSTER_CLIENT_IP,HTTP_FORWARDED_FOR,HTTP_FORWARDED,HTTP_VIA,REMOTE_ADDR,Basic,data")
                             .Split(",");
-                        foreach (string item in HeaderItems)
+                        for (const item of HeaderItems) // foreach
                         {
                             try
                             {
@@ -1054,18 +1056,18 @@ class iesCommonLib {
                     {
                         content.append(readFileSync(sBlockPath));
                     }
-                } // end if (cms.UserLevel>= cms.minAdminLevel)
+                } // end if (cms.user.userLevel>= cms.minAdminLevel)
                 break;
             
             case "admin_edit_page":
                 string sBlockPath2 = "";
                 //int MinEditLevel=cms.wiki["header.mineditlevel"].ToInt(999);  // This is now done in default.aspx
                 //the theory is that this variable is actually not defined somehow? remove above if edit page on 215sports is fixed outside of this DSchwab 
-                if (cms.UserLevel >= cms.minAdminLevel)
+                if (cms.user.userLevel >= cms.minAdminLevel)
                 {
-                    //Content.Append("DEBUG: UserLevel: " + cms.UserLevel + ", MinEditLevel: " + cms.minEditLevel + "<br>");
+                    //Content.Append("DEBUG: UserLevel: " + cms.user.userLevel + ", MinEditLevel: " + cms.minEditLevel + "<br>");
                     //Content.Append("DEBUG: wiki[header]=" + cms.wiki["Header"].jsonString + "<br>");
-                    if (cms.UserLevel >= cms.minEditLevel)
+                    if (cms.user.userLevel >= cms.minEditLevel)
                     {
                         sBlockPath2 = cms.SITE.TemplateFolder + "\\admin_edit_page.cfg";
                         if (File.Exists(sBlockPath2))
@@ -1082,11 +1084,11 @@ class iesCommonLib {
                             }
                         }
                     }
-                } // end if (cms.UserLevel>= cms.minAdminLevel)
+                } // end if (cms.user.userLevel>= cms.minAdminLevel)
                 break;
             case "admin-createpagelink":
                 // FUTURE: MOVE THIS TO AdminFunctions.cs ONCE SITE.MinCreateLevel is added to every config
-                if (cms.UserLevel >= cms.SITE.MinCreateLevel)
+                if (cms.user.userLevel >= cms.SITE.MinCreateLevel)
                 {
                     Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
                 }
@@ -1100,17 +1102,17 @@ class iesCommonLib {
                 // Future: only show if in edit mode and user has high enough permissions to edit the page.
                 string editFlag = "false";
                 int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
-                if (minedit <= cms.UserLevel) { editFlag = "true"; }
+                if (minedit <= cms.user.userLevel) { editFlag = "true"; }
                 Content.Append(editFlag);
                 break;
             case "edit_page_link":
                 //*** This tag is to be used in the admin_block
                 //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
                 //*** FUTURE: Check if page is editable
-                if (cms.UserLevel >= cms.minAdminLevel)
+                if (cms.user.userLevel >= cms.minAdminLevel)
                 {
                     string EditURL = "", LinkTitle = "", tsWiki = "";
-                    tsWiki = "admin-editObject.ashx?world=" + cms.World + "&class=Edit-MainWikiPage";
+                    tsWiki = "admin-editObject.ashx?world=" + cms.siteId + "&class=Edit-MainWikiPage";
 
                     if (cms.wikiNotFound > 0)
                     {
@@ -1134,7 +1136,7 @@ class iesCommonLib {
                 break;
             case "admin_menu_link":
                 //*** This tag is to be used in the admin_block
-                if (cms.UserLevel >= cms.minAdminLevel)
+                if (cms.user.userLevel >= cms.minAdminLevel)
                 {
                     Content.Append("<a hRef='" + cms.SITE.ADMIN_Page + ".ashx'>Admin Menu</a>");
                 }
@@ -1167,7 +1169,7 @@ class iesCommonLib {
                 {
                     if (editlistj.Contains(ret.Param1))
                     {
-                        iesJSON rParam = editlistj[ret.Param1];
+                        iesJSON rParam = this.editlistj.i(ret.Param1);
                         if (rParam.jsonType == "array" || rParam.jsonType == "object") {
                             rParam.UseFlexJson = false;
                             rParam.InvalidateJsonString();
@@ -1187,7 +1189,11 @@ class iesCommonLib {
                 try
                 {
                     string filePath2, tableHtml;
-                    string cols = "", colsHtml = "", jsCols = "";
+                    let out = {
+                        cols: "",
+                        colsHtml = "", 
+                        jsCols = ""
+                        };
                     iesJSON rTags = new iesJSON("{}");
 
                     // Look for editlist table HTML config file in the SERVER src folder.
@@ -1198,21 +1204,21 @@ class iesCommonLib {
                     }
                     catch { tableHtml = "<br><br>ERROR: Failed to load table config.  [err3498]<br><br>"; }
                     LoadEditListIfNeeded();
-                    string SpecialFlags = editlistj["SpecialFlags"].ToStr().ToLower();
-                    string DisplayLength = editlistj["Paging"].ToStr("50");
+                    string SpecialFlags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+                    string DisplayLength = this.editlistj.getStr("Paging","50");
                     int pagingStart = Util.ToInt(cms.FormOrUrlParam("start"),0);
                     if (editlisterror != "") { tableHtml = "<br><br>ERROR: " + editlisterror + "<br><br>"; }
                     else
                     {
-                        GetColumns(ref cols, ref colsHtml, ref jsCols); // gets json columns
+                        GetColumns(out); // gets json columns
 
                         // Insert data into HTML
-                        rTags["eclass"].Value = cms.UrlParam("eclass");
+                        rTags["eclass"].Value = cms.urlParam("eclass");
                         //rTags["editlist-header"].Value=colsHtml;
 
                         rTags["editlist-columns"].Value = jsCols;
-                        rTags["editlist-primarykey"].Value = editlistj["PrimaryKey"].CString();
-                        string orderby2 = editlistj["OrderBy2"].CString().Trim();
+                        rTags["editlist-primarykey"].Value = this.editlistj.getStr("PrimaryKey");
+                        string orderby2 = this.editlistj.getStr("OrderBy2").Trim();
                         if (orderby2 != "") { 
                             rTags["editlistorderby"].Value = ",\"order\": " + orderby2; 
                             }
@@ -1225,10 +1231,6 @@ class iesCommonLib {
                     Content.Append(Util.ReplaceTags(tableHtml, rTags, true, "{{", "}}"));
                 }
                 catch { }
-                break;
-            case "admin-editlist-data":
-                // Return item/record data in JSON form
-                GenerateJsonData(Content);
                 break;
             case "admin-editlist-buttons":
                 // Create the Save/Close buttons, but only if specified in the eclass config
@@ -1281,7 +1283,7 @@ class iesCommonLib {
                 autofill["data"].Value = "";
 
                 string autoFillData = GenerateAutofillForm(autofillTable, autofillField, autofillType, autofillSubField);
-                if (!String.IsNullOrWhiteSpace(autoFillData))
+                if (!this.isNullOrWhiteSpace(autoFillData))
                 {
                     autofill["success"].Value = "true";
                     autofill["data"].Value = autoFillData;
@@ -1312,7 +1314,7 @@ class iesCommonLib {
                     jsonListConfig.AddToObjBase("Param2", ret.Param2);
                     jsonListConfig.AddToObjBase("Param3", ret.Param3);
                     jsonListConfig.AddToObjBase("Param4", ret.Param4);
-                    string jsonListType = jsonListConfig["jsonListType"].ToStr().ToLower();
+                    string jsonListType = jsonListConfig["jsonListType"].ToStr().toLowerCase();
                     switch (jsonListType)
                     {
                         case "fixedsql":
@@ -1486,7 +1488,900 @@ class iesCommonLib {
         return data.toString();
     } // END ReplaceTags
 
+    /* ************************************************************************************* */
+    /* ************************ Edit Table / Edit Form ************************************* */
+    /* ************************************************************************************* */
+
+    GenerateJsonData(content, idOverride = "", eClassOverride = "", includeHeader = true)
+        {
+            let sql3 = "";
+            let out = {
+                Cols: "",
+                ColsHtml:"",
+                ColsJS: ""
+                };
+            var errmsg;
+            let id = idOverride;
+            let limit = "";
+            if (this.isNullOrWhiteSpace(id)) { id = this.urlParam("id"); }
+            //if (id=="") { content.append("<br><br>ERROR: Record ID not specified. [err4336]"); return; }
+
+            let jret = new iesJSON("{}");
+
+            this.LoadEditListIfNeeded();
+            if (this.editlistconfig == "") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+            if (this.editlistj.i("MasterFiles").length >= 1)
+            {
+                // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
+                this.GenJsonFromMasterFiles(content, this.editlistj.i("MasterFiles"), this.editlistj.i("SearchList"), idOverride, eClassOverride, includeHeader);
+                return;
+            }
+            let SearchTable = this.editlistj.getStr("SearchTable");
+            let flags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+            let pagingLength = this.editlistj.getStr("Paging","50");
+            let pagingStart = this.toInt(this.FormOrUrlParam("start"),0);
+            let historyFlag = this.toBool(this.FormOrUrlParam("history"),false);
+            let searchText = this.FormOrUrlParam("search");
+
+            this.GetColumns(out);
+
+            if (flags.indexOf("serverside") >=0) {
+                limit = " LIMIT " + pagingStart + ", " + pagingLength;
+            }
+
+            // CHECK SECURITY LEVEL
+            let Permit = this.EditFormSecurityLevel();  // Default=No Access
+            // let bViewOnly = (Permit <= 1) ? true : false;
+            this.db.Open();
+            if (Permit <= 0)
+            {
+                content.append("ERROR: Permission denied.");
+                if (this.debugMode > 0) { content.append(" [UserLevel=" + this.user.userLevel + "]"); }
+                return;
+            }
+            else
+            {
+                try
+                {
+                    let w = this.MakeSearch(this.editlistj.i("SearchList"),searchText);
+                    let w1 = "WorldID='" + this.siteId + "'";
+                    if (flags.indexOf("noworldid") >= 0) { w1 = ""; }
+                    if (w1 != "") { if (w != "") { w += " AND "; } w += "(" + w1 + ")"; }
+                    let w2 = this.editlistj.getStr("Where").trim();
+                    if (w2 != "") { if (w != "") { w += " AND "; } w += "(" + w2 + ")"; }
+                    let w3 = "";
+                    if (historyFlag) { w3 = this.editlistj.getStr("WhereHistoryTrue").trim(); }
+                    else { w3 = this.editlistj.getStr("WhereHistoryFalse").trim(); }
+                    if (w3 != "") { if (w != "") { w += " AND "; } w += "(" + w3 + ")"; }
+                    if (w.trim() != "") { w = " WHERE " + w; }
+                    let o = this.editlistj.getStr("OrderBy").trim();  // For datatables this does nothing - Try OrderBy2="[ [5, 'desc' ] ]"
+                    if (o != "") { o = " ORDER BY " + o + " "; }
+                    sql3 = "SELECT " + out.acols + " FROM " + SearchTable + " " + w + o + limit;
+                    /* DEBUG
+                    using (StreamWriter writer = new StreamWriter(SITE.ConfigFolder + "\\temp-SQL.txt"))
+                    {
+                        writer.Write(sql3);
+                    } 
+                    */
+                    //this.Response.Write("DEBUG: connect=" + this.db.ConnectString + "<br><br>"); //DEBUG 
+                    let rData = this.db.GetDataReaderAll(sql3);
+                    let recordsTotal=this.db.GetCount(SearchTable,w);
+                    let recordsFiltered=recordsTotal;
+
+                    jret.add("msg","success");
+                    jret.add("draw", this.FormOrUrlParam("draw")); // Return the DRAW id sent in the request (used to sync results)
+                    jret.add("recordsTotal", recordsTotal);
+                    jret.add("recordsFiltered", recordsFiltered);
+                    jret.add("data",rData);
+                    jret.add("sql",sql3); //DEBUG
+                    content.append(jret.jsonString);
+                }
+                catch
+                {
+                    errmsg = "ERROR: Failed to get data records. [err4995]";
+                    if (this.debugMode > 0) { errmsg += " SQL=" + sql3; }
+                    jret.add("data", new iesJSON("[]"));
+                    jret.add("error",errmsg);
+                    content.append(jret.jsonString);
+                }
+            } // end if-else (Permit<=0)
+            this.db.Close();
+        } // end function
+
+        GenJsonFromMasterFiles(content, MstrFiles, SearchFields, idOverride = "", eClassOverride = "", includeHeader = true)
+        {
+            let rData = new iesJSON("[]");
+            let tTags = new iesJSON("{}");
+            var jjFile;
+            let fileCount = 0;
+
+            // This loop allows for multiple MaterFile folders - which is why the MasterFiles is an array
+            for (const MstrFile of MstrFiles) // foreach
+            {
+                // Get a list of files in the specified folder
+                let readPath = "";
+                let prefix = "";
+                let ext = ""; 
+                let FileNameField = "";
+                let hasHeader = false;
+                readPath = MstrFile.getStr("FolderPath");
+                prefix = MstrFile.getStr("FilePrefix").trim();
+                ext = MstrFile.getStr("FileExt").trim().toLowerCase();
+                FileNameField = MstrFile.getStr("FileNameField").trim();
+                hasHeader = MstrFile.getBool("IncludeJsonHeader");
+                tTags.add("pageFolder", this.SITE.PageFolder);
+                tTags.add("contentFolder", this.SITE.ContentFolder);
+                tTags.add("templateFolder", this.SITE.TemplateFolder);
+                readPath = this.ReplaceStringTags(readPath, tTags, true, "{{", "}}");
+                //content.append("DEBUG: path=" + readPath + "\\" + prefix + "*" + ext + "  ");
+
+                if (readPath != "")
+                {
+                    // got to here zzzz
+                    if (Directory.Exists(readPath))
+                    {
+                        let d = new DirectoryInfo(readPath);
+                        let Files = d.GetFiles(prefix + "*" + ext); //Getting cfg files	
+                        for (const file of Files) // foreach
+                        {
+                            //content.append("DEBUG:" + rData.jsonString);
+                            if (file.Extension.toLowerCase() == ext)
+                            {
+                                fileCount++;
+                                //content.append("DEBUG:[" + file.Name + "]");
+                                //we need the title without the prefix/ext
+                                let fileNameNoExtension = Path.GetFileNameWithoutExtension(file.Name);
+                                if (prefix.length > 0)
+                                {
+                                    if (Util.Left(fileNameNoExtension, prefix.Length).toLowerCase() == prefix.toLowerCase())
+                                    {
+                                        fileNameNoExtension = Util.Mid(fileNameNoExtension, prefix.Length + 1);
+                                    }
+                                }
+
+                                jjFile = new iesJSON("{}");
+  
+                                // Read [[header]] from file (if files contain headers)
+                                if (hasHeader) {
+                                    let fileHeader=Util.ReadJsonHeader(file.FullName);
+                                    for (fld of SearchFields) {
+                                        let fldName = fld.getStr("Field");
+                                        if (fileHeader.Contains(fldName)) {
+                                            jjFile[fldName].Value = fileHeader[fldName].Value;
+                                        } else {
+                                            let jjValue = "";
+                                            switch (fldName.toLowerCase()) {
+                                                case "pageid":
+                                                    jjValue = fileNameNoExtension;
+                                                    break;
+                                                case "type":
+                                                    jjValue = "webpage";
+                                                    break;
+                                                case "status":
+                                                    jjValue = "Active";
+                                                    break;
+                                                case "pageidx":
+                                                    jjValue = "";
+                                                    break;
+                                                case "pagelink":
+                                                    jjValue = "<a href='" + fileNameNoExtension + "'>View</a>";
+                                                    break;
+                                            }
+                                            jjFile.add(fldName, jjValue);
+                                        }
+                                    }
+                                }
+
+                                // FUTURE: use SearchList to create fields in jjFile.
+
+                                // Add file to list
+                                rData.add(jjFile);
+                                jjFile = null;
+                            }
+                        }
+                    }
+                } // readPath is not missing
+            } // foreach MasterFiles
+            //content.append("DEBUG +++++++++" + rData.jsonString + "++++++++");
+            let jret = new iesJSON("{}");
+            if (fileCount == 0)
+            {
+                jret.add("msg", "no files found");
+            }
+            else
+            {
+                jret.add("msg", "success");
+            }
+            jret.add("data", rData);
+            content.append(jret.jsonString);
+            return;
+        }
+        /*
+        GenerateFormButtons(content)
+        {
+            LoadEditListIfNeeded();  // This loads editlistj
+            if (editlistconfig == "") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+
+            string flags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+            StringBuilder buttons = new StringBuilder();
+
+            //Add Buttons to the form
+            if ((flags.IndexOf("savebutton") >= 0) || (flags.IndexOf("allbuttons") >= 0))
+            {
+                buttons.Append("<input class='adminbutton adminsavebutton' type='button' name='Save' value='Save' onclick='SaveItem(false);return false;'>");
+            }
+            if ((flags.IndexOf("saveclosebutton") >= 0) || (flags.IndexOf("allbuttons") >= 0))
+            {
+                buttons.Append("<input class='adminbutton adminsaveclosebutton' type='button' name='SaveClose' value='Save/Close' onclick='SaveItem(true);return false;'>");
+            }
+            if ((flags.IndexOf("cancelbutton") >= 0) || (flags.IndexOf("allbuttons") >= 0))
+            {
+                buttons.Append("<input class='adminbutton admincancelbutton' type='button' name='Cancel' value='Cancel/Close' onclick='CloseForm(false);return false;'>");
+            }
+            if ((flags.IndexOf("deletebutton") >= 0) || (flags.IndexOf("allbuttons") >= 0))
+            {
+                buttons.Append("<input class='adminbutton admindeletebutton' type='button' name='Delete' value='Delete' onclick='DeleteItem();return false;'>");
+            }
+            if (buttons.Length > 0)
+            {
+                buttons.Insert(0, "<div class='adminbuttoncontainer'>");
+                buttons.Append("</div>");
+                content.append(buttons.ToString());
+            }
+        }
+
+        public void GenerateForm(content, string idOverride = "", string eClassOverride = "", bool includeHeader = true)
+        {
+            string id = idOverride;
+            string autoFillInfo = "";
+            try
+            {
+                if (this.isNullOrWhiteSpace(id)) { id = cms.urlParam("id"); }
+                // Moved check that ID is not blank below (so we can check if it is needed first)
+
+                if (this.debugMode >= 9)
+                {
+                    cms.WriteLog("GenerateForm", "id=" + id + "\n", true);
+                }
+
+                // Set the CKEditor Upload folder based on the WORLD (DEFAULT VALUES)
+                // see below where this may be overridden by the Edit Class (FUTURE)
+                cms.Session.SetString("CKFinder_BaseUrl", "/" + cms.siteId + "/content/");
+
+                LoadEditListIfNeeded(eClassOverride);  // This loads editlistj
+                if (editlistconfig == "") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+                string title = this.editlistj.getStr("Title");
+                if (includeHeader) { content.append("<h1>EDIT FORM: " + title + "</h1>"); }
+                string table = this.editlistj.getStr("Table");
+                string pk = this.editlistj.getStr("PrimaryKey");
+                string pknumeric = this.editlistj.getStr("PrimaryKeyNumeric").toLowerCase();
+
+                // If Edit Class contains CKEditor Parameters... use them...
+                string sVal = "";
+                sVal = this.editlistj.getStr("UserFilesPath").trim();
+                if (sVal != "") { cms.Session.SetString("CKFinder_BaseUrl", sVal); }
+                sVal = "";
+                sVal = this.editlistj.getStr("UserFilesDirectory").trim();
+                if (sVal != "") { cms.Session.SetString("CKFinder_BaseDir", sVal); }
+
+                // CHECK SECURITY LEVEL
+                int Permit = EditFormSecurityLevel();  // Default=No Access
+                bool bViewOnly = (Permit <= 1) ? true : false;
+
+                if (Permit <= 0)
+                {
+                    content.append("<br><br>ERROR: Permission denied.");
+                    if (this.debugMode > 0) { content.append(" [UserLevel=" + cms.user.userLevel.ToString() + "]"); }
+                    return;
+                }
+                content.append("<div class='msgBox' id='msgBox'></div>");
+
+
+                // Get Object/Record from the database
+                iesJSON jRec = null;
+                string id2 = id;
+                string flags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+                bool create = false; 
+                bool fromFile = false;
+                if (id.toLowerCase() == "*new*") { create = true; }
+
+                if (id == "")
+                {
+                    if (!(flags.IndexOf("norecordid") >= 0))
+                    { // Ignore Record ID if it is not needed
+                        content.append("<br><br>ERROR: Record ID not specified. [err4337]"); return;
+                    }
+                }
+
+                string ReadFromSource = this.editlistj.getStr("ReadFromSource","table").toLowerCase();
+
+                if (this.editlistj.i("MasterFiles").length >= 1 || ReadFromSource=="wikipage" || ReadFromSource=="config" )
+                {
+                    fromFile = true;
+                    // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
+                    iesJSON MstrFiles = this.editlistj.i("MasterFiles");
+                    iesJSON tTags = new iesJSON("{}");
+                    // iesJSON jjFile;
+                    int fileCount = 0;
+
+                    // This loop allows for multiple MaterFile folders - which is why the MasterFiles is an array
+                    if (!create)
+                    {
+                        foreach (iesJSON MstrFile in MstrFiles)
+                        {
+                            // Find specified file in the folder
+                            string readPath = "", prefix = "", ext = "", FileNameField = "", FileNamePath = "", ContentField = "";
+                            bool hasHeader = false;
+                            readPath = MstrFile["FolderPath"].ToStr();
+                            prefix = MstrFile["FilePrefix"].ToStr().Trim();
+                            ext = MstrFile["FileExt"].ToStr().Trim().toLowerCase();
+                            FileNameField = MstrFile["FileNameField"].ToStr().Trim();
+                            ContentField = MstrFile["Field"].ToStr().Trim();
+                            hasHeader = MstrFile["IncludeJsonHeader"].ToBool();
+                            tTags["baseFolder"].Value = cms.SITE.WorldFolder;
+                            tTags["pageFolder"].Value = cms.SITE.PageFolder;
+                            tTags["contentFolder"].Value = cms.SITE.ContentFolder;
+                            tTags["templateFolder"].Value = cms.SITE.TemplateFolder;
+                            readPath = Util.ReplaceTags(readPath, tTags, true, "{{", "}}");
+
+                            //content.append("DEBUG: path=" + readPath + "  <br>");
+                            if (readPath != "")
+                            {
+                                FileNamePath = readPath + "\\" + prefix + id.Trim() + ext;
+                                if (File.Exists(FileNamePath))
+                                {
+                                    // Load file into jRec
+                                    int flagStatus = 0;
+                                    string loadErrMsg = "";
+                                    //Util.GetMasterFile(FileNamePath, ref jRec, ref flagStatus, ContentField);
+                                    if (ReadFromSource == "config") {
+                                        jRec = new iesJSON();
+                                        jRec.DeserializeFlexFile(FileNamePath,false,1,1);
+                                        jRec["id"].Value = id;
+                                    } else {
+                                        // case: ReadFromSource == "wikipage" or "table"
+                                        Util.LoadHtmlFile(FileNamePath, out jRec, out flagStatus, out loadErrMsg, ContentField, cms.user.userLevel);
+                                    }
+                                    fileCount += 1;
+                                    // FUTURE: check return value (values <0 indicate error)
+                                }
+                            } // if (readPath != "")
+                        }     // foreach
+                    } // if (!create)
+
+                    if (fileCount <= 0 && (!create))
+                    {
+                        //if ((cms.urlParam("AllowCreate").toLowerCase() == "true") && (cms.user.userLevel >= cms.SITE.MinCreateLevel))
+                        if ((editlistj.getBool("AllowCreate",false) == true) && (cms.user.userLevel >= cms.SITE.MinCreateLevel))
+                        {
+                            // Even though the object was not found, we are allowed to create it
+                            create = true;
+                        }
+                        else
+                        {
+                            // File was not found AND we are not allowed to create it
+                            content.append("ERROR: Item not found. [err1393]<br>\n");
+                            return;
+                        }
+                    }
+
+                } // [MasterFiles].Length >=1
+                else
+                {
+                    if (!create)
+                    {
+                        if (pknumeric != "true") { id2 = "'" + id + "'"; }
+                        string w = " AND WorldID='" + cms.siteId + "' ";
+                        string w2 = this.editlistj.getStr("Where").trim();
+                        string where = "";
+                        if (w2 != "") { w2 = " AND (" + w2 + ")"; }
+                        if (flags.IndexOf("noworldid") >= 0) { w = ""; }
+                        if (!(flags.IndexOf("norecordid") >= 0))
+                        {
+                            where = " WHERE " + pk + "=" + id2 + w + w2;
+                        }
+                        else
+                        {
+                            where = " WHERE 1=1 " + w + w2;
+                        }
+                        string sql = "SELECT * FROM " + table + " " + where;
+
+                        if (this.debugMode >= 9)
+                        {
+                            cms.WriteLog("GenerateForm", "DEBUG: GenerateForm SQL=" + sql + "\n");
+                        }
+
+                        try
+                        {
+                            cms.db.Open();
+                            jRec = cms.db.GetFirstRow(sql);
+                            cms.db.Close();
+                        }
+                        catch (Exception e) { content.append("ERROR: Query record failed. [err4646]<br>"); if (this.debugMode > 0) { Content.Append(e.ToString()); } return; }
+                        //content.append("SQL=" + sql + "<br>");//DEBUG
+                        string thisErr = "";
+                        if (jRec == null) { thisErr = "ERROR: Query failed. [err4663]<br>"; }
+                        if (jRec.jsonType == "null") { thisErr = "ERROR: Query failed. [err4664]<br>"; }
+                        if (jRec.Status != 0) { thisErr = "ERROR: Query failed. [err4668]<br>"; }
+
+                        if (thisErr != "")
+                        {
+                            if ((cms.urlParam("AllowCreate").toLowerCase() == "true") && (cms.user.userLevel > cms.SITE.MinCreateLevel))
+                            {
+                                // Even though the object was not found, we are allowed to create it
+                                create = true;
+                                thisErr = "";
+                            }
+                        }
+
+                        if (thisErr != "")
+                        {
+                            content.append(thisErr);
+                            if (this.debugMode > 0) { content.append("SQL=" + sql + "<br>"); }
+                            return;
+                        }
+                    }
+                }
+
+                if (!create)
+                {
+                    //jRec=jRec[0]; // Get first row of returned recordset (there should only be one row)  - NO LONGER NEEDED - CHANGE TO iesDB Library TKT 5/13/2016
+                    if (jRec["StorFormat"].CString().toLowerCase() == "parampak") { UnpakParamPak(jRec); }
+                    if (flags.IndexOf("norecordid") >= 0)
+                    {
+                        // Even thought 'norecordid' means we do not select the record by means of a record id, we still need the primary key to know which
+                        // record we are updating.
+                        id = jRec[pk].CString();
+                    }
+                    //content.append("JSON=" + jRec.jsonString + "<br>");//DEBUG		
+                }
+                else
+                {
+                    jRec = new iesJSON("{}");
+                    iesJSON rTags = new iesJSON("{}");
+                    rTags["now"].Value = DateTime.Now.ToString();
+                    rTags["world"].Value = cms.siteId;
+                    rTags["worldid"].Value = cms.siteId;
+                    rTags["userno"].Value = cms.UserNo;
+                    rTags["userid"].Value = cms.UserID;
+
+                    // NOTE: These values could come from the Edit Config Defaults below - ie. they can get overwritten.  Here we set overall defaults in case they are not set below.
+                    jRec["MinViewLevel"].Value = cms.SITE.MinEditLevel;
+                    jRec["MinEditLevel"].Value = cms.SITE.MinEditLevel;
+
+                    // Load default values into jRec
+                    iesJSON Defaults = this.editlistj.i("Defaults");
+                    if (Defaults != null)
+                    {
+                        if (Defaults.Status == 0 && Defaults.jsonType != "null")
+                        {
+                            foreach (iesJSON df in Defaults)
+                            {
+                                string dfValue = Util.ReplaceTags(df.CString(), rTags, false, "{{", "}}");
+                                jRec.AddToObjBase(df.Key, dfValue);
+                            } // end foreach
+                        } // end if
+                    } // end if
+                }
+
+                // Apply Override values to jRec  (these should be applied before being displayed (so user sees them if visible) and before save (to make sure they are always set)
+                iesJSON Override = this.editlistj.i("Override");
+                if (Override != null)
+                {
+                    if (Override.Status == 0 && Override.jsonType != "null")
+                    {
+                        foreach (iesJSON ovr in Override)
+                        {
+                            jRec.AddToObjBase(ovr.Key, ovr);
+                        } // end foreach
+                    } // end if
+                } // end if
+
+                if (id != "" && id.toLowerCase() != "*new*" && ReadFromSource != "config")
+                {
+                    jRec["pageid"].Value = id;
+                }
+                // MinViewLevel should not be missing.  Add it if it is missing (even if this is not a new record)
+                if (!jRec.Contains("MinViewLevel"))
+                {
+                    int defViewLevel = editlistj.i("Defaults").getInt("MinViewLevel",-1);
+                    if (defViewLevel >= 0) { jRec["MinViewLevel"].Value = defViewLevel; }
+                    else { jRec["MinViewLevel"].Value = cms.SITE.MinEditLevel; }
+                }
+                // MinEditLevel should not be missing.  Add it if it is missing (even if this is not a new record)
+                if (!jRec.Contains("MinEditLevel"))
+                {
+                    int defEditLevel = this.editlistj.i("Defaults").getInt("MinEditLevel",-1);
+                    if (defEditLevel >= 0) { jRec["MinEditLevel"].Value = defEditLevel; }
+                    else { jRec["MinEditLevel"].Value = cms.SITE.MinEditLevel; }
+                }
+
+                string neededEclass = "";
+                neededEclass = eClassOverride;
+                if (this.isNullOrWhiteSpace(neededEclass)) { neededEclass = cms.urlParam("eclass"); }
+                string pkHidden = "<input type='hidden' id='fld_" + pk + "' name='fld_" + pk + "' value='" + id + "'/>";
+                content.append("<form id='editlistform'><input type='hidden' id='eClass' name='eClass' value='" + neededEclass + "'/>" +
+                    "<TABLE border=0 width=1050 cellpadding=0><TBODY>");
+
+                // DISPLAY NEW RECORD BANNER if specified
+                if (create && (this.editlistj.getStr("ShowNewBanner").trim().toLowerCase() == "true"))
+                {
+                    content.append("<tr><td colspan=2 align=left><Font size=3 color=#309040><B>*** NEW RECORD ***</B></td></tr>");
+                }
+
+                // *** FIELD SET #1 - wObject RECORD fields **********************************
+
+                bool ShowField;
+                string sType, sWidth, sHeight, sNote, sFlags, dValue, dFieldName, sAlias, sClass;
+                StringBuilder HiddenFields = new StringBuilder();
+                int cnt = 0;
+
+                string gSpecialFlags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+                string ShowAllParams = this.editlistj.getStr("ShowAllParams").toLowerCase();
+                string UserEntersNewKey = this.editlistj.getStr("UserEntersNewKey").toLowerCase();
+                foreach (iesJSON field in this.editlistj.i("EditFields"))
+                {
+                    dValue = "";
+                    ShowField = true;
+                    dFieldName = Util.NoBracket(field["Field"].CString());
+                    sAlias = field["Alias"].CString().Trim();
+                    if (sAlias == "") { sAlias = dFieldName; }
+
+                    sFlags = field["Flags"].CString();
+                    sType = field["Type"].CString();
+                    sClass = field["Class"].CString();
+                    sWidth = field["Width"].CString();
+                    sHeight = field["Height"].CString();
+                    sNote = field["Note"].CString();
+
+                    autoFillInfo = field["Autofill"].jsonString;
+
+                    if (autoFillInfo == "null")
+                    {
+                        autoFillInfo = "";
+                    }
+                    if (Util.Left(sType, 5).toLowerCase() == "json_")
+                    {
+                        dValue = jRec[dFieldName].jsonString;
+                    }
+                    else
+                    {
+                        dValue = jRec[dFieldName].CString();
+                    }
+                    //if (sType.Trim().toLowerCase()=="json") { dValue=jRec[dFieldName].jsonString; }  // FUTURE: THIS DID NOT WORK
+                    if (create)
+                    {
+                        if (sFlags.IndexOf("p") >= 0 && (UserEntersNewKey != "true"))
+                        {
+                            ShowField = false;
+                            if (gSpecialFlags.IndexOf("shownew") >= 0) { ShowField = true; }
+                        }
+                    }
+                    if ((ShowAllParams == "true") && jRec.Contains(dFieldName)) { jRec.RemoveFromBase(dFieldName); }
+                    //cms.Response.Write("DEBUG: Field=" + dFieldName + ", Flags=" + sFlags + ", Value=" + dValue);
+
+                    if (dFieldName.toLowerCase() == pk.toLowerCase()) { pkHidden = ""; }
+                    dFieldName = "fld_" + dFieldName;  // DO NOT Add fld_ prefix - this is done in MakeEditRow
+                    if (ShowField == true) { content.append(MakeEditRow(sAlias, dFieldName, sType, sClass, sFlags, sWidth, sHeight, dValue, sNote, cms, create, bViewOnly, HiddenFields, autoFillInfo)); }
+
+                    cnt++;
+                    if (cnt > 99999) { break; }  //*** Safety
+                } // End foreach
+
+                // Display the remaining fields in jRec - if specified
+                if (ShowAllParams == "true")
+                {
+                    foreach (iesJSON field2 in jRec)
+                    {
+                        dValue = "";
+                        if (!create) { dValue = field2.CString(); }
+                        if (field2.Key.toLowerCase() == pk.toLowerCase()) { pkHidden = ""; }
+                        content.append(MakeEditRow(field2.Key, "fld_" + field2.Key, "text", "", "", "160", "", dValue, "", cms, create, bViewOnly, HiddenFields));
+                        cnt++;
+                        if (cnt > 99999) { break; }  //*** Safety
+                    }
+                }
+
+                // FUTURE: Display second set of fields if high enough UserLevel
+                // FUTURE: If SHOWALL then show remaining fields in jRec (as text box)
+                content.append("</TABLE>" + pkHidden + HiddenFields.ToString());
+                //Add Buttons to the form
+                //if (!bViewOnly){
+                //	content.append("<input type='button' name='Save2' value='Save' onclick='SaveItem(false);return false;'>");
+                //}
+                content.append("</form>");
+                if (cnt <= 0) { content.append("<br><br><span style='color:#C04040;'>Record not found.</span><br><br><br>"); }
+
+            }
+            catch (Exception e99)
+            {
+                // If we are an admin, then display the error message
+                if (cms.user.userLevel >= cms.SITE.MinAdminLevel)
+                {
+                    content.append("ERROR: AdminFunctions.CreateForm: " + e99.ToString() + "<br>\n");
+                }
+            }
+        }
+
+        public string MakeEditRow(string fAlias, string fID, string fType, string sClass, string fFlags, string fWidth, string fHeight, string fValue, string sNote, cmsInfo cms, bool IsNew, bool bViewOnly, StringBuilder HiddenFields, string AutoFillInfo = "")
+        {
+            string sRet = "", bld = "";
+            bool Processed = false;
+            bool meViewOnly = bViewOnly;
+            bool meRequired = false;
+
+            //Custom.MakeEditRow(ref fAlias,ref fID,ref fType,ref fFlags, ref fWidth, ref fValue, cms, ref meViewOnly, ref sRet, ref Processed);
+            if (Processed) { return sRet; }
+
+            string fTypeLower = fType.toLowerCase();
+            string fFlagsLower = fFlags.toLowerCase();
+            if (fFlagsLower.IndexOf("b") >= 0) { bld = " class='bold' "; }
+            if (fFlagsLower.IndexOf("r") >= 0) { meRequired = true; } // Required field
+            if (fFlagsLower.IndexOf("l") >= 0) { meViewOnly = true; } // Lock field
+            if (IsNew && (fFlagsLower.IndexOf("a") >= 0)) { meViewOnly = false; } // UNlock field when ADDING a record
+            string sNote2 = sNote.Trim();
+            if (sNote2 != "") { sNote2 = "<span class='FieldNote'>" + sNote2 + "</span>"; }
+            string mEditRow = "<tr><td width=200 valign=top" + bld + ">" + fAlias + ":</td><td>";
+            string mEditRow2 = sNote2 + "</td></tr>";
+
+            if (Util.Left(fTypeLower, 5) == "list-")
+            {
+                switch (Util.Mid(fTypeLower, 5, 999))
+                {
+                    case "status":
+                        // FUTURE: NEED TO MAKE THIS LIST DYNAMIC - AND SET VALUE BASED ON dValue
+                        / ***
+                        sRet = "<select id='" + fID + "' name='"+ fID + "'";
+                        if (meViewOnly){ sRet += " disabled"; }					
+                        sRet += "><option value='Active' selected>Active</option><option value='Inactive'>Inactive</option><option value='Deleted'>Deleted</option></select>";
+                        *** /
+                        iesJSON pListJson3 = new iesJSON("[[\"Active\",\"Active\"],[\"Inactive\",\"Inactive\"],[\"Deleted\",\"Deleted\"]]");
+                        sRet = GenerateDD(pListJson3, fID, fWidth, fValue, meViewOnly, meRequired, sClass, true, "");
+                        
+                        break;
+
+                    case "templates":
+
+                          iesJSON pListJson4 = new iesJSON("[]" );
+
+                        // pListJson4.AddToArrayBase(new iesJSON("[\"Main\",\"Main\"]"));
+                         //pListJson4.AddToArrayBase(new iesJSON("[\"Joe\",\"Joe\"]"));
+
+                   string readPath = cms.SITE.TemplateFolder;
+
+                   if (Directory.Exists(readPath))
+                    {
+                        DirectoryInfo d = new DirectoryInfo(readPath);
+                        FileInfo[] Files = d.GetFiles("layout_*.cfg"); //Getting layout cfg files	
+                        foreach (FileInfo file in Files)
+                        {
+                                             
+                           string templatelayout = Path.GetFileNameWithoutExtension(file.Name); 
+
+                                templatelayout = Util.Mid(templatelayout, 7);   
+
+                                iesJSON templateItem = new iesJSON("[]");  
+
+                                templateItem.Add(templatelayout);  
+                                templateItem.Add(templatelayout);   
+
+                                pListJson4.AddToArrayBase(templateItem);
+                        }
+                    }
+                        sRet = GenerateDD(pListJson4, fID, fWidth, fValue, meViewOnly, meRequired, sClass, true, "");
+                     break;               
+
+
+                }
+
+
+
+                fTypeLower = "list";
+            }
+
+            if (Util.Left(fTypeLower, 6) == "plist-")
+            {
+                iesJSON pList = this.editlistj.i(fType);
+                if ((pList.Status == 0) && (pList.jsonType != "null"))
+                {
+                    string pListType = pList["ListType"].CString();
+                    bool IncludeCurrent = true;
+                    if (pList.Contains("IncludeCurrent"))
+                    {
+                        if (pList["IncludeCurrent"].CString().toLowerCase() == "false") { IncludeCurrent = false; }
+                    }
+                    string AddNull = null;
+                    if (pList.Contains("AddBlank"))
+                    {  // AddBlank is the old method - to be replaced by AddNull
+                        if (pList["AddBlank"].CString().toLowerCase() == "true") { AddNull = ""; }
+                    }
+                    if (pList.Contains("AddNull"))
+                    {  // AddNull indicates a string/value to display in place of Null (for blank, set this to "")
+                        AddNull = pList["AddNull"].CString();
+                    }
+                    switch (pListType.toLowerCase())
+                    {
+                        case "sql":
+                            iesJSON pListData = cms.db.GetDataReaderAll(pList["sql"].CString());
+                            if ((pListData.Status == 0) && (pListData.jsonType != "null"))
+                            {
+                                sRet = GenerateDD(pListData, fID, fWidth, fValue, meViewOnly, meRequired, sClass, IncludeCurrent, AddNull);
+                            }
+                            break;
+                        case "json":
+                            iesJSON pListJson = pList["data"];
+                            if ((pListJson.Status == 0) && (pListJson.jsonType != "null"))
+                            {
+                                sRet = GenerateDD(pListJson, fID, fWidth, fValue, meViewOnly, meRequired, sClass, IncludeCurrent, AddNull);
+                            }
+                            break;
+                        default:
+                            sRet = "Invalid pList type encountered: " + pListType + ", " + pList + " [err1331]";
+                            break;
+                    }
+                }
+                fTypeLower = "plist";
+            }
+
+            switch (fTypeLower)
+            {
+                case "text":
+                    sRet = mkTextBox(fID, fWidth, fValue, meViewOnly, meRequired, false, sClass);
+                    break;
+                case "note":
+                case "textarea":
+                    sRet = mkTextArea(fID, fWidth, fHeight, fValue, meViewOnly, meRequired, sClass);
+                    break;
+                case "json_list":  // FUTURE: THIS DID NOT WORK
+                    sRet = mkTextBox(fID, fWidth, fValue, meViewOnly, meRequired, false, sClass, AutoFillInfo);
+                    break;
+                case "richtext":
+                    sRet = mkTextArea(fID, fWidth, fHeight, fValue, meViewOnly, meRequired, sClass + " richtext");
+                    // We also need this to be on one row...
+                    mEditRow = "<tr><td colspan='2' width=200 valign=top" + bld + ">" + fAlias + ":<br>";
+                    break;
+                case "password":
+                    sRet = mkTextBox(fID, fWidth, "*******", meViewOnly, meRequired, false, sClass);
+                    break;
+                case "hidden":
+                    sRet = mkHidden(fID, fWidth, fValue, meViewOnly, sClass);
+                    HiddenFields.Append(sRet);
+                    return ""; //Exit without creating a row
+                    break;
+                case "date":
+                    sRet = mkDateBox(fID, fWidth, fValue, meViewOnly, meRequired, true, sClass);
+                    break;
+                case "datetime":
+                    sRet = mkDateBox(fID, fWidth, fValue, meViewOnly, meRequired, false, sClass);
+                    break;
+                case "list":
+                case "plist":
+                    break;  // No error - this was handled above.
+                default:
+                    sRet = "Invalid field type encountered: " + fType + " [err1321]";
+                    break;
+            }
+
+            return mEditRow + sRet + mEditRow2;
+        }
+
+        public static string mkDateBox(string fID, string nWidth, string fValue, bool bViewOnly, bool isRequired, bool isDateField = false, string cssClass = "")
+        {
+            string w = "", fc = "class='", d = "";
+            string[] valueParts;
+            if (nWidth.Trim() != "") { w = "width:" + nWidth + ";"; }
+            if (bViewOnly) { fc += " locked"; d = " readonly "; }  // do not use 'disabled' because the field is excluded from the submit
+            if (isRequired) { fc += " required"; }
+            if (isDateField)
+            {
+                if (!this.isNullOrWhiteSpace(fValue))
+                {
+                    valueParts = fValue.Split(' ');
+                    fValue = valueParts[0];
+                }
+            }
+            fc += "'";
+            return "<input type='text' class='datepicker' id='" + fID + "' name='" + fID + "' value='" + fValue + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + "><a href='#' class='cleardate' id='" + fID + "'>reset</a>";
+        }
+
+        public static string mkTextBox(string fID, string nWidth, string fValue, bool bViewOnly, bool isRequired, bool isDateField = false, string cssClass = "", string AutoFillInfo = "")
+        {
+            string w = "", fc = "class='", d = "";
+            StringBuilder returnString = new StringBuilder();
+            string[] valueParts;
+            fc += cssClass;
+            if (nWidth.Trim() != "") { w = "width:" + nWidth + ";"; }
+            if (bViewOnly) { fc += " locked"; d = " readonly "; }  // do not use 'disabled' because the field is excluded from the submit
+            if (isRequired) { fc += " required"; }
+            if (isDateField)
+            {
+                if (!this.isNullOrWhiteSpace(fValue))
+                {
+                    valueParts = fValue.Split(' ');
+                    fValue = valueParts[0];
+                }
+            }
+            fc += "'";
+            returnString.Append("<input type='textbox' id='" + fID + "' name='" + fID + "' value=\"" + fValue + "\" style='float:left;margin-right:8px;" + w + "' " + d + fc + ">");
+            if (!this.isNullOrWhiteSpace(AutoFillInfo))
+            {
+                iesJSON autoFillDetails = new iesJSON();
+                try
+                {
+                    autoFillDetails.Deserialize(AutoFillInfo);
+                    returnString.Append("<a ");
+                    foreach (iesJSON fillField in autoFillDetails)
+                    {
+                        returnString.Append(fillField.Key + " = '" + fillField.CString() + "' ");
+                    }
+                    returnString.Append("configname='" + fID + "' href='#' class='autofill'><span class='ui-icon ui-icon-circle-plus'></span></b>");
+                }
+                catch (Exception)
+                {
+                    //Do nothing
+                }
+            }
+            return returnString.ToString();
+        }
+
+        public static string mkTextArea(string fID, string nWidth, string nHeight, string fValue, bool bViewOnly, bool isRequired, string cssClass = "")
+        {
+            string w = "", fc = "class='", d = "";
+            // string cssClasses = "";
+            if (!this.isNullOrWhiteSpace(nWidth)) { w = w + "width:" + nWidth + ";"; }
+            if (!this.isNullOrWhiteSpace(nHeight)) { w = w + "height:" + nHeight + ";"; }
+            if (!this.isNullOrWhiteSpace(cssClass)) { fc += " " + cssClass; }
+            if (bViewOnly) { fc += " locked"; d = " disabled "; }
+            if (isRequired) { fc += " required"; }
+            fc += "'";
+            string fValueAdj = fValue.Replace("<textarea", "&lt;textarea").Replace("</textarea", "&lt;/textarea");
+            return "<textarea id='" + fID + "' name='" + fID + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + ">" + fValueAdj + "</textarea>";
+        }
+
+        public static string mkHidden(string fID, string nWidth, string fValue, bool bViewOnly, string sClass)
+        {
+            return "<input type='hidden' id='" + fID + "' name='" + fID + "' class='" + sClass + "' value='" + fValue + "'>";
+        }
+
+        public static string GenerateDD(iesJSON ddJson, string fID, string nWidth, string fValue, bool bViewOnly, bool isRequired, string sClass = "", bool includeCurrent = true, string AddNull = null)
+        {
+            string fValLower = fValue.toLowerCase();
+            StringBuilder oOpt = new StringBuilder();
+            string oSelected = "";
+            foreach (iesJSON jRow in ddJson)
+            {
+                string jValue = jRow[0].CString();
+                string jTitle = jRow[1].CString();
+                //if ((jValue.toLowerCase()==fValLower) && (fValLower!="")) {  // If the dropdown contains a blank, then we need to match it here (if the fValue is also blank)
+                if (jValue.toLowerCase() == fValLower)
+                {
+                    oSelected = "<option value='" + jValue + "' selected>" + jTitle + "</option>";
+                }
+                else
+                {
+                    oOpt.Append("<option value='" + jValue + "'>" + jTitle + "</option>");
+                }
+            }
+            if ((fValue != "") && (oSelected == ""))
+            {
+                // Selected value fValue was provided, but not found in the list.  Make a row so that the dropdown does not wipeout this value.
+                // But ONLY IF includeCurrent==true
+                if (includeCurrent) { oSelected = "<option value='" + fValue + "' selected>" + fValue + "</option>"; }
+            }
+            string w = "", fc = "class='", blank = "", d = "";
+            if (nWidth.Trim() != "") { w = "width:" + nWidth + ";"; }
+            if (bViewOnly) { fc += " locked"; d = " disabled "; }
+            if (isRequired) { fc += " required"; }
+            if (AddNull != null) { blank = "<option value=''>" + AddNull + "</option>"; }
+            fc += "'";
+            string ret = "<select id='" + fID + "' name='" + fID + "' style='float:left;margin-right:8px;" + w + "' " + d + fc + ">" + blank + oSelected + oOpt.ToString() + "</select>";
+            return ret;
+        }
+        */
+
+    /* ************************************************************************************************* */
     /* ******************************************** SUPPORT ROUTINES *********************************** */
+    /* ************************************************************************************************* */
 
     // Left(length) - USE slice([start],[end]) as a replacement for Left()
 
@@ -2668,7 +3563,13 @@ class iesCommonLib {
             var node; // to hold json Node
             try
             {
-                editlistj.i("SearchList").toJsonArray().forEach(fld =>
+                let a = this.editlistj.i("SearchList");
+                let b = a.toJsonArray();
+                b.forEach( (fld) =>
+                {
+                    console.log("hello world");
+                });
+                b.forEach( (fld) =>
                 {
                     sWidth = fld.getStr("Width").trim();
                     sField = fld.getStr("Field").trim();
@@ -2678,7 +3579,7 @@ class iesCommonLib {
                     sFlags = fld.getStr("Flags").trim();
                     sAs = fld.getStr("As").trim();  // If field is a sub-query "(SELECT...) as Foo" then set As:Foo
 
-                    if (sField == editlistj.getStr("primaryKey").trim()) noPrimaryKey = false; //check if the field is a primary key
+                    if (sField == this.editlistj.getStr("primaryKey").trim()) noPrimaryKey = false; //check if the field is a primary key
                     if (cols.length > 0) { cols.append(","); }
                     cols.append(sField);
 
@@ -2700,13 +3601,26 @@ class iesCommonLib {
                 });
                 if (noPrimaryKey)
                 { //if there is still no primary key in the columns, then add one.
-                    cols.append("," + editlistj.getStr("primaryKey").trim());
+                    cols.append("," + this.editlistj.getStr("primaryKey").trim());
                 }
             }
-            catch { }
+            catch (eee) { console.log(eee); }
             out.Cols = cols.toString();
-            //outColsHtml=colsHtml.toString();
+            //out.acolsHtml=colsHtml.toString();
             out.ColsJS = jsCols.jsonString;
+        }
+
+        EditFormSecurityLevel()
+        {
+            let Permit = 0;  //Default=No Access
+            let ViewSecLevel = this.editlistj.getNum("ViewSecLevel",99);
+            let EditSecLevel = this.editlistj.getNum("EditSecLevel",99);
+            let AdminSecLevel = this.editlistj.getNum("AdminSecLevel",99);
+            // FUTURE: If flag OwnerCanEdit, then check the owner of the object and if that is this user, allow edit.
+            if (this.user.userLevel >= ViewSecLevel) { Permit = 1; }   //Allow VIEW ONLY Mode
+            if (this.user.userLevel >= EditSecLevel) { Permit = 3; }   //Allow Edit Mode
+            if (this.user.userLevel >= AdminSecLevel) { Permit = 7; }  //Allow Admin Mode
+            return Permit;
         }
 
         // ************************************************************************************************************
@@ -2794,6 +3708,31 @@ class iesCommonLib {
             ret = nDefault;
         }
         return ret;
+    }
+
+    toBool(sObj, nDefault = false) {
+        try {
+          switch (typeof sObj) {
+            case "boolean":
+                return sObj;
+            case "string":
+                switch(sObj.trim().toLowerCase()) {
+                    case "f":
+                    case "false":
+                    case "0":
+                    case "":
+                        return false;
+                    default: // t, true, 1, or any non-blank stringn = TRUE
+                        return true;
+                }
+            case "null":
+                return nDefault;
+            default: // any non-null object = TRUE
+                return true;
+            }
+        }
+        catch {  }  // on error return default
+        return nDefault;
     }
 
     isNullOrWhiteSpace( input ) {
