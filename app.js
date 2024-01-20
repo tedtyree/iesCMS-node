@@ -535,7 +535,15 @@ http.createServer(async (req, res) => {
             let myHeadJ = [];
             myHeadJ.push(['Content-Type', 'application/json']);
             res.writeHead(200, myHeadJ);
-            res.end(JSON.stringify(cms.ReturnJson));
+            if (cms.ReturnJson) {
+                  if (typeof cms.ReturnJson === 'object') {
+                        if (cms.ReturnJson.constructor.name === 'iesJSON') {
+                              res.end(cms.ReturnJson.jsonString);
+                        } else {
+                              res.end(JSON.stringify(cms.ReturnJson));
+                        }
+                  } else { res.end(JSON.stringify(cms.ReturnJson)); }
+            } else { res.end(""); }
             responseBuilt = true;
 
       } // end if (cms.resultType=='json')

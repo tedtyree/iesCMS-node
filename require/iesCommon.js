@@ -530,18 +530,20 @@ class iesCommonLib {
                             Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
                         }
                         break;
+                        */
                     case "admin_menulink_flag":
-                        string adminMenuLink = cms.wiki["Header.ShowAdminMenuLink"].CString().Trim();
+                        let adminMenuLink = cms.HEADER.getStr("ShowAdminMenuLink").trim();
                         if (adminMenuLink == "") { adminMenuLink = "true"; } // default=true
-                        Content.Append(adminMenuLink);
+                        content.append(adminMenuLink);
                         break;
                     case "admin_editpage_flag":
                         // Future: only show if in edit mode and user has high enough permissions to edit the page.
-                        string editFlag = "false";
-                        int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
+                        let editFlag = "false";
+                        let minedit = cms.HEADER.getNum("MinEditLevel",999);
                         if (minedit <= cms.user.userLevel) { editFlag = "true"; }
-                        Content.Append(editFlag);
+                        content.append(editFlag);
                         break;
+                        /*
                     case "edit_page_link":
                         //*** This tag is to be used in the admin_block
                         //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
@@ -690,7 +692,9 @@ class iesCommonLib {
                     
                     case "admin-editlist-data":
                         // Return item/record data in JSON form
-                        await this.GenerateJsonData(content);
+                        ret.AllowRecursiveCall = false;
+                        this.PrepForJsonReturn(ret);
+                        await this.GenerateJsonData(ret);
                         break;
 
                     /*
@@ -884,12 +888,14 @@ class iesCommonLib {
                             Content.Append(ret.Param4);
                         }
                         break;
+                    */
                     case "runcmd":
                         // runcmd IS PRIVATE - User must be level 3 or higher
-                        string cmd = cms.FormOrUrlParam("cmd");
+                        let cmd = cms.FormOrUrlParam("cmd");
                         //cms.Response.Write("DEBUG:cmd=" + cmd + "<br>");
-                        RunCmd(cmd, Content);
+                        await this.RunCmd(cmd, content, ret);
                         break;
+                    /*
                     case "qcmd":
                         // WARNING: qcmd IS PUBLIC and can be run WITHOUT PERMISSIONS
                         string qcmd = cms.FormOrUrlParam("cmd");
@@ -1087,18 +1093,7 @@ class iesCommonLib {
                     Content.Append("<input type='button' value='CREATE PAGE' onclick='admin_open_edit_d(\"" + cms.PageID + "\",true);'><br><br>");
                 }
                 break;
-            case "admin_menulink_flag":
-                string adminMenuLink = cms.wiki["Header.ShowAdminMenuLink"].CString().Trim();
-                if (adminMenuLink == "") { adminMenuLink = "true"; } // default=true
-                Content.Append(adminMenuLink);
-                break;
-            case "admin_editpage_flag":
-                // Future: only show if in edit mode and user has high enough permissions to edit the page.
-                string editFlag = "false";
-                int minedit = cms.wiki["Header.MinEditLevel"].ToInt(999);
-                if (minedit <= cms.user.userLevel) { editFlag = "true"; }
-                Content.Append(editFlag);
-                break;
+            
             case "edit_page_link":
                 //*** This tag is to be used in the admin_block
                 //*** IF WE ARE LOGGED IN AND THIS PERSON HAS PRIVILEDGES... Allow edit of Wiki page. 	
@@ -1350,6 +1345,47 @@ class iesCommonLib {
                 httpSeqNumber;
     }
 
+    // RunCmd(): PRIVATE CALL - must be level 3+
+    async RunCmd(cmd, content, ret)
+    {
+        let jContent = null; // iesJSON 
+        let fileName = "";
+        switch (cmd.trim().toLowerCase())
+        {
+            case "listcontentfiles": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+                //jContent=listContentFiles();
+                //OutputJSON(jContent);
+                break;
+            case "listallfiles": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+                //jContent=listAllFiles();
+                //OutputJSON(jContent);
+                break;
+            case "editfile": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+                //fileName = cms.FormOrUrlParam("filename");
+                //jContent=editFile(fileName);
+                //OutputJSON(jContent);
+                break;
+            case "savefile": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
+                //iesJSON jObj=new iesJSON();
+                //jObj.Serialize(cms.Request.Form); // Reads all FORM parameters
+                //jObj.RemoveFromBase("cmd");
+                //jObj.RemoveFromBase("rtype");
+                //jContent=saveFile(jObj);
+                //OutputJSON(jContent);
+                break;
+            case "editlist-data":
+                // Create HTML list of records
+                // Content.Append("HERE 444: DEBUG<br><br>");
+                // EditList.htmlList(cms,Content);
+                break;
+            case "editlist-json":
+                // Create JSON list of records
+                this.PrepForJsonReturn(ret);
+                await this.GenerateJsonData(ret);
+                break;
+        }
+    }
+
 
     // **************** ReplaceTags()
     async ReplaceTags(inputString, header, content, Custom, cms, lvl = 0) {
@@ -1486,7 +1522,7 @@ class iesCommonLib {
     /* ************************ Edit Table / Edit Form ************************************* */
     /* ************************************************************************************* */
 
-    async GenerateJsonData(content, idOverride = "", eClassOverride = "", includeHeader = true)
+    async GenerateJsonData(ret, idOverride = "", eClassOverride = "", includeHeader = true)
         {
             let sql3 = "";
             let out = {
@@ -1498,7 +1534,7 @@ class iesCommonLib {
             let id = idOverride;
             let limit = "";
             if (this.isNullOrWhiteSpace(id)) { id = this.urlParam("id"); }
-            //if (id=="") { content.append("<br><br>ERROR: Record ID not specified. [err4336]"); return; }
+            //if (id=="") { ret.ReturnJson.error = "<br><br>ERROR: Record ID not specified. [err4336]"; return; }
 
             let jret = new iesJSON("{}");
 
@@ -1507,7 +1543,7 @@ class iesCommonLib {
             if (this.editlistj.i("MasterFiles").length >= 1)
             {
                 // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
-                this.GenJsonFromMasterFiles(content, this.editlistj.i("MasterFiles"), this.editlistj.i("SearchList"), idOverride, eClassOverride, includeHeader);
+                this.GenJsonFromMasterFiles(ret, this.editlistj.i("MasterFiles"), this.editlistj.i("SearchList"), idOverride, eClassOverride, includeHeader);
                 return;
             }
             let SearchTable = this.editlistj.getStr("SearchTable");
@@ -1529,8 +1565,8 @@ class iesCommonLib {
             this.db.Open();
             if (Permit <= 0)
             {
-                content.append("ERROR: Permission denied.");
-                if (this.debugMode > 0) { content.append(" [UserLevel=" + this.user.userLevel + "]"); }
+                ret.ReturnJson.error = "ERROR: Permission denied.";
+                if (this.debugMode > 0) { ret.ReturnJson.error = " [UserLevel=" + this.user.userLevel + "]"; }
                 return;
             }
             else
@@ -1538,7 +1574,7 @@ class iesCommonLib {
                 try
                 {
                     let w = this.MakeSearch(out.Cols,searchText);
-                    let w1 = "WorldID='" + this.siteId + "'";
+                    let w1 = "SiteID='" + this.siteId + "'";
                     if (flags.indexOf("noworldid") >= 0) { w1 = ""; }
                     if (w1 != "") { if (w != "") { w += " AND "; } w += "(" + w1 + ")"; }
                     let w2 = this.editlistj.getStr("Where").trim();
@@ -1559,6 +1595,7 @@ class iesCommonLib {
                     */
                     //this.Response.Write("DEBUG: connect=" + this.db.ConnectString + "<br><br>"); //DEBUG 
                     let rData = await this.db.GetDataReader(sql3);
+                    let rDataAll = rData.GetAllRecords();
                     let recordsTotal=await this.db.GetCount(SearchTable,w);
                     let recordsFiltered=recordsTotal;
 
@@ -1566,9 +1603,9 @@ class iesCommonLib {
                     jret.add(this.FormOrUrlParam("draw"), "draw"); // Return the DRAW id sent in the request (used to sync results)
                     jret.add(recordsTotal, "recordsTotal");
                     jret.add(recordsFiltered, "recordsFiltered");
-                    jret.add(rData, "data");
+                    jret.add(rDataAll, "data");
                     jret.add(sql3, "sql"); //DEBUG
-                    content.append(jret.jsonString);
+                    ret.ReturnJson = jret;
                 }
                 catch (ee3)
                 {
@@ -1577,13 +1614,14 @@ class iesCommonLib {
                     if (this.debugMode > 0) { errmsg += " SQL=" + sql3; }
                     jret.add(new iesJSON("[]"), "data");
                     jret.add(errmsg, "error");
-                    content.append(jret.jsonString);
+                    ret.ReturnJson = jret;
                 }
             } // end if-else (Permit<=0)
             this.db.Close();
         } // end function
 
-        GenJsonFromMasterFiles(content, MstrFiles, SearchFields, idOverride = "", eClassOverride = "", includeHeader = true)
+        // FUTURE: first parameter "ret" is no longer a StringBuilder. This is expecting a JSON object to be generated.
+        GenJsonFromMasterFiles(ret, MstrFiles, SearchFields, idOverride = "", eClassOverride = "", includeHeader = true)
         {
             let rData = new iesJSON("[]");
             let tTags = new iesJSON("{}");
@@ -1608,7 +1646,7 @@ class iesCommonLib {
                 tTags.add(this.SITE.ContentFolder, "contentFolder");
                 tTags.add(this.SITE.TemplateFolder, "templateFolder");
                 readPath = this.ReplaceStringTags(readPath, tTags, true, "{{", "}}");
-                //content.append("DEBUG: path=" + readPath + "\\" + prefix + "*" + ext + "  ");
+                //ret.ReturnJson.error = "DEBUG: path=" + readPath + "\\" + prefix + "*" + ext + "  " ;
 
                 if (readPath != "")
                 {
@@ -1619,11 +1657,11 @@ class iesCommonLib {
                         let Files = d.GetFiles(prefix + "*" + ext); //Getting cfg files	
                         for (const file of Files) // foreach
                         {
-                            //content.append("DEBUG:" + rData.jsonString);
+                            //ret.ReturnJson.debug += "DEBUG:" + rData.jsonString;
                             if (file.Extension.toLowerCase() == ext)
                             {
                                 fileCount++;
-                                //content.append("DEBUG:[" + file.Name + "]");
+                                //ret.ReturnJson.debug += "DEBUG:[" + file.Name + "]";
                                 //we need the title without the prefix/ext
                                 let fileNameNoExtension = Path.GetFileNameWithoutExtension(file.Name);
                                 if (prefix.length > 0)
@@ -1677,7 +1715,7 @@ class iesCommonLib {
                     }
                 } // readPath is not missing
             } // foreach MasterFiles
-            //content.append("DEBUG +++++++++" + rData.jsonString + "++++++++");
+            //ret.ReturnJson.debug += "DEBUG +++++++++" + rData.jsonString + "++++++++";
             let jret = new iesJSON("{}");
             if (fileCount == 0)
             {
@@ -1688,7 +1726,7 @@ class iesCommonLib {
                 jret.add("success", "msg");
             }
             jret.add(rData, "data");
-            content.append(jret.jsonString);
+            ret.ReturnJson = jret;
             return;
         }
         /*
@@ -2587,15 +2625,14 @@ class iesCommonLib {
     }
 
     PrepForJsonReturn(ret) {
-        if (!ret.ReturnJson) {
-            ret.ReturnJson = {};
-        }
-    }
-
-    PrepForJsonReturn() {
         this.resultType = 'json';
         if (!this.ReturnJson) {
             this.ReturnJson = {};
+        }
+        if (ret) {
+            if (!ret.ReturnJson) {
+                ret.ReturnJson = {};
+            }
         }
     }
 
@@ -2960,7 +2997,7 @@ class iesCommonLib {
 
         let ret = [];
 
-        if (isNaN(inputString) || inputString === null) { return ret; } // cannot parse a null or error
+        if (typeof inputString !== 'string' || inputString === null) { return ret; } // cannot parse a null or error
 
         let nString = inputString + '';
         if (nString.length <= 0) { return ret; }
@@ -3113,7 +3150,6 @@ class iesCommonLib {
         async SessionLogin2(sql, Login_Pwd)
         {
             let ret = false;
-            let pwdRS; // iesJSON
             let cnt = 0; 
             let n_Pwd = "";
             let expiration = "";
@@ -3126,7 +3162,9 @@ class iesCommonLib {
                 this.WriteLog("login", "DEBUG: Login SQL=" + sql + "\n");
             } */
 
-            pwdRS = await this.db.GetDataReader(sql);
+            let pwdRS = await this.db.GetDataReader(sql);
+            let pwdData = pwdRS.GetAllRecords();
+
             /* FUTURE: check for DB Errors
             if (this.debugMode >= 1)
             {
@@ -3150,7 +3188,7 @@ class iesCommonLib {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
 
-                for (const userRec of pwdRS) {
+                pwdData.forEach(userRec => {
                     n_Pwd = "";
                     // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
                     n_Pwd = userRec.PWD || null;
@@ -3183,15 +3221,15 @@ class iesCommonLib {
                         }
 
                         ret = true;
-                        break; // no need to check additional records
+                        return; // no need to check additional records (break out of forEach)
 
                     }  // *** n_Pwd!="" && n_Pwd==Login_Pwd
                        //CheckDBerr(ErrMsg)
 
                     cnt = cnt + 1;
-                    if (cnt > 999) { break; } // *** Safety
+                    if (cnt > 999) { return; } // *** Safety (break out of forEach)
                                               //if (ErrMsg!="") { break; } // *** Saftey - FUTURE
-                } // end for each
+                }); // end for each
             } // if !pwdRS==null
             else
             {

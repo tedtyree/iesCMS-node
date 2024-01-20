@@ -446,6 +446,13 @@ class iesJSON {
         
     }
 
+    ConvertToArray() { // convert this iesJSON from an Object to an Array
+        // We can do this because the only real different between an array and an object is that the object has key values.
+        if (this._jsonType != 'object') { return; }
+        this._jsonType = 'array';
+        this.InvalidateJsonString();
+    }
+
     item(idx,dotNotation=true) {
         return this.i(idx,dotNotation);
     }
@@ -697,6 +704,9 @@ class iesJSON {
                     i = 0;
                     this._value.forEach( o => {
                         if (i > 0) { s.append(","); }
+                        if (o.key == 'data') {
+                            console.log('debug here111'); // debug debug debug
+                        }
                         let k = o.SerializeMe();
 
                         // Here we ignore keepSpacing/keepComments - these flags are only used during the deserialize process

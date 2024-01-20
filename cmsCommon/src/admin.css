@@ -138,7 +138,7 @@ h1 {
 #editlisttable thead th, .editlisttable thead th  {
 background:#2a5d9a; border:1px solid #39689f; font-size:14px; font-weight:normal !important; padding:2px !important; color:white;
 }
-
+.EditListTitles th {background-color:#2E405C;color:#FFFFFF;}
 
 /**
   New Login Form 

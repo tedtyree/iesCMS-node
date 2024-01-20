@@ -51,11 +51,12 @@ const mysql = require('mysql');
 class iesDB {
 	
     DBClass = "mysql";  // Options: mysql, sqlserver  (The routines below are based on MySQL)
+    DefaultDB = "wpl";
     status = 0;
     statusMessage = "";
     ConnectStatus = 0;
     iesConnection = null;
-    ConnectObj = null; // CONNECT CREDENTIALS: { host, user, password }
+    ConnectObj = null; // CONNECT CREDENTIALS: { host, [db], user, password }
     CmdStatus = 0;
     CmdStatusMessage = "";
     // Store table definition for 1 table to make repetitive data writes to the same table faster.
@@ -66,7 +67,10 @@ class iesDB {
 
 	constructor(connectObj,dbClass) {
 		if (dbClass) { this.DBClass = dbClass; }
-        if (connectObj) { this.ConnectObj = connectObj; }
+        if (connectObj) { 
+            this.ConnectObj = connectObj; 
+            if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; } // default DB name
+        }
 	}
 
     //============================================================================== BEGIN HERE 
@@ -74,7 +78,7 @@ class iesDB {
     Open() // async - may be used with .Then()
     {
         return new Promise((resolve,reject) => {
-            if (this.ConnectStatus == 1) { resolve(false); } // indicate we were already open: needToClose=false
+            if (this.ConnectStatus == 1) { resolve(false); return; } // indicate we were already open: needToClose=false
 
             // Verify that we have the data needed to connect...
             if (!this.ConnectObj || !this.ConnectObj.host || !this.ConnectObj.user || !this.ConnectObj.password)
@@ -82,7 +86,7 @@ class iesDB {
                 this.status = -9;
                 this.statusMessage = "No database connect object specified. [err0009]";
                 //throw new Error(this.statusMessage);
-                reject(this.statusMessage);
+                reject(this.statusMessage); return;
             }
 
             try {
@@ -92,18 +96,18 @@ class iesDB {
                     host: this.ConnectObj.host,
                     user: this.ConnectObj.user,
                     password: this.ConnectObj.password,
-                    database: 'wpl',
+                    database: this.ConnectObj.db,
                     port: 3306
                 });
             } catch {
                 this.status = -14;
                 this.statusMessage = "ERROR: createConnection failed. [err0014]";
                 //throw new Error(this.statusMessage);
-                reject(this.statusMessage);
+                reject(this.statusMessage); return;
             }
 
             this.ConnectStatus = 1;
-            resolve(true);
+            resolve(true); return;
 /*
             try {
                 // FUTURE: Need to add error handling
@@ -113,13 +117,13 @@ class iesDB {
                         this.statusMessage = "ERROR: Failed to connect to database server: " + err;
                         console.log(this.statusMessage);
                         // throw new Error(this.statusMessage);
-                        reject(this.statusMessage);
+                        reject(this.statusMessage); return;
                     } else {
                         console.log('DEBUGGER: Connect to database server successful!');
                         this.ConnectStatus = 1;
                         this.status = 0;
                         this.statusMessage = "";
-                        resolve(true);  // needToClose=true
+                        resolve(true);  return; // needToClose=true
                     }
                 });
             }
@@ -131,7 +135,7 @@ class iesDB {
                 this.ConnectStatus = 0;
                 this.Close(true, e => undefined);  // Do not await results
                 //throw new Error(this.statusMessage);
-                reject(this.statusMessage);
+                reject(this.statusMessage); return;
             }
             */
         });
@@ -149,7 +153,7 @@ class iesDB {
                 this.statusMessage = "";
                 this.iesConnection = null;
                 this.ConnectStatus = 0;
-                resolve(true);
+                resolve(true); return;
             }
             catch (ex)
             {
@@ -160,7 +164,7 @@ class iesDB {
                     this.statusMessage = "Close failed: " + ex.message;
                     throw new Error(this.statusMessage);
                 }
-                reject("Close failed.");
+                reject("Close failed."); return;
             }
         });
     }
@@ -170,10 +174,10 @@ class iesDB {
             try {
                 //await this.Close();
                 this.ConnectObj = iConnectObj;
-                resolve(true);
+                resolve(true); return;
             } catch (err) {
                 console.log ("ERROR: setConnectObj(): " + err);
-                reject("ERROR: setConnectObj(): failed.");
+                reject("ERROR: setConnectObj(): failed."); return;
             }
         });
     }
@@ -256,51 +260,53 @@ class iesDB {
                     if (this.ConnectStatus == 1)
                     {
                         let dr = await this.iGetDataReader(this.iesConnection, sql);
-                        if (dr) { resolve(dr); }
+                        if (dr) { resolve(dr); return; }
                         //if (NeedToClose) { await this.Close(); }
                         return;
                     }
-                    reject(this.errPipe(func,"[ERR7455]")); 
+                    reject(this.errPipe(func,"[ERR7455]")); return;
                 } catch (err) {
-                    reject(this.errPipe(func,"[ERR7453]",err));
+                    reject(this.errPipe(func,"[ERR7453]",err)); return;
                 }
             });
         }
 
-        GetDataReader(sql) { // async
+        GetDataReader(sql, asJS = false) { // async
             return new Promise(async (resolve,reject) => {
                 const func="GetDataReader()";
                 this.Open()
                     .then( needToClose => {
-                        this.iGetDataReader(this.iesConnection, sql)
+                        this.iGetDataReader(this.iesConnection, sql, asJS)
                             .then( dr => {
-                                resolve(dr);
+                                resolve(dr); return;
                             })
                             .catch(err2 => {
-                                reject(this.errPipe(func,"ERR7553",err2));
+                                reject(this.errPipe(func,"ERR7553",err2)); return;
 //                            })
 //                            .finally( async () => {
                                 //if (needToClose) { await this.Close(); } // await here so that we do not move on to next task before the close is done
                             });
 //                    })
 //                    .catch(err1 => {
-//                        reject(this.errPipe(func,"ERR7557",err1));
+//                        reject(this.errPipe(func,"ERR7557",err1)); return;
                     });
             });
         }
 
 
         // FUTURE: Is this needed? Why not just call query?
-        iGetDataReader(iConnect, sql) { // async
+        iGetDataReader(iConnect, sql, asJS = false) { // async
             return new Promise(async (resolve,reject) => {
                 iConnect.query(sql, (err,data) => {
                     if (err) { 
                         this.status = -377; // query error
                         this.statusMessage = "ERROR: Query failed: " + err.message;
                         console.log(this.statusMessage);
-                        reject(this.statusMessage);
+                        reject(this.statusMessage); return;
                         }
-                    resolve(data);
+                    if (asJS) { resolve(data); return; }
+                    let newDR = new iesDataReader(this,data);
+                    resolve(newDR); return;
                 });
             });
         }
@@ -308,6 +314,7 @@ class iesDB {
         //DEFAULT-PARAMETERS
         //public iesJSON GetDataReaderAll(string sql) { return GetDataReaderAll(sql, false); }
         //public iesJSON GetDataReaderAll(string sql, bool AsArray) {
+            // Instead of this function, use "GetAllRecords" in iesDataReaderClass
         GetDataReaderAll(sql, AsArray = false) { // sync
             throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9991]");
             /*
@@ -320,13 +327,13 @@ class iesDB {
                         let jAll = this.iGetDataReaderAll(this.iesConnection, sql, AsArray);
                         // FUTURE: Error checking on results?
                         if (NeedToClose) { await this.Close(); }
-                        resolve(jAll);
+                        resolve(jAll); return;
                     }
                     if (NeedToClose) { await this.Close(); }
-                    reject('Error: GetDataReaderAll(): failed to run query. [ERR7457]');  // Error
+                    reject('Error: GetDataReaderAll(): failed to run query. [ERR7457]');  return; // Error
                 } catch (err) {
                     console.log ("ERROR: GetDataReaderAll(): [ERR7458]" + err);
-                    reject("ERROR: GetDataReaderAll(): failed. [ERR7458]");
+                    reject("ERROR: GetDataReaderAll(): failed. [ERR7458]"); return;
                 }
             });
             */
@@ -335,7 +342,7 @@ class iesDB {
         //DEFAULT-PARAMETERS
         //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql) { return GetDataReaderAll(iConnect,sql,false); }
         //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray) {
-            // FUTURE: IS THIS NEEDED ANY LONGER? GetDataReader DOES get all records!
+            // Instead of this function, use "GetAllRecords" in iesDataReaderClass
         static iGetDataReaderAll(iConnect, sql, AsArray = false, ReturnPartial = false) { // async
             throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9992]");
             /*
@@ -364,7 +371,7 @@ class iesDB {
                     return jAll;
                 } catch (err) {
                     console.log ("ERROR: setConnectObj(): " + err);
-                    reject("ERROR: setConnectObj(): failed.");
+                    reject("ERROR: setConnectObj(): failed."); return;
                 }
             });
             */
@@ -433,37 +440,40 @@ class iesDB {
             return jAll;
         }
 */
-        GetFirstRow(sql) { // async
+        GetFirstRow(sql, asJS = false) { // async
             return new Promise(async (resolve,reject) => {
                 try {
                     let ret = null;
                     let NeedToClose = false;
                     if (this.ConnectStatus != 1) { await this.Open(); NeedToClose = true; }
-                    if (this.ConnectStatus == 1) { ret = await this.iGetFirstRow(this.iesConnection, sql); }
+                    if (this.ConnectStatus == 1) { ret = await this.iGetFirstRow(this.iesConnection, sql, asJS); }
                     //if (NeedToClose) { await this.Close(); }
-                    resolve(ret);  // Error
+                    resolve(ret);  return; // Error
                 } catch (err) {
                     console.log("ERROR: GetFirstRow(): " + err);
                     //throw new Error('ERROR: GetFirstRow(): failed.');
-                    reject('ERROR: GetFirstRow(): failed.');
+                    reject('ERROR: GetFirstRow(): failed.'); return;
                 }
             });
         }
 
-        iGetFirstRow(iConnect, sql) { // async
+        iGetFirstRow(iConnect, sql, asJS = false) { // async
             return new Promise(async (resolve,reject) => {
                 try
                 {
-                    let jDR = await this.iGetDataReader(iConnect, sql);
+                    let jDR = await this.iGetDataReader(iConnect, sql, asJS);
                     if (jDR && jDR.length > 0)
                     {
-                        resolve(jDR[0]);
+                        if (asJS) { resolve(jDR[0]); return; }
+                        let newRow = jDR.Read();
+                        resolve (newRow); return;
                     }
-                    resolve({});
+                    if (asJS) { resolve({}); return; }
+                    resolve( new iesJSON("{}")); return;
                 }
                 catch (err) {
                     console.log("ERROR: iGetFirstRow(): " + err);
-                    reject('ERROR: iGetFirstRow(): failed.');
+                    reject('ERROR: iGetFirstRow(): failed.'); return;
                 }
             });
         }
@@ -591,23 +601,23 @@ class iesDB {
                     let sqlWhere = strWhere.trim();
                     if (!sqlWhere) { if (sqlWhere.slice(0,5).toUpperCase() != "WHERE") { sqlWhere = " WHERE " + sqlWhere; } }
                     let sql = "SELECT Count(*) FROM " + sTable + " " + sqlWhere;
-                    let rs = await this.GetFirstRow(sql); // iesJSON object
+                    let rs = await this.GetFirstRow(sql,true); // js object
                     // returned record should be in the form {Count(*):<value>}
                     if (rs)
                     {
                         try
                         {
                             let rowCount = parseInt(rs['Count(*)']);
-                            resolve(rowCount);
+                            resolve(rowCount); return;
                         }
                         catch { 
-                            reject('ERROR: GetCount(): toNum failed.');
+                            reject('ERROR: GetCount(): toNum failed.'); return;
                         }
                     }
-                    reject('ERROR: GetCount(): data not found.');
+                    reject('ERROR: GetCount(): data not found.'); return;
                 } catch (err) {
                     console.log("ERROR: GetCount(): " + err);
-                    reject('ERROR: GetCount(): failed.');
+                    reject('ERROR: GetCount(): failed.'); return;
                 }
             });	
         }
@@ -620,10 +630,10 @@ class iesDB {
                     .then( needToClose => {
                         this.iExecuteSQL(this.iesConnection, sql)
                             .then( dr => {
-                                resolve(dr);
+                                resolve(dr); return;
                             })
                             .catch(err2 => {
-                                reject(this.errPipe(func,"ERR7753",err2));
+                                reject(this.errPipe(func,"ERR7753",err2)); return;
                             });
                     });
             });
@@ -637,9 +647,9 @@ class iesDB {
                         this.status = -477; // query error
                         this.statusMessage = "ERROR: Query failed: " + err.message;
                         console.log(this.statusMessage);
-                        reject(this.statusMessage);
+                        reject(this.statusMessage); return;
                         }
-                    resolve(data);
+                    resolve(data); return;
                 });
             });
         }
@@ -1113,99 +1123,7 @@ class iesDB {
         }
 
 
-        // BuildJSON()
-        // This static routine accepts a DataReader that is ALREADY POSITIONED AT THE RECORD TO BE CONVERTED
-        // It returns a newly created JSON object with the parameters from the 'current' data record.
-        //DEFAULT-PARAMETERS
-        //public static iesJSON BuildJSON(MySqlDataReader DR) { return BuildJSON(DR,false); }
-        //public static iesJSON BuildJSON(MySqlDataReader DR, bool AsArray) {
-        public static iesJSON BuildJSON(MySqlDataReader DR, bool AsArray = false)
-        {
-            string j, nm, newSJ;
-            iesJSON newJ = null, tmpJ;
-
-            //Let's get the _JSON value first
-            j = "";
-            try
-            {
-                j = DR["_json"].ToString();  // If field does not exist, an error will be thrown
-            }
-            catch { }
-            try
-            {
-                if (j != "")
-                {
-                    newJ = new iesJSON(j); // Parse _json
-                    if ((newJ.Status != 0) || (newJ.jsonType == "null")) { newJ = null; }
-                }
-            }
-            catch { } // FUTURE: flag error
-
-            if (newJ == null) { newJ = new iesJSON("{}"); }  // Blank Object because parse of JSON failed.  
-            // FUTURE: Check status of newJ and decide what to do if not OK (0)
-            // FUTURE: error handling below
-            int cnt = DR.FieldCount;
-            for (int k = 0; k < cnt; k++)
-            {
-                nm = "";
-                nm = DR.GetName(k);
-                if (Right(nm, 5).ToLower() == "_json")
-                {
-                    if (nm != "_json")
-                    {
-                        newSJ = "";
-                        try
-                        {
-                            newSJ = DR.GetValue(k).ToString();
-                        }
-                        catch { }  //Invalid date values throw an error.  Here we ignore them.
-                        if (newSJ.Trim() != "")
-                        {
-                            tmpJ = new iesJSON(newSJ);
-                            if (tmpJ.Status == 0) { newJ[nm] = tmpJ; }
-                            else { newJ[nm] = iesJSON.CreateItem(null); } // FUTURE: Indicate warning/error here?
-                            tmpJ = null;
-                        }
-                        else
-                        {
-                            newJ[nm] = iesJSON.CreateItem(null);
-                        }
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        switch (DR.GetDataTypeName(k).ToLower())
-                        {
-                            case "date":
-                            case "datetime":
-                                string ss = DR.GetValue(k).ToString();
-                                tmpJ = iesJSON.CreateItem(ss);
-                                break;
-                            default:
-                                tmpJ = iesJSON.CreateItem(DR.GetValue(k));
-                                break;
-                        } // End Switch
-
-                    }
-                    catch { tmpJ = iesJSON.CreateNull(); }  //Invalid date values throw an error.  Here we ignore it and use NULL.
-                    if (tmpJ.Status == 0) { newJ[nm] = tmpJ; }
-                    else { newJ[nm] = iesJSON.CreateItem(null); } // FUTURE: Indicate warning/error here?
-                    tmpJ = null;
-                }
-            } // end for
-
-            // Here we cheat - because a JSON ARRAY is not any different than a JSON OBJECT - only we ignore the field names.
-            // So we convert the JSON OBJECT to an ARRAY if the AsArray flag is set.  FUTURE: More elegant method?
-            if (AsArray == true)
-            {
-                newJ.ConvertToArray();
-                newJ.InvalidateJsonString();
-            }
-
-            return newJ;
-        }
+        
 
         // Right()
         // Return right <length> characters, or entire string if <length> is longer than string length

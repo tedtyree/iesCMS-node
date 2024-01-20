@@ -98,6 +98,7 @@ class webEngine {
         // FUTURE: Find better way to convert from iesJSON to JavaScript object???
         let dbConnect = {
             host: dbConnectJson.i("host").toStr()
+            ,db: dbConnectJson.i("db").toStr()
             ,user: dbConnectJson.i("user").toStr()
             ,password: dbConnectJson.i("password").toStr()
         };
