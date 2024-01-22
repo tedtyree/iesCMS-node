@@ -1,4 +1,4 @@
-var eClass,fDirty,fSingleRecord,urlObj,world,sworld,urlParent,eCmd,SpecialFlags,recType,RemoveOK=false,currPageNum="&page=1";
+var eClass,fDirty,fSingleRecord,urlObj,world,sworld,urlParent,eCmd,SearchList,SpecialFlags,recType,RemoveOK=false,currPageNum="&page=1";
 
 $.extend({
   getUrlVars: function(){
@@ -42,8 +42,12 @@ $(document).ready(function(){
 	GetSearchFields();  //*** This will keep the form from thinking we entered a search.
 		
 	// Setup Header
-	$.post("/admin/EditWObj/EditList-Info.aspx",{ eclass: eClass },
+	/* $.post("/admin/EditWObj/EditList-Info.aspx",{ eclass: eClass },
+		function(data) { SetHeader(data); }); */
+	ts=new Date().getTime();
+	$.post("/runcmd?cmd=editlist-info&ts=" + ts,{ eclass: eClass },
 		function(data) { SetHeader(data); });
+
 	// Query Initial
 	ShowPanel('loading');
 	if (urlObj=="") {
@@ -58,17 +62,11 @@ $(document).ready(function(){
  });
  
   function SetHeader(sData) {
-    var vData=[],s1,s2,k,t,uTableName,vTableName;
-	var sd=sData.split("|");
-	for(var i = 0; i < sd.length; i++)
-    {
-	  k = sd[i].indexOf('=');
-	  if (k==-1) { s1=sd[i]; s2=''; }
-	  else { s1=sd[i].substring(0,k); s2=sd[i].substring(k+1); }
-      vData.push(s1);
-      vData[s1] = s2;
-    }
-	vTableName=vData['TableName'];
+    var vData={},s1,s2,k,t,uTableName,vTableName;
+	try {
+		vData = JSON.parse(sData);
+	} catch {}
+	vTableName=vData['Title'];
 	if ($.getUrlVar('TableName')) {uTableName = unescape($.getUrlVar('TableName') + '');}
 	if ($.trim(uTableName)!="") {vTableName=uTableName;}
     $('#editlist_title').html(vTableName);
@@ -77,6 +75,7 @@ $(document).ready(function(){
 			$('#editlist_add2').attr('onClick','window.location="' + vData['AddLink'] + '"');
 		}
 	SpecialFlags=vData['SpecialFlags'];
+	SearchList=vData['SearchList'];
 	RemoveOK=false;
 	try {
 		if (vData['RemoveOK'].toLowerCase()=='true') { RemoveOK=true; $('#remove_ok').show(); }
@@ -110,27 +109,35 @@ function ReturnSearch(sData) {
 	let newHtml = '<table width="100%" class="tabletext" style="with:100%;">';
 	let rows = 0;
 	try {
-		if (sData.data) {
+		if (SearchList) {
 			// first build header row
 			newHtml += '<tr class="EditListTitles">';
-			for (var k of Object.keys(sData.data[0])) {
-				newHtml += '<th>' + $('<div>').text(k).html() + '</th>';
+			for (var k of SearchList) {
+				let alias = k.Alias || k.Field;
+				// future: hide column if width=0? Or special flag set?
+				newHtml += '<th>' + $('<div>').text(alias).html() + '</th>';
 			}
 			newHtml += '</tr>';
-			// build each data row
-			for (var row of sData.data) {
-				newHtml += '<tr>';
-				for (var k of Object.keys(row)) {
-					let j = row[k];
-					newHtml += '<td>' + $('<div>').text(j).html() + '</td>';
-				};
-				newHtml += '</tr>';
-				rows=rows +1;
-			}
-		}
+			if (sData.data) {
+				
+				// build each data row
+				for (var row of sData.data) {
+					newHtml += '<tr>';
+					for (var k of SearchList) {
+						let field = (k.Field + '').replace(/\`/g,'');
+						let j = row[field];
+						if (j) { j = j + ''; } else { j = ''; }
+						newHtml += '<td>' + $('<div>').text(j).html() + '</td>';
+					};
+					newHtml += '</tr>';
+					rows=rows +1;
+				}
+			} // end if sData.data
+		} // end if SearcList
 		newHtml += '</table>';
-	} catch (e) { console.log(e); newHtml = '<table><tr><td>No rows found.</td></tr></table>'};
-	
+	} catch (e) { console.log(e); rows=0;}
+	if (rows == 0) {newHtml = '<table><tr><td>No rows found.</td></tr></table>';}
+
 	$('#editlist_search').html(newHtml);
 	ShowPanel('search');	
 }

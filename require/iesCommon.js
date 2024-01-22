@@ -1373,6 +1373,17 @@ class iesCommonLib {
                 //jContent=saveFile(jObj);
                 //OutputJSON(jContent);
                 break;
+            case "editlist-info":
+                    // Send key Config info to front-end for edit-data-tables
+                    this.PrepForJsonReturn(ret);
+                    this.LoadEditListIfNeeded();
+                    let newHeader = new iesJSON("{}");
+                    newHeader.add(this.editlistj.getStr("Title"),"Title");
+                    newHeader.add(this.editlistj.getStr("Table"),"Table");
+                    newHeader.add(this.editlistj.getStr("SpecialFlags"),"SpecialFlags");
+                    newHeader.add(this.editlistj.i("SearchList"),"SearchList");
+                    ret.ReturnJson = newHeader.jsonString;
+                    break;
             case "editlist-data":
                 // Create HTML list of records
                 // Content.Append("HERE 444: DEBUG<br><br>");
@@ -3551,7 +3562,7 @@ class iesCommonLib {
     {
         let eclass = eClassOverride.trim().toLowerCase();
         this.editlisterror = "";
-        if (!eclass) { eclass = this.urlParam("eclass").trim().toLowerCase(); }
+        if (!eclass) { eclass = this.FormOrUrlParam("eclass","").trim().toLowerCase(); }
         let eclassfile = "eclass-" + eclass + ".cfg";
         if (eclass != this.editlistconfig)
         {
