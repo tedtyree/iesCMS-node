@@ -1381,6 +1381,8 @@ class iesCommonLib {
                     newHeader.add(this.editlistj.getStr("Title"),"Title");
                     newHeader.add(this.editlistj.getStr("Table"),"Table");
                     newHeader.add(this.editlistj.getStr("SpecialFlags"),"SpecialFlags");
+                    newHeader.add(this.editlistj.getStr("PrimaryKey"),"PrimaryKey");
+                    newHeader.add(this.editlistj.getStr("PrimaryKeyNumeric"),"PrimaryKeyNumeric");
                     newHeader.add(this.editlistj.i("SearchList"),"SearchList");
                     ret.ReturnJson = newHeader.jsonString;
                     break;

@@ -1,4 +1,4 @@
-var eClass,fDirty,fSingleRecord,urlObj,world,sworld,urlParent,eCmd,SearchList,SpecialFlags,recType,RemoveOK=false,currPageNum="&page=1";
+var eClass,fDirty,fSingleRecord,urlObj,world,sworld,urlParent,eCmd,SearchConfig,recType,RemoveOK=false,currPageNum="&page=1";
 
 $.extend({
   getUrlVars: function(){
@@ -74,8 +74,9 @@ $(document).ready(function(){
 			$('#editlist_add1').attr('onClick','window.location="' + vData['AddLink'] + '"');
 			$('#editlist_add2').attr('onClick','window.location="' + vData['AddLink'] + '"');
 		}
-	SpecialFlags=vData['SpecialFlags'];
-	SearchList=vData['SearchList'];
+	SearchConfig = vData;
+	if (!SearchConfig) {SearchConfig = {};}
+	if (!SearchConfig.SpecialFlags) {SearchConfig.SpecialFlags = "";}
 	RemoveOK=false;
 	try {
 		if (vData['RemoveOK'].toLowerCase()=='true') { RemoveOK=true; $('#remove_ok').show(); }
@@ -109,25 +110,42 @@ function ReturnSearch(sData) {
 	let newHtml = '<table width="100%" class="tabletext" style="with:100%;">';
 	let rows = 0;
 	try {
-		if (SearchList) {
+		if (SearchConfig.SearchList) {
 			// first build header row
 			newHtml += '<tr class="EditListTitles">';
-			for (var k of SearchList) {
+			for (var k of SearchConfig.SearchList) {
 				let alias = k.Alias || k.Field;
 				// future: hide column if width=0? Or special flag set?
 				newHtml += '<th>' + $('<div>').text(alias).html() + '</th>';
 			}
 			newHtml += '</tr>';
 			if (sData.data) {
-				
 				// build each data row
 				for (var row of sData.data) {
 					newHtml += '<tr>';
-					for (var k of SearchList) {
+					// build link to open/edit record
+					let pk = "";
+					if (SearchConfig.PrimaryKey) { pk = row[SearchConfig.PrimaryKey]; }
+					let link1a = "";
+					let link1b = "";
+					if (pk) { 
+						link1a = '<a href="#" onclick="OpenItem(\'' + pk + '\',\'ROW\');return false;">';
+						link1b = '</a>'; 
+					}
+					let link2a = "";
+					let link2b = "";
+					for (var k of SearchConfig.SearchList) {
 						let field = (k.Field + '').replace(/\`/g,'');
 						let j = row[field];
 						if (j) { j = j + ''; } else { j = ''; }
-						newHtml += '<td>' + $('<div>').text(j).html() + '</td>';
+						if (k.Flags && k.Flags.toLowerCase().indexOf('l')>0) {
+							link2a = link1a;
+							link2b = link1b;
+						} else {
+							link2a = "";
+							link2b = "";
+						}
+						newHtml += '<td>' + link2a + $('<div>').text(j).html() + link2b + '</td>';
 					};
 					newHtml += '</tr>';
 					rows=rows +1;
@@ -229,9 +247,9 @@ function SetItem(sData,sItem) {
 	eCmd="Save";
 
 	ShowPanel('form');
-	//alert('sflags=' + SpecialFlags); //*** DEBUG
-	if (SpecialFlags) {
-	  if ((SpecialFlags.toLowerCase().indexOf('copybutton')>0) && (sItem!="*new*")) {
+	//alert('sflags=' + SearchConfig.SpecialFlags); //*** DEBUG
+	if (SearchConfig.SpecialFlags) {
+	  if ((SearchConfig.SpecialFlags.toLowerCase().indexOf('copybutton')>0) && (sItem!="*new*")) {
 			$('#copy_panel1').show();
 			$('#copy_msg1').show();
 			$('#copy_msg1').html("");
