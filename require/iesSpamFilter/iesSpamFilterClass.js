@@ -54,7 +54,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 const fs = require('fs');
 const StringBuilder = require("string-builder");
-const iesJSON = require('../iesJSON/iesJsonClass.js');
+const FlexJson = require('../FlexJson/FlexJsonClass.js');
 
 class iesSpamFilter {
 	
@@ -113,7 +113,7 @@ class iesSpamFilter {
             return;
         }
         // Load spam.cfg
-        var spamCfg = new iesJSON();
+        var spamCfg = new FlexJson();
         spamCfg.DeserializeFlexFile(fullPath);
         if (spamCfg.Status != 0)
         {
@@ -211,7 +211,7 @@ class iesSpamFilter {
             {
 
                 //Read Library of SPAM Regex Defintions
-                var spamLib = new iesJSON();
+                var spamLib = new FlexJson();
                 spamLib.DeserializeFlexFile(libPath);
                 if (spamLib.Status != 0)
                 {
@@ -227,7 +227,7 @@ class iesSpamFilter {
                 else
                 {
                     // PROCESS CONFIG FILE
-                    var spamArray = spamLib.toJsonArray(); // Convert iesJSON object to a javascript array
+                    var spamArray = spamLib.toJsonArray(); // Convert FlexJson object to a javascript array
                     for (const rx of spamArray)
                     {
                         var rxID = rx.getStr("id","");

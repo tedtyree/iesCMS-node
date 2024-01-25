@@ -1,6 +1,6 @@
 // jsonTypeEnum Values - Numeric representation of jsonType
 //NOTE: The NUMBER VALUES are critical to the SORT() routine
-//  So that iesJSON arrays get sorted in this order: NULL, Number, String, Boolean, Array, Object, Error
+//  So that FlexJson arrays get sorted in this order: NULL, Number, String, Boolean, Array, Object, Error
 const jsonTypeEnum_null = 0;
 const jsonTypeEnum_number = 1;
 const jsonTypeEnum_string = 2;

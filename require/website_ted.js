@@ -1,5 +1,5 @@
 const StringBuilder = require("string-builder");
-const iesJSON = require('./iesJSON/iesJsonClass.js');
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
 									 
 
@@ -46,7 +46,7 @@ class webEngine {
             try {
         // ================================================ BEGIN								 
         var fileType = '';
-        let pageHead = new iesJSON();
+        let pageHead = new FlexJson();
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
@@ -77,7 +77,7 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         let dbConnectJson = cms.SERVER.i("dbConnect");
-        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        // FUTURE: Find better way to convert from FlexJson to JavaScript object???
         let dbConnect = {
             host: dbConnectJson.i("host").toStr()
             ,user: dbConnectJson.i("user").toStr()

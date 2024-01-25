@@ -43,7 +43,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //     (this approach allows various sections of the code to act independant of each other
 //     but also may cause multiple "connect to database" actions in a single call)
 
-const iesJSON = require('../iesJSON/iesJsonClass.js');
+const FlexJson = require('../FlexJson/FlexJsonClass.js');
 const iesDataReader = require('./iesDataReaderClass.js');
 const fs = require('fs');
 const mysql = require('mysql');
@@ -61,7 +61,7 @@ class iesDB {
     CmdStatusMessage = "";
     // Store table definition for 1 table to make repetitive data writes to the same table faster.
     TableForColumnNames = "";
-    columnNames = null; // iesJSON object
+    columnNames = null; // FlexJson object
     historyTable = "whistory"; // future: populate this parameter from SITE config or SERVER config
     debugMode = 0; // set to 9 to get all error messages & detail (FUTURE: need to develop this further)
 
@@ -312,8 +312,8 @@ class iesDB {
         }
 
         //DEFAULT-PARAMETERS
-        //public iesJSON GetDataReaderAll(string sql) { return GetDataReaderAll(sql, false); }
-        //public iesJSON GetDataReaderAll(string sql, bool AsArray) {
+        //public FlexJson GetDataReaderAll(string sql) { return GetDataReaderAll(sql, false); }
+        //public FlexJson GetDataReaderAll(string sql, bool AsArray) {
             // Instead of this function, use "GetAllRecords" in iesDataReaderClass
         GetDataReaderAll(sql, AsArray = false) { // sync
             throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9991]");
@@ -340,8 +340,8 @@ class iesDB {
         }
 
         //DEFAULT-PARAMETERS
-        //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql) { return GetDataReaderAll(iConnect,sql,false); }
-        //public iesJSON GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray) {
+        //public FlexJson GetDataReaderAll(MySqlConnection iConnect, string sql) { return GetDataReaderAll(iConnect,sql,false); }
+        //public FlexJson GetDataReaderAll(MySqlConnection iConnect, string sql, bool AsArray) {
             // Instead of this function, use "GetAllRecords" in iesDataReaderClass
         static iGetDataReaderAll(iConnect, sql, AsArray = false, ReturnPartial = false) { // async
             throw new Error("ERROR: DO NOT USE iGetDataReaderAll() [ERR9992]");
@@ -355,7 +355,7 @@ class iesDB {
                         jDR.AsArray = AsArray;  // Allows data to be returned as a JSON Array rather than a JSON Object
                         if (!(jDR == null))
                         {
-                            iesJSON jRow;
+                            FlexJson jRow;
                             while (jDR.Read())
                             {
                                 jRow = jDR.GetJSON();
@@ -366,7 +366,7 @@ class iesDB {
                         }
                     }
                     catch { }
-                    if (ReturnPartial == false) { jAll = new iesJSON("[]"); }
+                    if (ReturnPartial == false) { jAll = new FlexJson("[]"); }
                     jAll.InvalidateStatus(-34); // Indicate there was an error during processing (but still return array... which may be empty or have partial data)
                     return jAll;
                 } catch (err) {
@@ -378,23 +378,23 @@ class iesDB {
         }
 /*
         // GetDataObjFromRows()
-        // This routine selects a set of rows and converts them into a single iesJSON Object where the 'key' value of each row becomes the key values in the object.
+        // This routine selects a set of rows and converts them into a single FlexJson Object where the 'key' value of each row becomes the key values in the object.
         // If SingleValueField!="" then the specified field is the value of each key/value pair (rather than making each attribute a row-object)
         // Example: sql="SELECT UserID as Key, LastName, FirstName, Age FROM UserTable"
-        // 			iesJSON jObj=db.GetDataObjFromRows(sql,"Key",true);
+        // 			FlexJson jObj=db.GetDataObjFromRows(sql,"Key",true);
         //   Returns {11:{"LastName":"Smith","FirstName":"John","Age":41},
         //				12:{"LastName":"Smith","FirstName":"Frank","Age":29},
         //				13:{"LastName":"Jones","FirstName":"Jannette","Age":45} }
         // Example 2: sql="SELECT UserID, FullName FROM UserTable"
-        //          iesJSON jObj=db.GetDataObjFromRows(sql,"UserID",false,"FullName");
+        //          FlexJson jObj=db.GetDataObjFromRows(sql,"UserID",false,"FullName");
         //   Returns: {11:"John Smith",12:"Frank Smith",13:"Jannette Jones"}
-        public iesJSON GetDataObjFromRows(string sql, string KeyField = "Key", bool removeKeyField = false, string SingleValueField = "")
+        public FlexJson GetDataObjFromRows(string sql, string KeyField = "Key", bool removeKeyField = false, string SingleValueField = "")
         {
             bool NeedToClose = false;
             if (ConnectStatus != 1) { Open(); NeedToClose = true; }
             if (ConnectStatus == 1)
             {
-                iesJSON jAll = GetDataObjFromRows(iesConnection, sql, KeyField, removeKeyField, SingleValueField);
+                FlexJson jAll = GetDataObjFromRows(iesConnection, sql, KeyField, removeKeyField, SingleValueField);
                 if (jAll.Status != 0) { this.status = jAll.Status; }
                 if (NeedToClose) { Close(); }
                 return jAll;
@@ -402,17 +402,17 @@ class iesDB {
             if (NeedToClose) { Close(); }
             return null;  // Error
         }
-        public static iesJSON GetDataObjFromRows(MySqlConnection iConnect, string sql, string KeyField = "Key", bool removeKeyField = false, string SingleValueField = "")
+        public static FlexJson GetDataObjFromRows(MySqlConnection iConnect, string sql, string KeyField = "Key", bool removeKeyField = false, string SingleValueField = "")
         {
             bool isSingleValue = false;
             if (SingleValueField != "") { isSingleValue = true; }
-            iesJSON jAll = new iesJSON("{}");
+            FlexJson jAll = new FlexJson("{}");
             try
             {
                 iesDataReader jDR = GetDataReader(iConnect, sql);
                 if (!(jDR == null))
                 {
-                    iesJSON jRow;
+                    FlexJson jRow;
                     string Key;
                     while (jDR.Read())
                     {
@@ -435,7 +435,7 @@ class iesDB {
                 } // end if (!(jDR == null))
             } // end try
             catch { }
-            jAll = new iesJSON("{}");  // FUTURE: Allow return of partial data in obj?
+            jAll = new FlexJson("{}");  // FUTURE: Allow return of partial data in obj?
             jAll.InvalidateStatus(-37); // Indicate there was an error during processing (but still return array... which may be empty or have partial data)
             return jAll;
         }
@@ -469,7 +469,7 @@ class iesDB {
                         resolve (newRow); return;
                     }
                     if (asJS) { resolve({}); return; }
-                    resolve( new iesJSON("{}")); return;
+                    resolve( new FlexJson("{}")); return;
                 }
                 catch (err) {
                     console.log("ERROR: iGetFirstRow(): " + err);
@@ -521,7 +521,7 @@ class iesDB {
         // === Lookup DB Record and retrieve more ONE field value - GET FIRST ROW ONLY
         public string LookupField(string sTable, string sField, string sWhere, string defaultVal = null)
         {
-            iesJSON rs = null;
+            FlexJson rs = null;
             rs = LookupFields(sTable, sField, sWhere);
             if (!(rs == null))
             {
@@ -535,11 +535,11 @@ class iesDB {
             return defaultVal;
         }
 
-        // === Lookup DB Record and retrieve more than one field value (return as iesJSON object) - GET FIRST ROW ONLY
-        public iesJSON LookupFields(string sTable, string sFields, string sWhere)
+        // === Lookup DB Record and retrieve more than one field value (return as FlexJson object) - GET FIRST ROW ONLY
+        public FlexJson LookupFields(string sTable, string sFields, string sWhere)
         {
             string sql = "";
-            iesJSON rs = null;
+            FlexJson rs = null;
 
             string ssWhere = sWhere.Trim();
             if (!this.isNullOrWhiteSpace(ssWhere)) { if (Left(ssWhere, 5).ToUpper() != "WHERE") { ssWhere = " WHERE " + ssWhere; } }
@@ -554,13 +554,13 @@ class iesDB {
             }
 
             // Failed - return empty record
-            return new iesJSON("{}");
+            return new FlexJson("{}");
         }
 
         // === Lookup DB Record and retrieve more ONE field value - GET FIRST ROW ONLY
         public string QueryField(string sQuery, string sField, string defaultVal = null)
         {
-            iesJSON rs = null;
+            FlexJson rs = null;
             rs = QueryFields(sQuery, sField);
             if (!(rs == null))
             {
@@ -574,12 +574,12 @@ class iesDB {
             return defaultVal;
         }
 
-        // === Lookup DB Record and retrieve more than one field value (return as iesJSON object) - GET FIRST ROW ONLY
+        // === Lookup DB Record and retrieve more than one field value (return as FlexJson object) - GET FIRST ROW ONLY
         // NOTE: sFields is not used?  This function is the same as GetFirstRow - except that it returns {} upon failure?
-        public iesJSON QueryFields(string sQuery, string sFields)
+        public FlexJson QueryFields(string sQuery, string sFields)
         {
             string sql = "";
-            iesJSON rs = null;
+            FlexJson rs = null;
 
             sql = sQuery;
             rs = GetFirstRow(sql);
@@ -592,7 +592,7 @@ class iesDB {
             }
 
             // Failed - return empty record
-            return new iesJSON("{}");
+            return new FlexJson("{}");
         }
 */
         GetCount(sTable, strWhere) { // async
@@ -665,19 +665,19 @@ class iesDB {
         //       If no update was necessary, return=true, CmdStatus=1, and CmdStatusMessage will indicate no operation.
         // MergeMode: See options specified in SaveRecordSQL() below
         // NOTE: set primarykey="" to lookup primary key from table definition in database
-        public bool SaveRecord(iesJSON jSON, string table, string primarykey, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
+        public bool SaveRecord(FlexJson jSON, string table, string primarykey, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
         {
             return SaveRecord(jSON, table, primarykey.Split(','), newrec, pkIsNumeric, SpecifyPK, GetNewPK, MergeMode, SaveToHistory);
         }
-        public bool SaveRecord(iesJSON jSON, string table, string[] primarykeys, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
+        public bool SaveRecord(FlexJson jSON, string table, string[] primarykeys, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
         {
-            iesJSON keys = new iesJSON("[]");
+            FlexJson keys = new FlexJson("[]");
             foreach (string strKey in primarykeys) {
                 if (!this.isNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
             }
             return SaveRecord(jSON, table, keys, newrec, pkIsNumeric, SpecifyPK, GetNewPK, MergeMode, SaveToHistory);
         }
-        public bool SaveRecord(iesJSON jSON, string table, iesJSON primarykeys, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
+        public bool SaveRecord(FlexJson jSON, string table, FlexJson primarykeys, int newrec = -1, bool pkIsNumeric = true, bool SpecifyPK = false, bool GetNewPK = true, int MergeMode = 0, bool SaveToHistory = true)
         {
             bool success = false;
             CmdStatus = 0; CmdStatusMessage = "";
@@ -777,17 +777,17 @@ class iesDB {
         // *********** SaveToHistory()
         // ***********
         // ***********
-        public void SaveToHistory(iesJSON jRec, string table,string primarykeys) {
+        public void SaveToHistory(FlexJson jRec, string table,string primarykeys) {
             SaveToHistory(jRec,table,primarykeys.Split(","));
         }
-        public void SaveToHistory(iesJSON jRec, string table, string[] primarykeys) {
-            iesJSON keys = new iesJSON("[]");
+        public void SaveToHistory(FlexJson jRec, string table, string[] primarykeys) {
+            FlexJson keys = new FlexJson("[]");
             foreach (string strKey in primarykeys) {
                 if (!this.isNullOrWhiteSpace(strKey)) { keys.Add(strKey); }
             }
             SaveToHistory(jRec,table,keys);
         }
-        public void SaveToHistory(iesJSON jRec, string table,iesJSON primarykeys) {
+        public void SaveToHistory(FlexJson jRec, string table,FlexJson primarykeys) {
             if (this.isNullOrWhiteSpace(historyTable)) { return; } // Cannot save to history if table not specified
 
             bool NeedToClose = false;
@@ -795,13 +795,13 @@ class iesDB {
             if (ConnectStatus == 1)
             {
                 string histWorld = dbStr(jRec["worldid"].ToStr().Trim(),40,true);
-                iesJSON id = new iesJSON("{}");
+                FlexJson id = new FlexJson("{}");
                 string histSql = "";
 
                 // Add tablename and worldid if missing
                 try {
                     // Get Primary Key
-                    foreach (iesJSON ipk in primarykeys) {
+                    foreach (FlexJson ipk in primarykeys) {
                         string iipk = ipk.ToStr();
                         string prefix = iipk.Substring(0,1); // TEMP PATCH BANDAID - FUTURE EACH FIELD SHOULD ALREADY BE PROPER TYPE
                         iipk = iipk.Replace("$","").Replace("#","");
@@ -837,17 +837,17 @@ class iesDB {
         // MergeMode: 0 (default)=merge: only overwrite fields if field is found in jSONin object (do not update jSONin)
         //       1=overwrite all fields in record and null out fields if they are missing from jSONin (do not update jSONin)
         //       2=merge+update: same as option 0 but we also read fields from the DB and update jSONin (typically so we can write it to the History table)
-        public string SaveRecordSQL(iesJSON jSONin, string table, iesJSON primarykey_in, int newrec_in, bool pkIsNumeric, bool SpecifyPK, int MergeMode = 0)
+        public string SaveRecordSQL(FlexJson jSONin, string table, FlexJson primarykey_in, int newrec_in, bool pkIsNumeric, bool SpecifyPK, int MergeMode = 0)
         {
-            iesJSON jSON = jSONin.Clone();  // Make a copy so we can delete fields as we process them.
-            // iesJSON jSON = new iesJSON(jSONin.jsonString);  // This does not handle nulls properly
+            FlexJson jSON = jSONin.Clone();  // Make a copy so we can delete fields as we process them.
+            // FlexJson jSON = new FlexJson(jSONin.jsonString);  // This does not handle nulls properly
             // DEBUG: Only include LOG for debugging - not for regular operation - debugger;
             // this.WriteLogTo("iesDBLib", "iesDBLib.SaveRecord: Debug: jSON.statusMessage: " + jSON.Status + ", " + jSON.StatusMessage + "\n");
             // this.WriteLogTo("iesDBLib", "iesDBLib.SaveRecord: Debug: jSON=" + jSON.jsonString + "\n");  // DEBUG
             // this.WriteLogTo("iesDBLib", "iesDBLib.SaveRecord: Debug: jSONin=" + jSONin.jsonString + "\n");  // DEBUG
 
             bool jsonField = false;  // indicates if the record contains a field "_json"
-            iesJSON drData;
+            FlexJson drData;
             System.Text.StringBuilder pieces = new System.Text.StringBuilder();
             string updateSQL = "";
             int newrec = newrec_in;
@@ -862,7 +862,7 @@ class iesDB {
             if (TableForColumnNames.ToLower() != table.ToLower())
             {
                 TableForColumnNames = table;
-                columnNames = new iesJSON();
+                columnNames = new FlexJson();
                 //string columnSQL = "SELECT `COLUMN_NAME`, `DATA_TYPE` FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_NAME`='" + table + "' AND TABLE_SCHEMA=database();";
                 string columnSQL = "SHOW COLUMNS FROM " + table;
 
@@ -872,7 +872,7 @@ class iesDB {
 
             // If primarykey_in is 0 length, then we need to figure out the primary key from the selected columns
             if (primarykey_in.Length == 0) {
-                foreach (iesJSON thisCol in columnNames) {
+                foreach (FlexJson thisCol in columnNames) {
                     if (thisCol["Key"].ToStr().ToUpper() == "PRI") {
                         // This column is part of the primary key... add it as a string or numeric
                         if (Left(thisCol["Type"].ToStr(),7).ToLower() == "varchar") {
@@ -887,7 +887,7 @@ class iesDB {
             }
             
             //Let's see if we have the primary key
-            iesJSON keyInfo = new iesJSON("{}");
+            FlexJson keyInfo = new FlexJson("{}");
             string[] primarykey = new string[primarykey_in.Length];
             System.Text.StringBuilder pkWhere = new System.Text.StringBuilder();
             bool pkFound = true;
@@ -941,7 +941,7 @@ class iesDB {
                 {
                     // drData = drData[0]; // Get first record in the array.  - NO LONGER NEEDED - CHANGE TO GetFirstRow()  TKT 5/13/2016
                     //Let's compare
-                    foreach (iesJSON colNameRec in columnNames)
+                    foreach (FlexJson colNameRec in columnNames)
                     {
                         string colName = colNameRec["Field"].ToStr();
                         if (colName.ToLower() == "_json") { jsonField = true; }
@@ -998,11 +998,11 @@ class iesDB {
                     } // end for
 
                     // if MergeMode = 0 or 2 then we need to KEEP fields that already exist in _json
-                    iesJSON recJson = null;
+                    FlexJson recJson = null;
                     if (jsonField && (MergeMode == 0 || MergeMode == 2))
                     {
                         recJson = drData["_json"];
-                        foreach (iesJSON recField in recJson)
+                        foreach (FlexJson recField in recJson)
                         {
                             if (!jSON.Contains(recField.Key))
                             {
@@ -1053,7 +1053,7 @@ class iesDB {
                 System.Text.StringBuilder valuesString = new System.Text.StringBuilder();
 
                 //string lastCol = columnNames[columnNames.Length - 1];
-                foreach (iesJSON colNameRec in columnNames)
+                foreach (FlexJson colNameRec in columnNames)
                 {
                     string colName = colNameRec["Field"].ToStr();
                     string colNameLower = colName.ToLower();

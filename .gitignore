@@ -1,6 +1,10 @@
 # Config files containing passwords and secrets
 secrets/
 
+# CK Editor / CK Finder
+cmsCommon/ckeditor
+cmsCommon/ckfinder
+
 # Logs
 logs/
 log/

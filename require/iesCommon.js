@@ -2,7 +2,7 @@
 // NOTE: This library/class is used to create the cms object.  Therefore all methods are accessible through the cms object
 const StringBuilder = require("string-builder");
 const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
-const iesJSON = require('./iesJSON/iesJsonClass.js');
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesSpamFilter = require('./iesSpamFilter/iesSpamFilterClass.js');
 const { connect } = require("http2");
 const jwt = require('jsonwebtoken');
@@ -219,7 +219,7 @@ class iesCommonLib {
                         // Look for menu in the template folders: local then server
                         try
                         {
-                            iesJSON menuHeader = null;
+                            FlexJson menuHeader = null;
                             int menuStatus = -99;
                             string menuErr = "";
                             string menuPath = Util.FindFile("menu_" + MenuName + ".cfg", cms.SITE.TemplateFolder, cms.SERVER.TemplateFolder);
@@ -391,7 +391,7 @@ class iesCommonLib {
                                             if (p0 >= 0)
                                             {
                                                 string subHeader = subPage.Substring(p0 + 2, p - p0 - 1);
-                                                iesJSON jHead = new iesJSON(subHeader);
+                                                FlexJson jHead = new FlexJson(subHeader);
                                                 jHead.UseFlexJson = true;
                                                 jHead.Deserialize(subHeader);
 
@@ -608,7 +608,7 @@ class iesCommonLib {
                         {
                             if (editlistj.Contains(ret.Param1))
                             {
-                                iesJSON rParam = this.editlistj.i(ret.Param1);
+                                FlexJson rParam = this.editlistj.i(ret.Param1);
                                 if (rParam.jsonType == "array" || rParam.jsonType == "object") {
                                     rParam.UseFlexJson = false;
                                     rParam.InvalidateJsonString();
@@ -634,7 +634,7 @@ class iesCommonLib {
                                 ColsHtml : "",
                                 ColsJS : ""  // Json String
                             };
-                            let rTags = new iesJSON("{}");
+                            let rTags = new FlexJson("{}");
                             let err = false;
 
                             // Look for editlist table HTML config file in the SERVER src folder.
@@ -744,7 +744,7 @@ class iesCommonLib {
                         string autofillField = cms.FormOrUrlParam("field");
                         string autofillType = cms.FormOrUrlParam("type");
                         string autofillSubField = cms.FormOrUrlParam("subfield");
-                        iesJSON autofill = new iesJSON("{}");
+                        FlexJson autofill = new FlexJson("{}");
                         autofill["success"].Value = "false";
                         autofill["data"].Value = "";
 
@@ -763,7 +763,7 @@ class iesCommonLib {
                         AdminShowView(Content);
                         break;
                     case "jsonlist":
-                        iesJSON jsonListConfig = new iesJSON();
+                        FlexJson jsonListConfig = new FlexJson();
                         string webBlockPath = Util.FindFile("jsonlist_" + ret.Param1 + ".cfg", cms.SITE.ConfigFolder, cms.SERVER.ConfigFolder);
                         jsonListConfig.DeserializeFlexFile(webBlockPath);
                         // Check for Errors
@@ -785,7 +785,7 @@ class iesCommonLib {
                             {
                                 case "fixedsql":
                                     string sqlSelect = Util.GetParamStr(jsonListConfig, "select", "", true, true);
-                                    iesJSON webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
+                                    FlexJson webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
                                     Content.Append(webBlockResults.jsonString);
                                     break;
                                 default:
@@ -1158,7 +1158,7 @@ class iesCommonLib {
                 {
                     if (editlistj.Contains(ret.Param1))
                     {
-                        iesJSON rParam = this.editlistj.i(ret.Param1);
+                        FlexJson rParam = this.editlistj.i(ret.Param1);
                         if (rParam.jsonType == "array" || rParam.jsonType == "object") {
                             rParam.UseFlexJson = false;
                             rParam.InvalidateJsonString();
@@ -1183,7 +1183,7 @@ class iesCommonLib {
                         colsHtml = "", 
                         jsCols = ""
                         };
-                    iesJSON rTags = new iesJSON("{}");
+                    FlexJson rTags = new FlexJson("{}");
 
                     // Look for editlist table HTML config file in the SERVER src folder.
                     try
@@ -1267,7 +1267,7 @@ class iesCommonLib {
                 string autofillField = cms.FormOrUrlParam("field");
                 string autofillType = cms.FormOrUrlParam("type");
                 string autofillSubField = cms.FormOrUrlParam("subfield");
-                iesJSON autofill = new iesJSON("{}");
+                FlexJson autofill = new FlexJson("{}");
                 autofill["success"].Value = "false";
                 autofill["data"].Value = "";
 
@@ -1286,7 +1286,7 @@ class iesCommonLib {
                 AdminShowView(Content);
                 break;
             case "jsonlist":
-                iesJSON jsonListConfig = new iesJSON();
+                FlexJson jsonListConfig = new FlexJson();
                 string webBlockPath = Util.FindFile("jsonlist_" + ret.Param1 + ".cfg", cms.SITE.ConfigFolder, cms.SERVER.ConfigFolder);
                 jsonListConfig.DeserializeFlexFile(webBlockPath);
                 // Check for Errors
@@ -1308,7 +1308,7 @@ class iesCommonLib {
                     {
                         case "fixedsql":
                             string sqlSelect = Util.GetParamStr(jsonListConfig, "select", "", true, true);
-                            iesJSON webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
+                            FlexJson webBlockResults = cms.db.GetDataReaderAll(sqlSelect);
                             Content.Append(webBlockResults.jsonString);
                             break;
                         default:
@@ -1348,7 +1348,7 @@ class iesCommonLib {
     // RunCmd(): PRIVATE CALL - must be level 3+
     async RunCmd(cmd, content, ret)
     {
-        let jContent = null; // iesJSON 
+        let jContent = null; // FlexJson 
         let fileName = "";
         switch (cmd.trim().toLowerCase())
         {
@@ -1366,7 +1366,7 @@ class iesCommonLib {
                 //OutputJSON(jContent);
                 break;
             case "savefile": //NOTE: MOVED THE FORM-EDIT COMMANDS BACK TO managedata.aspx/managedataClass.cs
-                //iesJSON jObj=new iesJSON();
+                //FlexJson jObj=new FlexJson();
                 //jObj.Serialize(cms.Request.Form); // Reads all FORM parameters
                 //jObj.RemoveFromBase("cmd");
                 //jObj.RemoveFromBase("rtype");
@@ -1377,7 +1377,7 @@ class iesCommonLib {
                     // Send key Config info to front-end for edit-data-tables
                     this.PrepForJsonReturn(ret);
                     this.LoadEditListIfNeeded();
-                    let newHeader = new iesJSON("{}");
+                    let newHeader = new FlexJson("{}");
                     newHeader.add(this.editlistj.getStr("Title"),"Title");
                     newHeader.add(this.editlistj.getStr("Table"),"Table");
                     newHeader.add(this.editlistj.getStr("SpecialFlags"),"SpecialFlags");
@@ -1549,7 +1549,7 @@ class iesCommonLib {
             if (this.isNullOrWhiteSpace(id)) { id = this.urlParam("id"); }
             //if (id=="") { ret.ReturnJson.error = "<br><br>ERROR: Record ID not specified. [err4336]"; return; }
 
-            let jret = new iesJSON("{}");
+            let jret = new FlexJson("{}");
 
             this.LoadEditListIfNeeded();
             if (this.editlistconfig == "") { return; } // no need to display error because this should have been done in the admin-load-editconfig tag
@@ -1625,7 +1625,7 @@ class iesCommonLib {
                     console.log(ee3);
                     errmsg = "ERROR: Failed to get data records. [err4995]";
                     if (this.debugMode > 0) { errmsg += " SQL=" + sql3; }
-                    jret.add(new iesJSON("[]"), "data");
+                    jret.add(new FlexJson("[]"), "data");
                     jret.add(errmsg, "error");
                     ret.ReturnJson = jret;
                 }
@@ -1636,8 +1636,8 @@ class iesCommonLib {
         // FUTURE: first parameter "ret" is no longer a StringBuilder. This is expecting a JSON object to be generated.
         GenJsonFromMasterFiles(ret, MstrFiles, SearchFields, idOverride = "", eClassOverride = "", includeHeader = true)
         {
-            let rData = new iesJSON("[]");
-            let tTags = new iesJSON("{}");
+            let rData = new FlexJson("[]");
+            let tTags = new FlexJson("{}");
             var jjFile;
             let fileCount = 0;
 
@@ -1685,7 +1685,7 @@ class iesCommonLib {
                                     }
                                 }
 
-                                jjFile = new iesJSON("{}");
+                                jjFile = new FlexJson("{}");
   
                                 // Read [[header]] from file (if files contain headers)
                                 if (hasHeader) {
@@ -1729,7 +1729,7 @@ class iesCommonLib {
                 } // readPath is not missing
             } // foreach MasterFiles
             //ret.ReturnJson.debug += "DEBUG +++++++++" + rData.jsonString + "++++++++";
-            let jret = new iesJSON("{}");
+            let jret = new FlexJson("{}");
             if (fileCount == 0)
             {
                 jret.add("no files found", "msg");
@@ -1824,7 +1824,7 @@ class iesCommonLib {
 
 
                 // Get Object/Record from the database
-                iesJSON jRec = null;
+                FlexJson jRec = null;
                 string id2 = id;
                 string flags = this.editlistj.getStr("SpecialFlags").toLowerCase();
                 bool create = false; 
@@ -1845,15 +1845,15 @@ class iesCommonLib {
                 {
                     fromFile = true;
                     // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
-                    iesJSON MstrFiles = this.editlistj.i("MasterFiles");
-                    iesJSON tTags = new iesJSON("{}");
-                    // iesJSON jjFile;
+                    FlexJson MstrFiles = this.editlistj.i("MasterFiles");
+                    FlexJson tTags = new FlexJson("{}");
+                    // FlexJson jjFile;
                     int fileCount = 0;
 
                     // This loop allows for multiple MaterFile folders - which is why the MasterFiles is an array
                     if (!create)
                     {
-                        foreach (iesJSON MstrFile in MstrFiles)
+                        foreach (FlexJson MstrFile in MstrFiles)
                         {
                             // Find specified file in the folder
                             string readPath = "", prefix = "", ext = "", FileNameField = "", FileNamePath = "", ContentField = "";
@@ -1881,7 +1881,7 @@ class iesCommonLib {
                                     string loadErrMsg = "";
                                     //Util.GetMasterFile(FileNamePath, ref jRec, ref flagStatus, ContentField);
                                     if (ReadFromSource == "config") {
-                                        jRec = new iesJSON();
+                                        jRec = new FlexJson();
                                         jRec.DeserializeFlexFile(FileNamePath,false,1,1);
                                         jRec["id"].Value = id;
                                     } else {
@@ -1983,8 +1983,8 @@ class iesCommonLib {
                 }
                 else
                 {
-                    jRec = new iesJSON("{}");
-                    iesJSON rTags = new iesJSON("{}");
+                    jRec = new FlexJson("{}");
+                    FlexJson rTags = new FlexJson("{}");
                     rTags["now"].Value = DateTime.Now.ToString();
                     rTags["world"].Value = cms.siteId;
                     rTags["worldid"].Value = cms.siteId;
@@ -1996,12 +1996,12 @@ class iesCommonLib {
                     jRec["MinEditLevel"].Value = cms.SITE.MinEditLevel;
 
                     // Load default values into jRec
-                    iesJSON Defaults = this.editlistj.i("Defaults");
+                    FlexJson Defaults = this.editlistj.i("Defaults");
                     if (Defaults != null)
                     {
                         if (Defaults.Status == 0 && Defaults.jsonType != "null")
                         {
-                            foreach (iesJSON df in Defaults)
+                            foreach (FlexJson df in Defaults)
                             {
                                 string dfValue = Util.ReplaceTags(df.CString(), rTags, false, "{{", "}}");
                                 jRec.addToBase(dfValue, df.Key);
@@ -2011,12 +2011,12 @@ class iesCommonLib {
                 }
 
                 // Apply Override values to jRec  (these should be applied before being displayed (so user sees them if visible) and before save (to make sure they are always set)
-                iesJSON Override = this.editlistj.i("Override");
+                FlexJson Override = this.editlistj.i("Override");
                 if (Override != null)
                 {
                     if (Override.Status == 0 && Override.jsonType != "null")
                     {
-                        foreach (iesJSON ovr in Override)
+                        foreach (FlexJson ovr in Override)
                         {
                             jRec.addToBase(ovr, ovr.Key);
                         } // end foreach
@@ -2065,7 +2065,7 @@ class iesCommonLib {
                 string gSpecialFlags = this.editlistj.getStr("SpecialFlags").toLowerCase();
                 string ShowAllParams = this.editlistj.getStr("ShowAllParams").toLowerCase();
                 string UserEntersNewKey = this.editlistj.getStr("UserEntersNewKey").toLowerCase();
-                foreach (iesJSON field in this.editlistj.i("EditFields"))
+                foreach (FlexJson field in this.editlistj.i("EditFields"))
                 {
                     dValue = "";
                     ShowField = true;
@@ -2117,7 +2117,7 @@ class iesCommonLib {
                 // Display the remaining fields in jRec - if specified
                 if (ShowAllParams == "true")
                 {
-                    foreach (iesJSON field2 in jRec)
+                    foreach (FlexJson field2 in jRec)
                     {
                         dValue = "";
                         if (!create) { dValue = field2.CString(); }
@@ -2181,17 +2181,17 @@ class iesCommonLib {
                         if (meViewOnly){ sRet += " disabled"; }					
                         sRet += "><option value='Active' selected>Active</option><option value='Inactive'>Inactive</option><option value='Deleted'>Deleted</option></select>";
                         *** /
-                        iesJSON pListJson3 = new iesJSON("[[\"Active\",\"Active\"],[\"Inactive\",\"Inactive\"],[\"Deleted\",\"Deleted\"]]");
+                        FlexJson pListJson3 = new FlexJson("[[\"Active\",\"Active\"],[\"Inactive\",\"Inactive\"],[\"Deleted\",\"Deleted\"]]");
                         sRet = GenerateDD(pListJson3, fID, fWidth, fValue, meViewOnly, meRequired, sClass, true, "");
                         
                         break;
 
                     case "templates":
 
-                          iesJSON pListJson4 = new iesJSON("[]" );
+                          FlexJson pListJson4 = new FlexJson("[]" );
 
-                        // pListJson4.addToBase(new iesJSON("[\"Main\",\"Main\"]"));
-                         //pListJson4.addToBase(new iesJSON("[\"Joe\",\"Joe\"]"));
+                        // pListJson4.addToBase(new FlexJson("[\"Main\",\"Main\"]"));
+                         //pListJson4.addToBase(new FlexJson("[\"Joe\",\"Joe\"]"));
 
                    string readPath = cms.SITE.TemplateFolder;
 
@@ -2206,7 +2206,7 @@ class iesCommonLib {
 
                                 templatelayout = Util.Mid(templatelayout, 7);   
 
-                                iesJSON templateItem = new iesJSON("[]");  
+                                FlexJson templateItem = new FlexJson("[]");  
 
                                 templateItem.add(templatelayout);  
                                 templateItem.add(templatelayout);   
@@ -2227,7 +2227,7 @@ class iesCommonLib {
 
             if (Util.Left(fTypeLower, 6) == "plist-")
             {
-                iesJSON pList = this.editlistj.i(fType);
+                FlexJson pList = this.editlistj.i(fType);
                 if ((pList.Status == 0) && (pList.jsonType != "null"))
                 {
                     string pListType = pList["ListType"].CString();
@@ -2248,14 +2248,14 @@ class iesCommonLib {
                     switch (pListType.toLowerCase())
                     {
                         case "sql":
-                            iesJSON pListData = cms.db.GetDataReaderAll(pList["sql"].CString());
+                            FlexJson pListData = cms.db.GetDataReaderAll(pList["sql"].CString());
                             if ((pListData.Status == 0) && (pListData.jsonType != "null"))
                             {
                                 sRet = GenerateDD(pListData, fID, fWidth, fValue, meViewOnly, meRequired, sClass, IncludeCurrent, AddNull);
                             }
                             break;
                         case "json":
-                            iesJSON pListJson = pList["data"];
+                            FlexJson pListJson = pList["data"];
                             if ((pListJson.Status == 0) && (pListJson.jsonType != "null"))
                             {
                                 sRet = GenerateDD(pListJson, fID, fWidth, fValue, meViewOnly, meRequired, sClass, IncludeCurrent, AddNull);
@@ -2351,12 +2351,12 @@ class iesCommonLib {
             returnString.Append("<input type='textbox' id='" + fID + "' name='" + fID + "' value=\"" + fValue + "\" style='float:left;margin-right:8px;" + w + "' " + d + fc + ">");
             if (!this.isNullOrWhiteSpace(AutoFillInfo))
             {
-                iesJSON autoFillDetails = new iesJSON();
+                FlexJson autoFillDetails = new FlexJson();
                 try
                 {
                     autoFillDetails.Deserialize(AutoFillInfo);
                     returnString.Append("<a ");
-                    foreach (iesJSON fillField in autoFillDetails)
+                    foreach (FlexJson fillField in autoFillDetails)
                     {
                         returnString.Append(fillField.Key + " = '" + fillField.CString() + "' ");
                     }
@@ -2389,12 +2389,12 @@ class iesCommonLib {
             return "<input type='hidden' id='" + fID + "' name='" + fID + "' class='" + sClass + "' value='" + fValue + "'>";
         }
 
-        public static string GenerateDD(iesJSON ddJson, string fID, string nWidth, string fValue, bool bViewOnly, bool isRequired, string sClass = "", bool includeCurrent = true, string AddNull = null)
+        public static string GenerateDD(FlexJson ddJson, string fID, string nWidth, string fValue, bool bViewOnly, bool isRequired, string sClass = "", bool includeCurrent = true, string AddNull = null)
         {
             string fValLower = fValue.toLowerCase();
             StringBuilder oOpt = new StringBuilder();
             string oSelected = "";
-            foreach (iesJSON jRow in ddJson)
+            foreach (FlexJson jRow in ddJson)
             {
                 string jValue = jRow[0].CString();
                 string jTitle = jRow[1].CString();
@@ -2685,7 +2685,7 @@ class iesCommonLib {
     }
 
     // **************** tagReplaceString()
-    // Each cfg1-4 is optional but if included should be an iesJSON object of replacement fields/tags
+    // Each cfg1-4 is optional but if included should be an FlexJson object of replacement fields/tags
     tagReplaceString(inputString, cfg1, cfg2, cfg3, cfg4, lvl = 0) {
         var charPosition = 0;
         var beginning = 0;
@@ -2817,7 +2817,7 @@ class iesCommonLib {
     }
 
     // LoadHtmlFile()
-    // Returns an object {content,jsonHeader (as  iesJSON),foundHeader,status,errMsg}
+    // Returns an object {content,jsonHeader (as  FlexJson),foundHeader,status,errMsg}
     // Note: If ContentField is specified, then the content of the HTML file is
     //    added to the htmlFile JSON object AND is returned as the return parameter
     // UserViewLevel: Set this value if you would like to have this routine check MinViewLevel in the header 
@@ -2826,7 +2826,7 @@ class iesCommonLib {
     LoadHtmlFile(cfgFilePath, htmlFile, ContentField = "content_area", UserViewLevel = -1) {
         let status = -9; // default status = 'failed'
         let errMsg = "";
-        let jsonHeader = new iesJSON("{}");
+        let jsonHeader = new FlexJson("{}");
         let fileContent = "";
         let start = 0;
         let end = 0;
@@ -2943,7 +2943,7 @@ class iesCommonLib {
         return qry.toString();
     } // End MakeSearch()
 
-    // FieldList must be an iesJSON object
+    // FieldList must be an FlexJson object
     // Each field row (JSON) should have:
     //    Field: DB field name
     //    Flags: s=searchable (include this field only if the 's' flag is found.
@@ -3575,7 +3575,7 @@ class iesCommonLib {
                 this.editlisterror = "Config file not found: " + eclassfile + " [err7971]";
                 return;
             }
-            this.editlistj = new iesJSON();
+            this.editlistj = new FlexJson();
             this.editlistj.DeserializeFlexFile(configpath, false, 0, 0); // 0,0 does not keep Comments or Spacing
             if (this.editlistj.Status == 0)
             { // no JSON errors
@@ -3609,7 +3609,7 @@ class iesCommonLib {
             let noPrimaryKey = true;
             let cols = new StringBuilder();
             //StringBuilder colsHtml=new StringBuilder();
-            let jsCols = new iesJSON("[]");
+            let jsCols = new FlexJson("[]");
             var node; // to hold json Node
             try
             {
@@ -3637,7 +3637,7 @@ class iesCommonLib {
                     if (sWidth != "" && sWidth != "0")
                     {
                         //colsHtml.append("<td>" + sTitle + "</td>"); 
-                        node = new iesJSON("{}");
+                        node = new FlexJson("{}");
                         node.add(sTitle.replace(/`/g, ""),"sTitle");   // DEBUG: + "[" + sWidth + "]";
                         if (sFlags.indexOf("l") >= 0) { node.add("class","editRow"); }
                         node.add(sAs.replace(/`/g, ""),"data");
@@ -3672,13 +3672,13 @@ class iesCommonLib {
 
         // ************************************************************************************************************
         // **************** ReplaceStringTags() - alternate to ReplaceTags() that uses one set of JSON items to fill tags in one string
-        // **************** Replaces [[Tags]] with values from a iesJSON object.
+        // **************** Replaces [[Tags]] with values from a FlexJson object.
         // **************** If a [[Tag]] is not found in tagValues then...
         // ****************   If SetNoMatchBlank=true Then the tag is replaced with ""
         // ****************   If SetNoMatchBlank=false Then the tag is left in the string.
         // ****************
         // FUTURE: Do we need both ReplaceStringTags and tagReplaceString()
-        ReplaceStringTags(inputString, tagValues /* iesjSON obj */, SetNoMatchBlank = true, startStr = "[[", endStr = "]]", lvl = 0)
+        ReplaceStringTags(inputString, tagValues /* FlexJson obj */, SetNoMatchBlank = true, startStr = "[[", endStr = "]]", lvl = 0)
         {
             let charPosition = 0;
             let beginning = 0;

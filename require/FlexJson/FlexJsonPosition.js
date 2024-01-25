@@ -1,4 +1,4 @@
-class iesJsonPosition
+class FlexJsonPosition
     {
         lineNumber;
         linePosition;
@@ -24,9 +24,9 @@ class iesJsonPosition
         }
 
         clone() {
-            let newClone = new iesJsonPosition(this.lineNumber,this.linePosition,this.absolutePosition);
+            let newClone = new FlexJsonPosition(this.lineNumber,this.linePosition,this.absolutePosition);
             return newClone;
         }
     }
 	
-module.exports = iesJsonPosition;
+module.exports = FlexJsonPosition;

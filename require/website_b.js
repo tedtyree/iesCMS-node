@@ -1,5 +1,5 @@
 const StringBuilder = require("string-builder");
-const iesJSON = require('./iesJSON/iesJsonClass.js');
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
 // const iesDB = new iesDbClass();  // use cms.db instead
 // const jwt = require('jsonwebtoken');
@@ -155,7 +155,7 @@ class webEngine {
                         else { Content.Append(ret.Param2); }
                         break;
                 case "lovekenya": // OLD APPROACH
-                    iesJSON webBlockHeader = null;
+                    FlexJson webBlockHeader = null;
                     ret.AllowRecursiveCall = false;  // Do not replace tags or process web parts
                     string fullPath = cms.SITE.TemplateFolder + @"\webpart_" + ret.Tag + @".cfg";
                     int status = 0;
@@ -188,7 +188,7 @@ class webEngine {
                     if (! cms.isNullOrWhiteSpace(ret.Param3)) { galleryFile = ret.Param3.Trim(); }
                     string galleryConfig = galleryPath + @"\" + galleryFile + @".json";
                     
-                    iesJSON gCfg = new iesJSON();
+                    FlexJson gCfg = new FlexJson();
                     gCfg.DeserializeFlexFile(galleryConfig);
 
                     if (gCfg.Status == 0) { // success?
@@ -199,7 +199,7 @@ class webEngine {
                         Util.ReadFile(templatePath,ref templateText);
                         
                         // Loop through photos and generate output
-                        foreach (iesJSON rec in gCfg["photos"]) {
+                        foreach (FlexJson rec in gCfg["photos"]) {
                             if (rec["status"].ToStr("active").ToLower() == "active") {
                                 // convert TITLE/COMMENT to either a single STRING or 3 LANGUAGES
                                 ReplaceWithLanguages(rec,"title");
@@ -224,7 +224,7 @@ class webEngine {
                     string thisLikeTag = Util.Sanitize(ret.Param2,40);
                     int likeCount = 0;
                     string likeSql = "SELECT likeCount FROM likes WHERE WorldID='" + cms.World + "' AND ListID='" + thisListID + "' AND likeTag='" + thisLikeTag + "' AND Status='Active' ";
-                    iesJSON likeRec = cms.db.GetFirstRow(likeSql);
+                    FlexJson likeRec = cms.db.GetFirstRow(likeSql);
                     if (likeRec.Status == 0) {
                         likeCount = likeRec["likeCount"].ToInt(0);
                     }
@@ -254,10 +254,10 @@ class webEngine {
                     Content.Append(likeBlock);
                     break;
                 case "public-edit-save":
-                    iesJSON j = new iesJSON("{}");
+                    FlexJson j = new FlexJson("{}");
                     j["worldID"].Value = cms.SITE.World;
                     j["userEmail"].Value = "-";  // ERROR - DEBUG - FUTURE - CHANGE THESE TO QUOTES! PUT ACTUAL EMAIL HERE!
-                    iesJSON formFields = Admin.GetFormFields();
+                    FlexJson formFields = Admin.GetFormFields();
                     j.AddToObjBase("after_json", formFields);
                     cms.db.SaveRecord(j, "publicedit", "editID", 1, true, false);
                     Content.Append("DEBUG:" + cms.db.status + ": " + cms.db.statusMessage + ", cmd=" + cms.db.CmdStatus + ": " + cms.db.CmdStatusMessage + "<br>\n");
@@ -298,7 +298,7 @@ class webEngine {
             try {
         // ================================================ BEGIN
         var fileType = '';
-        let pageHead = new iesJSON();
+        let pageHead = new FlexJson();
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
@@ -323,7 +323,7 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         let dbConnectJson = cms.SERVER.i("dbConnect");
-        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        // FUTURE: Find better way to convert from FlexJson to JavaScript object???
         let dbConnect = {
             host: dbConnectJson.i("host").toStr()
             ,user: dbConnectJson.i("user").toStr()
@@ -545,7 +545,7 @@ class webEngine {
         }
 
         // Use the list of languages for this PAGE (ie. in HEADER) first... and only for the SITE if not found for PAGE
-        let languages = new iesJSON("{}");
+        let languages = new FlexJson("{}");
         if (cms.HEADER.contains("languages")) {
 
             for (const lng of cms.HEADER.getStr("languages").split(",")) {
@@ -605,7 +605,7 @@ class webEngine {
                 console.log(err1);
                 reject(err1);
             }
-            let cfg = new iesJSON();
+            let cfg = new FlexJson();
             cfg.DeserializeFlexFile(vocabConfigPath);
             if (cfg.Status != 0)
             {

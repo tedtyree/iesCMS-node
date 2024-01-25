@@ -1,5 +1,5 @@
 const StringBuilder = require("string-builder");
-const iesJSON = require('./iesJSON/iesJsonClass.js');
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
 // const iesDB = new iesDbClass();  // use cms.db instead
 // const jwt = require('jsonwebtoken');
@@ -87,7 +87,7 @@ class webEngine {
             try {
         // ================================================ BEGIN
         var fileType = '';
-        let pageHead = new iesJSON();
+        let pageHead = new FlexJson();
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
@@ -112,7 +112,7 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         let dbConnectJson = cms.SERVER.i("dbConnect");
-        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        // FUTURE: Find better way to convert from FlexJson to JavaScript object???
         let dbConnect = {
             host: dbConnectJson.i("host").toStr()
             ,user: dbConnectJson.i("user").toStr()
@@ -294,7 +294,7 @@ class webEngine {
         }
 
         // Use the list of languages for this PAGE (ie. in HEADER) first... and only for the SITE if not found for PAGE
-        let languages = new iesJSON("{}");
+        let languages = new FlexJson("{}");
         if (cms.HEADER.contains("languages")) {
 
             for (const lng of cms.HEADER.getStr("languages").split(",")) {
@@ -354,7 +354,7 @@ class webEngine {
                 console.log(err1);
                 reject(err1);
             }
-            let cfg = new iesJSON();
+            let cfg = new FlexJson();
             cfg.DeserializeFlexFile(vocabConfigPath);
             if (cfg.Status != 0)
             {

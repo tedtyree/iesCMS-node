@@ -7,8 +7,8 @@ const { Console } = require('console');
 
 //const querystring = require('querystring');
 const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
-const iesJSON = require('./require/iesJSON/iesJsonClass.js');
-const jsonConstants = require('./require/iesJSON/iesJsonConstants.js');
+const FlexJson = require('./require/FlexJson/FlexJsonClass.js');
+const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 
@@ -74,7 +74,7 @@ var iesDomains = {};
 var siteList = [];
 
 // Load SERVER parameters
-let serverCfg = new iesJSON();
+let serverCfg = new FlexJson();
 serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
       debugMode = serverCfg.getNum('debugMode', debugMode);
@@ -103,7 +103,7 @@ dlist.forEach(dDir => {
       try {
             if (existsSync(dPath)) {
                   //file exists
-                  let thiscfg = new iesJSON();
+                  let thiscfg = new FlexJson();
                   thiscfg.DeserializeFlexFile(dPath);
                   if (thiscfg.Status == 0 && thiscfg.jsonType == 'object') {
                         let siteID = thiscfg.i("SITEID").toStr();
@@ -397,7 +397,7 @@ http.createServer(async (req, res) => {
             let cfg = null;
             try {
                   if (existsSync(dPath)) {
-                        let tmpCfg = new iesJSON();
+                        let tmpCfg = new FlexJson();
                         tmpCfg.DeserializeFlexFile(dPath);
                         if (tmpCfg.Status == 0 && tmpCfg.jsonType == 'object') {
                               cfg = tmpCfg;
@@ -407,7 +407,7 @@ http.createServer(async (req, res) => {
             if (!cfg) {
                   err = 173;
                   errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
-                  cfg = new iesJSON("{}");
+                  cfg = new FlexJson("{}");
             }
             cms.SITE = cfg;
 
@@ -537,7 +537,7 @@ http.createServer(async (req, res) => {
             res.writeHead(200, myHeadJ);
             if (cms.ReturnJson) {
                   if (typeof cms.ReturnJson === 'object') {
-                        if (cms.ReturnJson.constructor.name === 'iesJSON') {
+                        if (cms.ReturnJson.constructor.name === 'FlexJson') {
                               res.end(cms.ReturnJson.jsonString);
                         } else {
                               res.end(JSON.stringify(cms.ReturnJson));

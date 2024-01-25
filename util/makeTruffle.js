@@ -23,8 +23,8 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // Utility: makeTruffle.js
 
 const { writeFileSync } = require('fs');
-const iesJSON = require('../require/iesJSON/iesJsonClass.js');
-const jsonConstants = require('../require/iesJSON/iesJsonConstants.js');
+const FlexJson = require('../require/FlexJson/FlexJsonClass.js');
+const jsonConstants = require('../require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('../require/iesCommon.js');
 const { Console } = require('console');
 
@@ -33,7 +33,7 @@ const trufflePath = "../secrets/trufflebd.cfg";
 let cms = new iesCommonLib(); // Primary CMS object to hold all things CMS
 
 // Load SERVER parameters
-let serverCfg = new iesJSON();
+let serverCfg = new FlexJson();
 serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
 } else {

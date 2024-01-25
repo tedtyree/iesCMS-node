@@ -1,4 +1,4 @@
-class iesJsonMeta
+class FlexJsonMeta
     {
         statusMsg = null;
         tmpStatusMsg = null;
@@ -23,4 +23,4 @@ class iesJsonMeta
         stats = null;  // null indicates we are not tracking stats.  stats object will also be created if an error occurs - to hold the error message.
     }
 	
-module.exports = iesJsonMeta;
+module.exports = FlexJsonMeta;

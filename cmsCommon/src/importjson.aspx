@@ -1,16 +1,16 @@
 <%@ Language="c#" runat="server"%>
 <%@ Import Namespace="System.Collections" %>
 <%@ Import Namespace="System.Globalization" %>
-<%@ Import Namespace="iesJSONlib" %>
+<%@ Import Namespace="FlexJsonlib" %>
 <%@ Import Namespace="System.IO" %>
 <%@ Import NameSpace="iesDBlib" %>
 <%
 
 
 //create json object with nothing in it
-iesJSON jObj = new iesJSON(); //use default constructor to build empty object
+FlexJson jObj = new FlexJson(); //use default constructor to build empty object
 //tell json object to read json file
-jObj.stats=new iesJSON("{}");
+jObj.stats=new FlexJson("{}");
 
 jObj.DeserializeFile("D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\icn\\upload.txt");
 if (!File.Exists("D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\icn\\upload.txt")) { Response.Write("ERROR: Did not find file: " + "D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\s12\\icn\\upload.txt" + "<br>");
@@ -26,9 +26,9 @@ if(jObj._status == -32)
 //}
 
 //create json object with nothing in it
-iesJSON seriesObj = new iesJSON(); //use default constructor to build empty object
+FlexJson seriesObj = new FlexJson(); //use default constructor to build empty object
 //tell json object to read json file
-seriesObj.stats=new iesJSON("{}");
+seriesObj.stats=new FlexJson("{}");
 
 seriesObj.DeserializeFile("D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\icn\\sermonSeries.txt");
 if (!File.Exists("D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\icn\\sermonSeries.txt")) { Response.Write("ERROR: Did not find file: " + "D:\\CustomerData\\webspaces\\webspace_00103338\\wwwroot\\s12\\icn\\sermonSeries.txt" + "<br>");
@@ -50,13 +50,13 @@ myDB.Open();
 //myDB.ExecuteSQL(sqlPrep);
 
 //loop through file as if its a record from database, one record at a time
-foreach(iesJSON jsonSeg in jObj)
+foreach(FlexJson jsonSeg in jObj)
 {
 	//Makes neccessary changes in json
 	int r = jsonSeg.RenameItem("aTitle", "title");
 	jsonSeg.Add("category","");
 	jsonSeg.Add("status","Active");
-	foreach(iesJSON seriesSeg in seriesObj)
+	foreach(FlexJson seriesSeg in seriesObj)
 	{
 		if(jsonSeg["ParentObjID"].CString() == seriesSeg["ObjID"].CString())
 		{

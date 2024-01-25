@@ -33,15 +33,15 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // **************************************************************************
 //
 
-const iesJSON = require('../iesJSON/iesJsonClass.js');
+const FlexJson = require('../FlexJson/FlexJsonClass.js');
 const fs = require('fs');
 
 class iesDataReader {
 
         DR = null; // Array object returned from MySQL query
         db = null; // Parent iesDB object
-        prevJSON = null; // iesJSON object
-        currJSON = null; // iesJSON object
+        prevJSON = null; // FlexJson object
+        currJSON = null; // FlexJson object
         currValid = false;
         AsArray = false;  // Set this to true to get records set as a JSON array instead of a JSON object (useful for Ajax and jquery datatables)
         currentIdx = -2;
@@ -106,14 +106,14 @@ class iesDataReader {
             this.currValid = true;
         }
 
-        // Returns all records as a iesJSON object
+        // Returns all records as a FlexJson object
         GetAllRecords(AsObject = false, ReturnPartial = false) {
             if (this.status != 0) { return null; }
             let errStat = -34;  // Indicate there was an error during processing
             try {
                 var jAll;
-                if (AsObject) { jAll = new iesJSON("{}"); }
-                else { jAll = new iesJSON("[]"); }
+                if (AsObject) { jAll = new FlexJson("{}"); }
+                else { jAll = new FlexJson("[]"); }
 
                 if (this.DR === null) { return jAll; }
 
@@ -133,8 +133,8 @@ class iesDataReader {
             }
             catch (ee7) { console.log("ERROR: " + ee7); }
             if (ReturnPartial == false) { 
-                if (AsObject) { jAll = new iesJSON("{}"); }
-                else { jAll = new iesJSON("[]"); } 
+                if (AsObject) { jAll = new FlexJson("{}"); }
+                else { jAll = new FlexJson("[]"); } 
             }
             this.status = errStat; // Indicate there was an error during processing (but still return array... which may be empty or have partial data)
             return jAll;
@@ -153,8 +153,8 @@ class iesDataReader {
         // This static routine accepts a DataReader that is ALREADY POSITIONED AT THE RECORD TO BE CONVERTED
         // It returns a newly created JSON object with the parameters from the 'current' data record.
         //DEFAULT-PARAMETERS
-        //public static iesJSON BuildJSON(MySqlDataReader DR) { return BuildJSON(DR,false); }
-        //public static iesJSON BuildJSON(MySqlDataReader DR, bool AsArray) {
+        //public static FlexJson BuildJSON(MySqlDataReader DR) { return BuildJSON(DR,false); }
+        //public static FlexJson BuildJSON(MySqlDataReader DR, bool AsArray) {
             BuildJSON(AsObject = true)
             {
                 var j;
@@ -177,13 +177,13 @@ class iesDataReader {
                 {
                     if (j)
                     {
-                        newJ = new iesJSON(j); // Parse _json
+                        newJ = new FlexJson(j); // Parse _json
                         if ((newJ.Status != 0) || (newJ.jsonType == "null")) { newJ = null; }
                     }
                 }
                 catch { } // FUTURE: flag error
     
-                if (newJ == null) { newJ = new iesJSON("{}"); }  // Blank Object because parse of JSON failed.  
+                if (newJ == null) { newJ = new FlexJson("{}"); }  // Blank Object because parse of JSON failed.  
                 // FUTURE: Check status of newJ and decide what to do if not OK (0)
                 let nRow = this.DR[this.currentIdx];
                 for (const [k,v] of Object.entries(nRow))
@@ -200,14 +200,14 @@ class iesDataReader {
                             catch { } 
                             if (newSJ.trim() != "")
                             {
-                                tmpJ = new iesJSON(newSJ);
+                                tmpJ = new FlexJson(newSJ);
                                 if (tmpJ.Status == 0) { newJ.add(tmpJ,k); }
-                                else { newJ.add( new iesJSON("null"), k ); } // FUTURE: Indicate warning/error here?
+                                else { newJ.add( new FlexJson("null"), k ); } // FUTURE: Indicate warning/error here?
                                 tmpJ = null;
                             }
                             else
                             {
-                                newJ.add( new iesJSON("null"), k);
+                                newJ.add( new FlexJson("null"), k);
                             }
                         }
                     }
@@ -217,7 +217,7 @@ class iesDataReader {
                         {
                             newJ.add(v,k);
                         }
-                        catch { newJ.add(new iesJSON("null"), k); }  //Invalid date values throw an error.  Here we ignore it and use NULL.
+                        catch { newJ.add(new FlexJson("null"), k); }  //Invalid date values throw an error.  Here we ignore it and use NULL.
                         tmpJ = null;
                     }
                 } // end for

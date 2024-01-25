@@ -18,28 +18,28 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-// iesJSON version 4 - Simple light-weight JSON Class for .aspx and .ashx web pages
-// Copyright 2015 - Ted Tyree - ieSimplified, LLC - All rights reserved.
+// FlexJson version 1 - Simple light-weight JSON Class for node.js
+// Copyright 2024 - Ted Tyree - ieSimplified, LLC - All rights reserved.
 // ****************************************************
-// NameSpace: iesJSONlib
+// NameSpace: FlexJsonlib
 
 // **************************************************************************
-// ***************************  iesJSON  ************************************
+// ***************************  FlexJson  ************************************
 // **************************************************************************
 //
-// This is a new version of iesJSON that makes each 'Node' in the JSON Object/Array a JSON Object with a Key/Value pair.
-// So an "object" is a dynamic array of iesJSON objects (key/value pairs)
-// ... an "array" is a dynamic array of iesJSON objects (key/value pairs with all key values = null)
-// ... a "string" is an iesJSON node with key=null and value=<the string>
-// ... a null is an iesJSON node with key=null and value=null
+// This is a new version of FlexJson that makes each 'Node' in the JSON Object/Array a JSON Object with a Key/Value pair.
+// So an "object" is a dynamic array of FlexJson objects (key/value pairs)
+// ... an "array" is a dynamic array of FlexJson objects (key/value pairs with all key values = null)
+// ... a "string" is an FlexJson node with key=null and value=<the string>
+// ... a null is an FlexJson node with key=null and value=null
 // etc.
 //
 // You can implement foreach with this class:
-//    iesJSON i=new iesJSON("[5,4,3,2,1]");
+//    FlexJson i=new FlexJson("[5,4,3,2,1]");
 //    i.forEach ( k => { ... });
 //
 // You can reference items using [index]...
-//    iesJSON i=new iesJSON("{'color1':'black','color2':'blue','dogs':['Pincher','Sausage','Doverman','Chiwawa']}");
+//    FlexJson i=new FlexJson("{'color1':'black','color2':'blue','dogs':['Pincher','Sausage','Doverman','Chiwawa']}");
 //    MessageBox.Show("First color: " + i["color1"]);
 //    MessageBox.Show("Second dog: " + i["dogs"][2]);
 //    MessageBox.Show("... and again: " + i[2][2]);
@@ -55,13 +55,13 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // FUTURE: As part of the StatusMessage (or a separate field) show the text where the parse failed to make it easy to debug the JSON code.  Maybe the text just before the error, too.
 //
 
-const iesJsonConstants = require('./iesJsonConstants.js');
-const iesJsonPosition = require('./iesJsonPosition.js');
-const iesJsonMeta = require('./iesJsonMeta.js');
+const FlexJsonConstants = require('./FlexJsonConstants.js');
+const FlexJsonPosition = require('./FlexJsonPosition.js');
+const FlexJsonMeta = require('./FlexJsonMeta.js');
 const fs = require('fs');
 const StringBuilder = require("string-builder");
 
-class iesJSON {
+class FlexJson {
 	
 	// *** if value_valid=false and jsonString_valid=false then this JSON Object is null (not set to anything)
 	_status = 0;  // *** 0=OK, anything else represents an error/invalid status
@@ -110,7 +110,7 @@ class iesJSON {
 	
 	createMetaIfNeeded(force = false) {
 		if (this._NoStatsOrMsgs && !force) { return; } // Do not track stats/message/meta-data
-		if (this._meta == null) { this._meta = new iesJsonMeta(); }
+		if (this._meta == null) { this._meta = new FlexJsonMeta(); }
 		}
 
 	get trackingStats() {
@@ -414,7 +414,7 @@ class iesJSON {
     get thisValue() {
         return this.v();
     }
-    set thisValue(value) { // sets the value of the iesJSON object and the jsonType
+    set thisValue(value) { // sets the value of the FlexJson object and the jsonType
         this.InvalidateJsonString(); // indicate that the JsonString has changed
         this._status = 0;
         this._jsonType = this.convertType(value);
@@ -446,7 +446,7 @@ class iesJSON {
         
     }
 
-    ConvertToArray() { // convert this iesJSON from an Object to an Array
+    ConvertToArray() { // convert this FlexJson from an Object to an Array
         // We can do this because the only real different between an array and an object is that the object has key values.
         if (this._jsonType != 'object') { return; }
         this._jsonType = 'array';
@@ -464,7 +464,7 @@ class iesJSON {
         //if (trackingStats) { IncStats("stat_Item_get"); } // FUTURE-NEW
 
         if (Number.isInteger(idx)) {
-            if (this.jsonType != 'array' && this.jsonType != 'object') { return iesJSON.CreateNull(); }
+            if (this.jsonType != 'array' && this.jsonType != 'object') { return FlexJson.CreateNull(); }
             if (idx<0 || idx>this.length) { return null; } // error: we are past the end of the array/object
             return this._value[idx];
         }
@@ -503,7 +503,7 @@ class iesJSON {
             if (k <0) { break; }
             nextItem = nextItem._value[k];
         }
-        if (k<0) { return iesJSON.CreateNull(); } // NOTE! You can check that there is no PARENT on this null object to see that it was NOT-FOUND
+        if (k<0) { return FlexJson.CreateNull(); } // NOTE! You can check that there is no PARENT on this null object to see that it was NOT-FOUND
 
         return nextItem;    
     }
@@ -531,10 +531,10 @@ class iesJSON {
         if (value === null) {  /// debug debug debug
             console.log('is null');
         }
-        if ((value !== null) && (typeof value === 'object') && (value.constructor.name === 'iesJSON')) {
+        if ((value !== null) && (typeof value === 'object') && (value.constructor.name === 'FlexJson')) {
             newV = value; // FUTURE: clone?
         } else {
-            newV = new iesJSON();
+            newV = new FlexJson();
             newV.thisValue = value; // This also sets the jsonType
         }
         newV.Parent = this;
@@ -554,7 +554,7 @@ class iesJSON {
                 } else {
                     // add item to this object - but verify that we are an object!
                     // if (this._jsonType != 'object') {
-                    //    throw("ERROR: add() is only available for iesJSON object types.");
+                    //    throw("ERROR: add() is only available for FlexJson object types.");
                     //} else {
                         newV.key = idx;
                         this._value.push(newV);
@@ -567,7 +567,7 @@ class iesJSON {
             newV.key = '';
             this._value.push(newV);
         } else {
-            throw("ERROR: add() is only available for iesJSON object or array types.");
+            throw("ERROR: add() is only available for FlexJson object or array types.");
         }
     }
 
@@ -635,30 +635,30 @@ class iesJSON {
     toStr(defaultValue = "") {
         if (this._status != 0) { return defaultValue; } // Invalid status
         if (!this._value_valid) { return defaultValue; }
-        if (this._jsonType == iesJsonConstants.typeString) { return this._value; }
-        if (this._jsonType == iesJsonConstants.typeNull
-            ||  this._jsonType == iesJsonConstants.typeObject
-            || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
+        if (this._jsonType == FlexJsonConstants.typeString) { return this._value; }
+        if (this._jsonType == FlexJsonConstants.typeNull
+            ||  this._jsonType == FlexJsonConstants.typeObject
+            || this._jsonType == FlexJsonConstants.typeArray) { return defaultValue; }
         return this._value + '';
     }
 
     toNum(defaultValue = "") {
         if (this._status != 0) { return defaultValue; } // Invalid status
         if (!this._value_valid) { return defaultValue; }
-        if (this._jsonType == iesJsonConstants.typeNumber) { return this._value; }
-        if (this._jsonType == iesJsonConstants.typeNull
-            ||  this._jsonType == iesJsonConstants.typeObject
-            || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
+        if (this._jsonType == FlexJsonConstants.typeNumber) { return this._value; }
+        if (this._jsonType == FlexJsonConstants.typeNull
+            ||  this._jsonType == FlexJsonConstants.typeObject
+            || this._jsonType == FlexJsonConstants.typeArray) { return defaultValue; }
         return Number(this._value);
     }
 
     toBool(defaultValue = "") {
         if (this._status != 0) { return defaultValue; } // Invalid status
         if (!this._value_valid) { return defaultValue; }
-        if (this._jsonType == iesJsonConstants.typeBoolean) { return this._value; }
-        if (this._jsonType == iesJsonConstants.typeNull
-            ||  this._jsonType == iesJsonConstants.typeObject
-            || this._jsonType == iesJsonConstants.typeArray) { return defaultValue; }
+        if (this._jsonType == FlexJsonConstants.typeBoolean) { return this._value; }
+        if (this._jsonType == FlexJsonConstants.typeNull
+            ||  this._jsonType == FlexJsonConstants.typeObject
+            || this._jsonType == FlexJsonConstants.typeArray) { return defaultValue; }
         return this.parseBoolean(this._value);
     }
 
@@ -668,7 +668,7 @@ class iesJSON {
 
     static CreateNull()
         {
-            let j = new iesJSON();
+            let j = new FlexJson();
             j._value = null;
             j._jsonType = "null";
             j._value_valid = true;
@@ -678,7 +678,7 @@ class iesJSON {
             return j;
         }
 
-    // SerializeMe() - Use this to Serialize the items that are already in the iesJSON object.
+    // SerializeMe() - Use this to Serialize the items that are already in the FlexJson object.
     // Return: 0=OK, -1=Error
     SerializeMe()
     {
@@ -766,7 +766,7 @@ class iesJSON {
             this.InvalidateJsonString(1);
             this._status = -94;
             // FUTURE: Remove err94.message below?
-            this.AddStatusMessage("ERROR: SerializeMe() failed to serialize the iesJSON object. [err-94] " + err94.message);
+            this.AddStatusMessage("ERROR: SerializeMe() failed to serialize the FlexJson object. [err-94] " + err94.message);
             return -1;
         }
         return 0;
@@ -805,7 +805,7 @@ class iesJSON {
 		this._jsonString = snewString;
 		this._jsonString_valid = true;
 
-		let startPos = new iesJsonPosition(0,start,start);
+		let startPos = new FlexJsonPosition(0,start,start);
 		// FUTURE: determine start position LINE COUNT???
 		// if (start>0) { lineCount = countLines(ref _jsonString, start); }
 
@@ -825,7 +825,7 @@ class iesJSON {
 	// NOTE: parent JSON string is passed BY REF to reduce the number of times we have to 'copy' the json string.  At the end of the deserialization process, this
 	//    routine will store the section of the myJsonString that is consumed into its own _jsonString
 	// meJsonString: string
-	// start: iesJsonPosition
+	// start: FlexJsonPosition
     DeserializeMeI(meJsonString, start, OkToClip = false, MustBeString = false, SearchFor1 = '*', SearchFor2 = '*', SearchFor3 = '*') {
             var c;
             var c2;
@@ -834,29 +834,29 @@ class iesJSON {
             //if (trackingStats) { IncStats("stat_DeserializeMeI"); } // FUTURE-NEW
             this._status = 0;
             this.StartPosition = start.clone();  // store in meta (if ok to do so)
-            let meStatus = iesJsonConstants.ST_BEFORE_ITEM;
+            let meStatus = FlexJsonConstants.ST_BEFORE_ITEM;
             let quoteChar = '';
             this._key = null; // *** Default
             this._value = null; // *** Default
             this._value_valid = false; // *** In case of error, default is invalid
-            this._jsonType = iesJsonConstants.typeNull; // default
+            this._jsonType = FlexJsonConstants.typeNull; // default
             let jsonEndPoint = meJsonString.length-1;
             
-            let mePos = start.clone();  // iesJsonPosition USE THIS TO TRACK POSITION, THEN SET endpos ONCE DONE OR ON ERROR
+            let mePos = start.clone();  // FlexJsonPosition USE THIS TO TRACK POSITION, THEN SET endpos ONCE DONE OR ON ERROR
             let keepSP = this.keepSpacing;
             let keepCM = this.keepComments;
 
-            //iesJsonPosition startOfMe = null;
+            //FlexJsonPosition startOfMe = null;
             let safety = jsonEndPoint+999;
             let ok = false;
             let breakBreak = false;
-            let storeStatus = iesJsonConstants.ST_BEFORE_ITEM;  // should not matter, but just in case
+            let storeStatus = FlexJsonConstants.ST_BEFORE_ITEM;  // should not matter, but just in case
             while (meStatus >= 0 && this._status >= 0 && mePos.absolutePosition <= jsonEndPoint) {
                 c = meJsonString.charAt(mePos.absolutePosition);
                 if (mePos.absolutePosition < jsonEndPoint) { c2=meJsonString.substr(mePos.absolutePosition,2); } else { c2 = ""; }
 
                 switch (meStatus) {
-                    case iesJsonConstants.ST_BEFORE_ITEM:
+                    case FlexJsonConstants.ST_BEFORE_ITEM:
                         if (SearchFor1!='*' && c==SearchFor1) { breakBreak=true; break; }  // Found search character
                         if (SearchFor2!='*' && c==SearchFor2) { breakBreak=true; break; }  // Found search character
                         if (SearchFor3!='*' && c==SearchFor3) { breakBreak=true; break; }  // Found search character
@@ -872,9 +872,9 @@ class iesJSON {
                                 }
                             ok=true; 
                             //startOfMe=mePos; 
-                            this._jsonType=iesJsonConstants.typeObject;
+                            this._jsonType=FlexJsonConstants.typeObject;
                             mePos = this.DeserializeObject(meJsonString, mePos, keepSP, keepCM);
-                            meStatus = iesJsonConstants.ST_AFTER_ITEM;
+                            meStatus = FlexJsonConstants.ST_AFTER_ITEM;
                             if (this._status != 0) { breakBreak=true; break; } // ERROR message should have already been generated.
                             }
                         else if (c == '[') { 
@@ -885,37 +885,37 @@ class iesJSON {
                                 }
                             ok=true; 
                             //startOfMe=mePos; 
-                            this._jsonType=iesJsonConstants.typeArray;
+                            this._jsonType=FlexJsonConstants.typeArray;
                             mePos = this.DeserializeArray(meJsonString, mePos, keepSP, keepCM); 
-                            meStatus = iesJsonConstants.ST_AFTER_ITEM;
+                            meStatus = FlexJsonConstants.ST_AFTER_ITEM;
                             if (this._status != 0) { breakBreak=true; break; } // ERROR message should have already been generated.
                             }
                         else if (c == '"') { 
                             ok=true; 
                             //startOfMe=mePos; 
-                            this._jsonType=iesJsonConstants.typeString;
+                            this._jsonType=FlexJsonConstants.typeString;
                             quoteChar='"';
                             this._stringQuote = '"'; 
-                            meStatus = iesJsonConstants.ST_STRING; 
+                            meStatus = FlexJsonConstants.ST_STRING; 
                             }
                         else if (this.ALLOW_SINGLE_QUOTE_STRINGS && c == '\'') { 
                             ok=true; 
                             //startOfMe=mePos; 
-                            this._jsonType=iesJsonConstants.typeString;
+                            this._jsonType=FlexJsonConstants.typeString;
                             quoteChar='\''; 
                             this._stringQuote = '\'';
-                            meStatus = iesJsonConstants.ST_STRING; 
+                            meStatus = FlexJsonConstants.ST_STRING; 
                             }
                         else if (this._UseFlexJson) {
                             if (c2=="//") { // start of to-end-of-line comment
                                 ok=true;
-                                meStatus = iesJsonConstants.ST_EOL_COMMENT;
+                                meStatus = FlexJsonConstants.ST_EOL_COMMENT;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
                             }
                             if (c2=="/*") { // start of asterix comment
                                 ok=true;
-                                meStatus = iesJsonConstants.ST_AST_COMMENT;
+                                meStatus = FlexJsonConstants.ST_AST_COMMENT;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
                             }
@@ -927,7 +927,7 @@ class iesJSON {
                                 //startOfMe=mePos;
                                 this._jsonType="nqstring"; // NOTE! THIS IS NOT A REAL TYPE - IT IS A FLAG FOR LATER
                                 this._stringQuote = ' ';
-                                meStatus = iesJsonConstants.ST_STRING_NO_QUOTE;
+                                meStatus = FlexJsonConstants.ST_STRING_NO_QUOTE;
                         }
                         if (!ok) { // generate error condition - invalid character
                             this._status = -102;
@@ -935,18 +935,18 @@ class iesJSON {
                             breakBreak=true; break;
                         }
                         // if we are no longer in pre-space territory, the we need to store the whitespace/comments
-                        if (meStatus >= iesJsonConstants.ST_STRING) {
+                        if (meStatus >= FlexJsonConstants.ST_STRING) {
                             if (keepCM || keepSP) {
                                 preSpace = getSpace;
                                 getSpace = ''; // clear
                             }
                         }
-                        if (meStatus == iesJsonConstants.ST_STRING || meStatus == iesJsonConstants.ST_STRING_NO_QUOTE) {
+                        if (meStatus == FlexJsonConstants.ST_STRING || meStatus == FlexJsonConstants.ST_STRING_NO_QUOTE) {
                             meString = "";
                             if (c!='"' && c !='\'') { meString += c; }
                         }
                         break;
-                    case iesJsonConstants.ST_AFTER_ITEM:
+                    case FlexJsonConstants.ST_AFTER_ITEM:
                         if (SearchFor1!='*' && c==SearchFor1) { breakBreak=true; break; }  // Found search character
                         if (SearchFor2!='*' && c==SearchFor2) { breakBreak=true; break; }  // Found search character
                         if (SearchFor3!='*' && c==SearchFor3) { breakBreak=true; break; }  // Found search character
@@ -958,14 +958,14 @@ class iesJSON {
                             if (c2=="//") { // start of to-end-of-line comment
                                 ok=true;
                                 storeStatus = meStatus;
-                                meStatus = iesJsonConstants.ST_EOL_COMMENT_POST;
+                                meStatus = FlexJsonConstants.ST_EOL_COMMENT_POST;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
                             }
                             if (c2=="/*") { // start of asterix comment
                                 ok=true;
                                 storeStatus = meStatus;
-                                meStatus = iesJsonConstants.ST_AST_COMMENT_POST;
+                                meStatus = FlexJsonConstants.ST_AST_COMMENT_POST;
                                 mePos.increment(); // so we skip 2 characters
                                 if(keepCM) { getSpace += c2; }
                             }
@@ -985,15 +985,15 @@ class iesJSON {
                             breakBreak=true; break;
                         }
                         break;
-                    case iesJsonConstants.ST_EOL_COMMENT:
-                    case iesJsonConstants.ST_EOL_COMMENT_POST:
-                        if (c2==iesJsonConstants.NEWLINE) {
+                    case FlexJsonConstants.ST_EOL_COMMENT:
+                    case FlexJsonConstants.ST_EOL_COMMENT_POST:
+                        if (c2==FlexJsonConstants.NEWLINE) {
                             ok = true;
                             if(keepSP) { getSpace += c2; }
                             meStatus = storeStatus;
                             /* Replaced this logic with the line above that returns to the previous status
-                            if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
-                            else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            if (meStatus==FlexJsonConstants.ST_EOL_COMMENT) { meStatus=FlexJsonConstants.ST_BEFORE_ITEM; }
+                            else { meStatus=FlexJsonConstants.ST_AFTER_ITEM; }
                             */
                             mePos.incrementLine(2);
                             continue; // NOTE: Here we must skip the end of the do loop so that we do not increment the counter again
@@ -1003,8 +1003,8 @@ class iesJSON {
                             if(keepSP) { getSpace += c; }
                             meStatus = storeStatus;
                             /* Replaced this logic with the line above that returns to the previous status
-                            if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
-                            else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            if (meStatus==FlexJsonConstants.ST_EOL_COMMENT) { meStatus=FlexJsonConstants.ST_BEFORE_ITEM; }
+                            else { meStatus=FlexJsonConstants.ST_AFTER_ITEM; }
                             */
                         }
                         else { // absorb all comment characters
@@ -1012,15 +1012,15 @@ class iesJSON {
                             if(keepSP) { getSpace += c; }
                         }
                         break;
-                    case iesJsonConstants.ST_AST_COMMENT:
-                    case iesJsonConstants.ST_AST_COMMENT_POST:
+                    case FlexJsonConstants.ST_AST_COMMENT:
+                    case FlexJsonConstants.ST_AST_COMMENT_POST:
                         if (c2=="*/") {
                             ok = true;
                             if(keepSP) { getSpace += c2; }
                             meStatus = storeStatus;
                             /* Replaced this logic with the line above that returns to the previous status
-                            if (meStatus==iesJsonConstants.ST_EOL_COMMENT) { meStatus=iesJsonConstants.ST_BEFORE_ITEM; }
-                            else { meStatus=iesJsonConstants.ST_AFTER_ITEM; }
+                            if (meStatus==FlexJsonConstants.ST_EOL_COMMENT) { meStatus=FlexJsonConstants.ST_BEFORE_ITEM; }
+                            else { meStatus=FlexJsonConstants.ST_AFTER_ITEM; }
                             */
                             mePos.increment(); // increment by 1 here - increments again at bottom of do loop
                         }
@@ -1029,10 +1029,10 @@ class iesJSON {
                             if(keepSP) { getSpace += c; }
                         }
                         break;
-                    case iesJsonConstants.ST_STRING:
+                    case FlexJsonConstants.ST_STRING:
                         if (c==quoteChar) { // we reached the end of the string
                             ok = true;
-                            meStatus = iesJsonConstants.ST_AFTER_ITEM;
+                            meStatus = FlexJsonConstants.ST_AFTER_ITEM;
                         }
                         else if (c=='\\') { // escaped character
                             mePos.increment();
@@ -1097,7 +1097,7 @@ class iesJSON {
                             meString += c;
                         }
                         break;
-                    case iesJsonConstants.ST_STRING_NO_QUOTE:
+                    case FlexJsonConstants.ST_STRING_NO_QUOTE:
                         if (SearchFor1!='*' && c==SearchFor1) { breakBreak=true; break; }  // Found search character
                         if (SearchFor2!='*' && c==SearchFor2) { breakBreak=true; break; }  // Found search character
                         if (SearchFor3!='*' && c==SearchFor3) { breakBreak=true; break; }  // Found search character
@@ -1105,17 +1105,17 @@ class iesJSON {
                             ok=true;
                             meString += c;
                         }
-                        else if (c2==iesJsonConstants.NEWLINE) {  // consume this as whitespace
+                        else if (c2==FlexJsonConstants.NEWLINE) {  // consume this as whitespace
                             ok=true;
                             if (keepSP) { getSpace += c2; }
                             mePos.incrementLine(2);
-                            meStatus = iesJsonConstants.ST_AFTER_ITEM;
+                            meStatus = FlexJsonConstants.ST_AFTER_ITEM;
                             continue; // so that we do not increment mePos again
                         }
                         else if (c==' ' || c=='\t' || c=='\r' || c=='\n') { // consume this as whitespace
                             ok=true;
                             if (keepSP) { getSpace += c; }
-                            meStatus = iesJsonConstants.ST_AFTER_ITEM;
+                            meStatus = FlexJsonConstants.ST_AFTER_ITEM;
                         }
                         else { // not a valid character
                             this._status = -159;
@@ -1141,7 +1141,7 @@ class iesJSON {
 
             if (this._status == 0) {
               switch (this._jsonType) {
-                case iesJsonConstants.typeString:
+                case FlexJsonConstants.typeString:
                     this._value = meString;
                     break;
                 case "nqstring": // NOTE! This is objType must be converted to another type here! nqstring is not a real type.
@@ -1151,15 +1151,15 @@ class iesJSON {
                             var tmpStringUpper = tmpString.trim().toUpperCase();
                             if (tmpStringUpper == '' || tmpStringUpper == "NULL") {
                                 this._value = "";
-                                this._jsonType = iesJsonConstants.typeNull;
+                                this._jsonType = FlexJsonConstants.typeNull;
                             }
                             else if (tmpStringUpper == "TRUE") {
                                 this._value = true;
-                                this._jsonType = iesJsonConstants.typeBoolean;
+                                this._jsonType = FlexJsonConstants.typeBoolean;
                             }
                             else if (tmpStringUpper == "FALSE") {
                                 this._value = false;
-                                this._jsonType = iesJsonConstants.typeBoolean;
+                                this._jsonType = FlexJsonConstants.typeBoolean;
                             }
                         }
                         // If the above did not match, lets see if this text is numeric...
@@ -1171,7 +1171,7 @@ class iesJSON {
                                     this._value = valueCheck;
 
                                     // It worked... keep going...
-                                    this._jsonType = iesJsonConstants.typeNumber;
+                                    this._jsonType = FlexJsonConstants.typeNumber;
                                 }
                             } catch(Exception) {}
                         }
@@ -1180,7 +1180,7 @@ class iesJSON {
                     // If STILL not identified, then it must be a STRING (ONLY valid as an unquoted string if using FlexJson!)
                     if (this._jsonType=="nqstring") {
                         this._value = tmpString;
-                        this._jsonType = iesJsonConstants.typeString;
+                        this._jsonType = FlexJsonConstants.typeString;
                         if (!this._UseFlexJson) {
                             // ERROR: we found an unquoted string and we are not using FlexJson
                             // NOTE! Error occurred at the START of this item
@@ -1214,7 +1214,7 @@ class iesJSON {
 
 
         CreatePartClone(keepSP=false,keepCM=false) {
-            let jClone = new iesJSON();
+            let jClone = new FlexJson();
             jClone.UseFlexJson = this.UseFlexJson;
 			jClone.ALLOW_SINGLE_QUOTE_STRINGS = this.ALLOW_SINGLE_QUOTE_STRINGS;
 			/* FUTURE-NEW
@@ -1230,7 +1230,7 @@ class iesJSON {
         // *** Look for name:value pairs as a JSON object
 		// NOTE: Parent routine DeserializeMeI() keeps track of the before/after spacing of the object
 		// meJsonString: string
-		// start: iesJsonPosition
+		// start: FlexJsonPosition
 		// keepSP/keepCM: boolean
         DeserializeObject(meJsonString, start, keepSP, keepCM)
         {
@@ -1255,7 +1255,7 @@ class iesJSON {
                 j2 = this.CreatePartClone(keepSP,keepCM);
                 let newPos = j2.DeserializeMeI(meJsonString, mePos.clone(), true, true, ':', ',', '}');  // finding a } means there are no more items in the object
 
-                if (j2._status == 0 && j2._jsonType == iesJsonConstants.typeNull) {
+                if (j2._status == 0 && j2._jsonType == FlexJsonConstants.typeNull) {
                     // special case where item is NULL/BLANK - ok to skip...
                     c = meJsonString.charAt(newPos.absolutePosition);
                     if (c == ',' || c == '}') { 
@@ -1518,7 +1518,7 @@ class iesJSON {
             */
         }
 
-        // Convert Javascript type to iesJSON type
+        // Convert Javascript type to FlexJson type
         convertType(v) {
             if (v === null) { return 'null'; }
             const vType = typeof(v);
@@ -1530,11 +1530,11 @@ class iesJSON {
                 case 'boolean':
                     return 'boolean';
                     break;
-                case 'object': // must be iesJSON object or it is not a true "object"
+                case 'object': // must be FlexJson object or it is not a true "object"
                     return ''; // indicates an error/invlid type
                     break;
-                case 'iesJSON':
-                    return iesJSON.jsonType;
+                case 'FlexJson':
+                    return FlexJson.jsonType;
                     break;
                 case 'function':
                     return ''; // indicate error/invalid type
@@ -1546,4 +1546,4 @@ class iesJSON {
         }
 }
 
-module.exports = iesJSON;
+module.exports = FlexJson;
