@@ -30,6 +30,7 @@ class iesCommonLib {
         this.debugMode = 0;
         this.user = {};
         this.httpQueryId = "0-0";
+		this.vc = null;
     }
 
     async AdminTags(ret, Custom, cms) {
@@ -173,7 +174,41 @@ class iesCommonLib {
 			case "logfile":
 				content.append(this.logFile);
 				break;
+				
+			case "urlparam":
+                content.append(this.urlParam(ret.Param1.trim()));
+                break;
+            case "formorurlparam":
+                content.append(this.FormOrUrlParam(ret.Param1.trim()));
+                break;
+			case "vcard":
+				// Load VCard profile if needed
+				this.getVCard(false);
 
+				if (this.vc) {
+					const prop = ret.Param1.trim();
+					switch(prop) {
+						case "VCARD":
+							content.append(`<b>Mobile</b>: ${this.vc["TEL-cell"] ?? ""}<br>\n`);
+							if ((this.vc['EMAIL'] ?? "") != "") {
+								content.append(`<b>Email</b>: <a href="mailto:${this.vc["EMAIL"]}" target="_blank">${this.vc["EMAIL"]}</a><br>\n`);
+							}
+							if ((this.vc['URL-linkedin'] ?? "") != "") {
+								content.append(`<b>LinkedIn</b>: <a href="${this.vc["URL-linkedin"]}" target="_blank">${this.vc["URL-linkedin"]}</a><br>\n`);
+							}
+							break;
+						case "ID":
+							content.append(this.vc.ID);
+							break;
+						case "OBJECT": //debug
+							content.append(JSON.stringify(this.vc));
+							break;
+						default:
+							content.append((this.vc[prop] ?? ""));
+					}
+				}
+				break;
+				
                 /*** from original cmsCommon.cs (DotNet version of CMS)
                 case "brand":
                     case "brandid":
@@ -346,14 +381,6 @@ class iesCommonLib {
                     case "formparam":
                     case "formparameter":
                         content.append(cms.FormParam(ret.Param1.Trim()));
-                        break;
-
-                    case "urlparam":
-                        content.append(cms.urlParam(ret.Param1.Trim()));
-                        break;
-
-                    case "formorurlparam":
-                        content.append(cms.FormOrUrlParam(ret.Param1.Trim()));
                         break;
 
                     case "subpage":
@@ -2815,6 +2842,57 @@ class iesCommonLib {
         } // End foreach
         return "";
     }
+	
+	// Get VCard based on profile specified in the URL (?vc=)
+	getVCard(forceReload) {
+		// Only load if needed or forceReload = true
+		if (!this.vc || forceReload) {
+				  try {
+					  this.vc = {};
+					  // Get vCard ID from URL (?vc=)
+					  this.vc.ID = this.urlParam("vc");
+					  if (this.vc.ID) {
+						// Find profile Vcard in the VcardFolder
+						const vcPath = this.FindFileInFolders(this.vc.ID + ".vcf", this.getParamStr("VcardFolder"));
+						this.vc.PATH = vcPath; 
+                        if (vcPath) {
+						  const vcData = readFileSync(vcPath) + "";
+
+						  this.vc.DATA_LENGTH = vcData.length; // DEBUG
+						  // Split into lines, handle both \r\n (Windows) and \n (Unix)
+						  const lines = vcData.split(/\r?\n/);
+						  this.vc.LINE_COUNT=0;
+						  for (let rawLine of lines) {
+							this.vc.LINE_COUNT ++; 
+							if (!rawLine.trim()) continue; // skip empty lines
+
+							// Split into key and value by the first colon
+							const [rawKey, ...valueParts] = rawLine.split(':');
+							if (!rawKey || valueParts.length === 0) continue;
+
+							let key = rawKey.trim();
+							const value = valueParts.join(':').trim();
+
+							// Handle TEL and URL types
+							if (/^(TEL|URL)/i.test(key)) {
+							  key = key
+								.replace(/[;,]/g, '-')  // replace ; and , with -
+								.replace(/TYPE/gi, '')  // remove TYPE
+								.replace(/=/g, '')      // remove =
+								.replace(/--+/g, '-')   // collapse double dashes
+								.trim();
+							}
+
+							this.vc[key] = value;
+						  } // end for
+ 
+						} // end if(vcPath)
+					  } // end if (this.vc.ID)
+				  } catch (exc3) {
+					  this.vc.ERROR = exc3.message; // DEBUG
+				  }
+			} // end if
+	} // end getVCard()
 
     // LoadHtmlFile()
     // Returns an object {content,jsonHeader (as  FlexJson),foundHeader,status,errMsg}
