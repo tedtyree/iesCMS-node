@@ -85,7 +85,7 @@ if (serverCfg.Status == 0) {
 
 
 
-// Setup debug log
+// This runs during startup. The debugMode is coming from server.cfg above
 if (debugMode > 0) {
       var ts = timestamp();
       debugFile = "./log/app_log_" + ts + ".txt";
@@ -254,7 +254,7 @@ http.createServer(async (req, res) => {
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
-
+      // This runs for every HTTP request
       if (debugMode > 0) {
             var ts = timestamp();
             debugHttpFile = "./log/httpServer_log_" + ts + ".txt";
