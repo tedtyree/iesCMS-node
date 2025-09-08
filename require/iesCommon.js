@@ -23,7 +23,8 @@ class iesCommonLib {
         jpg: 'image/jpeg',
         png: 'image/png',
         svg: 'image/svg+xml',
-        js: 'application/javascript'
+        js: 'application/javascript',
+        pdf: 'application/pdf'
     };
 
     constructor() { 
