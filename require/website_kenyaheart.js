@@ -104,7 +104,7 @@ class webEngine {
         }
         if (filePath == '') {
             filePath = cms.getParamStr("DefaultPageID", "home");
-            fileType == 'html'
+            fileType = 'html';
         }
         // debugger
         // cms.Html += 'File:[' + filePath + '][' + cms.pathExt + ']<br>';
