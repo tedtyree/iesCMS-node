@@ -1,0 +1,89 @@
+body
+{
+	font-family: times-roman;
+	font-size: medium;
+	color: #000;
+}
+
+p, ul, li, table
+{
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+.center
+{
+	
+	margin: 0px auto 0px auto;
+	width: 758px;
+	text-align: left;
+	background-color: #fff;
+}
+
+tr
+{
+	vertical-align: top;
+}
+
+.btntext {color: #FFFFFF; font-family: arial; font-size: 10pt; text-decoration: none; text-align: center; padding-left: 0px; padding-top: 6px; padding-right: 0px; padding-bottom: 0px;}
+a.btntext:link {color: #FFFFFF; font-family: arial; font-size: 10pt; text-decoration: none;}
+a.btntext:active {color: #FFFFFF; font-family: arial; font-size: 10pt; text-decoration: none;}
+a.btntext:hover {color: #FFFFFF; font-family: arial; font-size: 10pt; text-decoration: none;}
+
+
+#smenus {
+float: left;
+width: 12em;
+margin: 2px;
+font-family: arial;
+font-size: 10pt;
+color: #FFFFFF;
+}
+#smenus dl {
+float: left;
+width: 12em;
+margin: 2px;
+position: absolute;
+top: 2000px;
+cursor: pointer;
+text-align: left;
+background: #C80008;
+display: none;
+border: 1px solid gray;
+margin: 0;
+padding: 3;
+list-style-type: none;
+}
+
+#smenus li {
+text-align: left;
+background: #C80008;
+font-family: arial;
+font-size: 10pt;
+color: #FFFFFF;
+margin: 0;
+padding: 0;
+list-style-type: none;
+}
+#smenus li a, #smenus dt a {
+color: #000;
+text-decoration: none;
+display: block;
+height: 100%;
+border: 0 none;
+font-family: arial;
+font-size: 10pt;
+color: #FFFFFF;
+margin: 0;
+padding: 0;
+list-style-type: none;
+}
+#smenus li a:hover, #smenus dt a:hover {
+background: #D46469;
+}
+
+#smenus dt, #smenus dd, #smenus ul {
+margin: 0;
+padding: 0;
+list-style-type: none;
+}

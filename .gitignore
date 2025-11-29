@@ -99,6 +99,9 @@ dist
 # vuepress build output
 .vuepress/dist
 
+# Websites directory
+websites/
+
 # Serverless directories
 .serverless/
 
