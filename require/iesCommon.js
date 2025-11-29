@@ -1518,11 +1518,14 @@ class iesCommonLib {
                         ret.ReturnContent = content;
                         ret.Processed = true;
                     }
+console.log("DEBUG Look for tag: " + ret.Tag); //DEBUG DEBUG
                     if (ret.Processed == false && Custom && Custom.CustomTags) {
+console.log("DEBUG Custom.CustomTags: " + Custom.assignedSiteID); //DEBUG DEBUG
                         await Custom.CustomTags(ret, cms);
                     }
 
                     if (ret.Processed == false) {
+console.log("DEBUG AdminTags"); //DEBUG DEBUG
                         // Tag not processed, let's try the admin level to replace this tag...
                         await this.AdminTags(ret, Custom, cms);
                     }

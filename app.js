@@ -83,14 +83,16 @@ if (serverCfg.Status == 0) {
       throw new Error('Error :failed to parse server config1 ' + serverCfg.statusMsg);
 }
 
-
+debugMode=99; //DEBUG DEBUG
 
 // Setup debug log
 if (debugMode > 0) {
       var ts = timestamp();
       debugFile = "./log/app_log_" + ts + ".txt";
       appendFileSync(debugFile, "app.js Start: " + ts + "\n");
+      console.log("zz debugFile=" + debugFile);
 }
+console.log("zz debugMode=" + debugMode);
 
 // Now that the log file is set, log the error that may have occurred when opening server.cfg above.
 if (serverCfg.Status != 0 && debugMode > 0) {
@@ -254,14 +256,15 @@ http.createServer(async (req, res) => {
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
 
-
+debugMode=99;
       if (debugMode > 0) {
             var ts = timestamp();
             debugHttpFile = "./log/httpServer_log_" + ts + ".txt";
             appendFileSync(debugHttpFile, "httpServer Start: " + ts + "\n" +
                   "url: " + req.url + "\n");
+            console.log("yy debugHttpFile=" + debugHttpFile);
       }
-
+console.log("yy debugMode=" + debugMode);
 
       cms.cookies = parseCookies(req.headers.cookie);
       if (!cms.cookies) { cms.cookies = {}; }
@@ -313,18 +316,20 @@ http.createServer(async (req, res) => {
       // Already parsed... cms.url.query
 
       // Detemrine SiteID
+console.log("Determine SiteID=" + cms.urlHost.toLowerCase()); // DEBUG DEBUG
       cms.siteId = null;
       try { cms.siteId = iesDomains[cms.urlHost.toLowerCase()]; } catch { }
       if (!cms.siteId) {
             err = 171; // ERR171
             errMessage = "Failed to find site for domain: " + cms.urlHost + " [ERR" + err + "]";
+console.log(errMessage); // DEBUG DEBUG
             if (debugMode > 0) {
                   appendFileSync(debugHttpFile, "ERROR: " + errMessage + "\n");
             }
             // We were getting peppered with odd URLs... so here we end the call rather than responding with the default hostsite
             cms.abort = true;  // this will skip other response types
             res.connection.destroy();
-      }
+      } else { console.log("Found site=" + cms.siteId); }
 
       // NOTE: ALL .cfg files are forbidden within iesCMS because they may contain sensitive information
       if (cms.pathExt == 'cfg') {
