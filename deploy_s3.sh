@@ -28,7 +28,7 @@ cp "/var/www/secrets/iescms-server.cfg" "./server.cfg"
 echo "5/8 - Deploying hostsite..."
 cd "$WEB_DIR/websites_example/"
 rsync -avqr --delete ./hostsite/ "$WEB_DIR/websites/hostsite/"
-cp "require/website_hostsite.js" "$WEB_DIR/require/website_hostsite.js"
+cp "hostsite/require/website_hostsite.js" "$WEB_DIR/require/website_hostsite.js"
 
 # 7) Start the app with PM2 and save config
 echo "6/8 - Starting application with PM2..."
