@@ -661,7 +661,7 @@ class iesCommonLib {
                                     err = true;
                                 }
                                 else {
-                                    this.GetColumns(out); // gets json columns
+                                    this.GetColumns(out,"SearchList"); // gets json columns
 
                                     // Insert data into HTML
                                     rTags.add(cms.urlParam("eclass"),"eclass");
@@ -1199,7 +1199,7 @@ class iesCommonLib {
                     if (editlisterror != "") { tableHtml = "<br><br>ERROR: " + editlisterror + "<br><br>"; }
                     else
                     {
-                        GetColumns(out); // gets json columns
+                        GetColumns(out,"SearcList"); // gets json columns
 
                         // Insert data into HTML
                         rTags["eclass"].Value = cms.urlParam("eclass");
@@ -1396,6 +1396,12 @@ class iesCommonLib {
                 this.PrepForJsonReturn(ret);
                 await this.GenerateJsonData(ret);
                 break;
+            case "editlist-record":
+                // Get config > record definition (to generate form)
+                // Get data for specified record
+                this.PrepForJsonReturn(ret);
+                await this.GenerateJsonRecord(ret);
+                break;
         }
     }
 
@@ -1566,7 +1572,7 @@ class iesCommonLib {
             let historyFlag = this.toBool(this.FormOrUrlParam("history"),false);
             let searchText = this.FormOrUrlParam("search");
 
-            this.GetColumns(out);
+            this.GetColumns(out,"SearchList");
 
             if (flags.indexOf("serverside") >=0) {
                 limit = " LIMIT " + pagingStart + ", " + pagingLength;
@@ -1742,6 +1748,105 @@ class iesCommonLib {
             ret.ReturnJson = jret;
             return;
         }
+
+        async GenerateJsonRecord(ret, idOverride = "", eClassOverride = "", includeHeader = true)
+        {
+            let sql3 = "";
+            let out = {
+                Cols: "",
+                ColsHtml:"",
+                ColsJS: ""
+                };
+            var errmsg;
+            let id = idOverride;
+            let limit = "";
+            if (this.isNullOrWhiteSpace(id)) { id = this.FormOrUrlParam("id"); }
+            if (id=="") { ret.ReturnJson.error = "ERROR: Record ID not specified. [err4376]"; return; }
+
+            let jret = new FlexJson("{}");
+
+            this.LoadEditListIfNeeded();
+            if (this.editlistconfig == "") { ret.ReturnJson.error = "ERROR: Config not found. [err4377]"; return; } // no need to display error because this should have been done in the admin-load-editconfig tag
+            /*if (this.editlistj.i("MasterFiles").length >= 1)
+            {
+                // If the objects are stored in data files as the 'master' copy... then use the data files as the master list of objects 
+                this.GenJsonFromMasterFiles(ret, this.editlistj.i("MasterFiles"), this.editlistj.i("SearchList"), idOverride, eClassOverride, includeHeader);
+                return;
+            }*/
+            let EditFields = this.editlistj.i("EditFields");
+            let flags = this.editlistj.getStr("SpecialFlags").toLowerCase();
+            let PrimaryKey = this.editlistj.getStr("PrimaryKey");
+            let PrimaryKeyNumeric = this.editlistj.getBool("PrimaryKeyNumeric",false);
+            let ThisTable = this.editlistj.getStr("Table");
+            this.GetColumns(out,"EditFields");
+
+            // CHECK SECURITY LEVEL
+            let Permit = this.EditFormSecurityLevel();  // Default=No Access
+            // let bViewOnly = (Permit <= 1) ? true : false;
+            this.db.Open();
+            if (Permit <= 0)
+            {
+                ret.ReturnJson.error = "ERROR: Permission denied.";
+                if (this.debugMode > 0) { ret.ReturnJson.error = " [UserLevel=" + this.user.userLevel + "]"; }
+                return;
+            }
+            else
+            {
+                try
+                {
+                    let w = "SiteID='" + this.siteId + "'";
+                    if (flags.indexOf("noworldid") >= 0) { w = ""; }
+                    
+                    let wId = id;
+                    if (!PrimaryKeyNumeric) { wId = this.db.dbStr(wId,-1,true); }
+                    let w2 = PrimaryKey + " = " + wId;
+                    if (w2 != "") { if (w != "") { w += " AND "; } w += "(" + w2 + ")"; }
+
+                    if (w.trim() != "") { w = " WHERE " + w; }
+                    
+                    sql3 = "SELECT * FROM " + ThisTable + " " + w;
+                    /* DEBUG
+                    using (StreamWriter writer = new StreamWriter(SITE.ConfigFolder + "\\temp-SQL.txt"))
+                    {
+                        writer.Write(sql3);
+                    } 
+                    */
+                    //this.Response.Write("DEBUG: connect=" + this.db.ConnectString + "<br><br>"); //DEBUG 
+                    // let rData = await this.db.GetDataReader(sql3);
+                    let rDataFirst = await this.db.GetFirstRow(sql3);
+                    //    rDataFirst = rDataAll.GetJSON(); // should only be 1
+
+                    // Now we need to build a JSON object with only the necessary fields
+                    let retRecord = new FlexJson("{}");
+                    if (rDataFirst) {
+                        for (const col of out.Cols.split(",")) {
+                            let fieldName = col.replace(/`/g, "");
+                            retRecord.add(rDataFirst.i(fieldName),fieldName);
+                        }
+                    }
+
+                    jret.add("success", "msg");
+                    jret.add(retRecord, "data");
+                    jret.add(EditFields, "editfields");
+                    jret.add(PrimaryKey, "PrimaryKey");
+                    jret.add(wId, "id");
+                    jret.add(sql3, "sql"); //DEBUG
+                    ret.ReturnJson = jret;
+                }
+                catch (ee4)
+                {
+                    console.log(ee4);
+                    errmsg = "ERROR: Failed to get data records. [err4979]";
+                    if (this.debugMode > 0) { errmsg += " SQL=" + sql3; }
+                    jret.add(new FlexJson("[]"), "data");
+                    jret.add(errmsg, "error");
+                    jret.add("error", "msg");
+                    ret.ReturnJson = jret;
+                }
+            } // end if-else (Permit<=0)
+            this.db.Close();
+        } // end function
+
         /*
         GenerateFormButtons(content)
         {
@@ -3597,7 +3702,7 @@ class iesCommonLib {
     //   out.Cols=csv (comma separated list)
     //   out.ColsHtml=html table header row
     //   out.ColsJS=Javascript list of data field names (for jquery.datatables)
-    GetColumns(out)
+    GetColumns(out,ConfigFieldList)
     {
             let sField = "";
             let sTitle = "";
@@ -3614,7 +3719,7 @@ class iesCommonLib {
             try
             {
                 let sep = '';
-                let a = this.editlistj.i("SearchList");
+                let a = this.editlistj.i(ConfigFieldList);
                 let b = a.toJsonArray();
                 b.forEach( (fld) =>
                 {
@@ -3656,6 +3761,7 @@ class iesCommonLib {
             //out.acolsHtml=colsHtml.toString();
             out.ColsJS = jsCols.jsonString;
         }
+
 
         EditFormSecurityLevel()
         {
