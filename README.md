@@ -2,7 +2,22 @@
 Outrageously simple content management system (CMS) for NodeJS
 UNDER DEVELOPMENT
 
-This CMS is being modeled after iesCMS which is a C# based CMS.  Also relatively simple, but has been complicated by C#, Windows Server, IIS requirements beyond our control.  It is time to break free!
+ - Made for web developers and website managers managing many sites for multiple customers. Fully configurable.
+ - Does not require compiling.
+ - Each website content is contained within their folder.
+   Optional .js extensions can be added per website.
+   require/website_<id>.js
+ - Each website is given an "id" used as the folder name,
+   the name of the option website js extensions, and a tag
+   used in the database to mark records belonging to that site.
+ - Pages:
+   - Each *.cfg in the websites/<id>/pages folder corresponds to a web page on the website. 
+   - It includes a header with page parameters 
+   - Includes [[tags]] that get replaced at runtime.
+ - Template files:
+   - Each page specifies a template file (usually the header and footer of the page) 
+   - found in the templates/ folder - format layout_<template_name>.cfg 
+   - also contains [[tags]] that get replaced at runtime.
 
 # RUN  (currently on serverPort 8118)
 node app.js
@@ -20,16 +35,25 @@ Navigate to http://localhost:8118
 
 # INSTALL
 copy entire iesCMS-node folder to server > /var/www/iescms
-NOTE: May not want to overwite websites folder (since each site may be managed elsewhere)
+NOTE: Do not overwite websites folder (since each site should be managed it its own repo)
 NOTE: May need to update /secrets/server.cfg if there were structure changes to that file
+Copy websites/hostsite/require/website_hostsite.js to require/website_hostsite.js
 Key folders/files
   app.js
   /iesCommon
   /node_modules  (or run 'npm i' as mentioned below)
   /require  (exclude website_*.js ... but include website_hostsite.js)
-NOTE: May need to run 'npm i' in /var/www/iescms to get node_modules
+Run 'npm i' in /var/www/iescms to get node_modules
 open a folder in the root installation and run npm install string-builder 
+Start the app using PM2 (preinstalled pm2 on the server)
 
+# Install each website
+Websites should each be their own git repository. 
+ - Copy/clone website files/folders to websites/<id> 
+ - copy websites/<id>/require/website_<id>.js to require/website_<id>.js
+ - site.cfg contains core site parameters - update as needed
+ - For development purposes they can be included in the websites/ folder but are ignored by the parent git repository.
+ - Restart the iesCMS app so that it sees the website config (and optional .js)
 
 # CONVERT WEBSITE TO iesCMS-Node
 1) rename site.cfg to all lowercase letters (linux/node is case sensitive)
