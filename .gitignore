@@ -100,7 +100,7 @@ dist
 .vuepress/dist
 
 # Websites directory
-websites/
+#websites/
 
 # Serverless directories
 .serverless/
