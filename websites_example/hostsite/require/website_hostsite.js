@@ -1,5 +1,5 @@
 const StringBuilder = require("string-builder");
-const iesJSON = require('./iesJSON/iesJsonClass.js');
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesDbClass = require('./iesDB/iesDbClass.js');
 const axios = require('axios');
 const { existsSync, readFileSync } = require('fs');
@@ -64,7 +64,7 @@ class webEngine {
 
         // ================================================ BEGIN
         var fileType = '';
-        let pageHead = new iesJSON();
+        let pageHead = new FlexJson();
         var pageErr = -1;
         var pageTemplate;
         var templatePath;
@@ -95,9 +95,10 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         let dbConnectJson = cms.SERVER.i("dbConnect");
-        // FUTURE: Find better way to convert from iesJSON to JavaScript object???
+        // FUTURE: Find better way to convert from FlexJson to JavaScript object???
         let dbConnect = {
             host: dbConnectJson.i("host").toStr()
+            ,db: dbConnectJson.i("db").toStr()
             ,user: dbConnectJson.i("user").toStr()
             ,password: dbConnectJson.i("password").toStr()
         };
@@ -166,7 +167,7 @@ class webEngine {
             // Form is specified. lets process the form using a generic engine
 
             // We need to replace tags in the emailSubject and Body...
-            //var emailTags = new iesJSON("{}");
+            //var emailTags = new FlexJson("{}");
             //emailTags["World"].Value = cms.World;
 
             // SET DEFAULT VALUES
@@ -356,7 +357,7 @@ class webEngine {
             //cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
             //cms.minAdminLevel = cms.SITE.i("defaultMinAdminLevel").toNum(999);
             cms.setPermissionLevels();
-			
+            
             if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
             if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
             if (cms.user.userLevel >= cms.minViewLevel) {
