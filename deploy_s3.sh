@@ -26,7 +26,7 @@ cp "/var/www/secrets/iescms-server.cfg" "./server.cfg"
 
 # 8) Deploy hostsite
 echo "5/8 - Deploying hostsite..."
-cd "$WEB_DIR/websites_sample/"
+cd "$WEB_DIR/websites_example/"
 rsync -avqr --delete ./hostsite/ "$WEB_DIR/websites/hostsite/"
 cp "require/website_hostsite.js" "$WEB_DIR/require/website_hostsite.js"
 
