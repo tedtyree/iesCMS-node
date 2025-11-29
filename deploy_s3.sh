@@ -4,38 +4,34 @@
 set -e
 
 # Configuration
-WEB_DIR="/var/www/iescms"
-GITHUB_DIR="/var/www/github-sites/iesCMS-node"
+WEB_DIR="/var/www/iesCMS-node"
 
 echo "=== Starting iesCMS deployment ==="
 
-
-# 3) Stop the iesCMS app running on PM2
-echo "3/8 - Stopping PM2 process..."
+echo "1/8 - Stopping PM2 process..."
 pm2 stop iesCMS || echo "No running iesCMS process found, continuing..."
 pm2 delete iesCMS || echo "No iesCMS process to delete, continuing..."
 
 
-# 5) Copy built files to server
-echo "5/8 - Copying app files to server..."
-# Use rsync to copy only the built files from dist
-cd "$GITHUB_DIR"
-rsync -avqr --delete ./ "$WEB_DIR/"
-# Copy server.cfg
-cp "/var/www/secrets/iescms-server.cfg" "$WEB_DIR/server.cfg"
-
-echo "0/8 - Installing dependencies..."
+echo "2/8 - Pull most recent app..."
 cd "$WEB_DIR/"
+git pull
+
+echo "3/8 - Installing dependencies..."
 npm i
 
+echo "4/8 - Copy server config..."
+cp "/var/www/secrets/iescms-server.cfg" "./server.cfg"
+
+
 # 8) Deploy hostsite
-echo "8/8 - Deploying hostsite..."
-cd "$GITHUB_DIR/websites/"
+echo "5/8 - Deploying hostsite..."
+cd "$WEB_DIR/websites_sample/"
 rsync -avqr --delete ./hostsite/ "$WEB_DIR/websites/hostsite/"
-cp "$GITHUB_DIR/require/website_hostsite.js" "$WEB_DIR/require/website_hostsite.js"
+cp "require/website_hostsite.js" "$WEB_DIR/require/website_hostsite.js"
 
 # 7) Start the app with PM2 and save config
-echo "7/8 - Starting application with PM2..."
+echo "6/8 - Starting application with PM2..."
 cd "$WEB_DIR/"
 pm2 start "app.js" --name iesCMS
 pm2 save

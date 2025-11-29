@@ -55,6 +55,12 @@ Websites should each be their own git repository.
  - For development purposes they can be included in the websites/ folder but are ignored by the parent git repository.
  - Restart the iesCMS app so that it sees the website config (and optional .js)
 
+Rather than cloning the iesCMS to one location on the server (a github sync) and then copying it to a production location - on s3 we are triyng out just cloning directly to the production location and running it from there. See deploy_s3.sh
+
+Rather than cloning each website to a git sync location and then copying it to the production location, on s3 I cloned each website directly into the websites/ folder and renamed it to the proper <id>. Then the deploy_s3_site.sh script will pull the latest changes - copy website_<id>.js as needed, and restart the iesCMS server.
+
+So everything is being cloned to the specific location on s3.
+
 # CONVERT WEBSITE TO iesCMS-Node
 1) rename site.cfg to all lowercase letters (linux/node is case sensitive)
 2) fix any json errors in site.cfg (example: fixed a missing quote)
