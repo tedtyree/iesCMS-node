@@ -24,7 +24,7 @@ var forwardedHost = false;  // For PRODUCTION set this to true :: forces us to r
 let vStatic = null;
 let vDynamic = null;
 
-const serverPort = 8118;
+var serverPort = 8118;
 const serverSecretsFolder = "./secrets/";
 const serverConfig = serverSecretsFolder + "server.cfg";
 const websitePathTemplate = './websites/{{siteID}}/site.cfg';
@@ -77,6 +77,7 @@ var siteList = [];
 let serverCfg = new FlexJson();
 serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
+      serverPort = serverCfg.getNum('serverPort', serverPort);
       debugMode = serverCfg.getNum('debugMode', debugMode);
       forwardedHost = serverCfg.getBool('forwardedHost', forwardedHost);
 } else {
