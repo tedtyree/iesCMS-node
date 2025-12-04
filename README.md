@@ -92,8 +92,8 @@ Typical example config if port defined as 8118...
 <VirtualHost *:80>
     ProxyPass /.well-known !
     ServerName <domain>
-    ErrorLog /var/log/httpd/<domain>.error.log
-    CustomLog /var/log/httpd/<domain>.requests.log combined
+    ErrorLog /var/log/apache2/<domain>.error.log
+    CustomLog /var/log/apache2/<domain>.requests.log combined
     ProxyRequests On
     ProxyPass / http://localhost:8118/
     ProxyPassReverse / http://localhost:8118/

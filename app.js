@@ -579,7 +579,7 @@ http.createServer(async (req, res) => {
 
       if (!responseBuilt) { res.end(); } // if all else fails, end the response
 
-}).listen(serverPort);
+}).listen(serverPort, '0.0.0.0');
 
 if (debugMode > 0) {
       appendFileSync(debugFile, "app.js Setup complete.\n");
