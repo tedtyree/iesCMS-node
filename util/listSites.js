@@ -39,6 +39,6 @@ for (const subdir of subdirs) {
     // Format output: each domain on its own line, first marked with ***
     domainList.forEach((domain, idx) => {
         const marker = idx === 0 ? ' ***' : '';
-        console.log(`${siteID}: ${domain}${marker}`);
+        console.log(`${subdir}: ${siteID}: ${domain}${marker}`);
     });
 }
