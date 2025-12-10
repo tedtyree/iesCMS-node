@@ -36,10 +36,9 @@ for (const subdir of subdirs) {
         domainList.push(domainItem.v());
     });
     
-    // Format output: first domain marked with ***
-    const formattedDomains = domainList.map((domain, idx) => {
-        return idx === 0 ? `${domain} ***` : domain;
-    }).join(' ');
-    
-    console.log(`${siteID}: ${formattedDomains}`);
+    // Format output: each domain on its own line, first marked with ***
+    domainList.forEach((domain, idx) => {
+        const marker = idx === 0 ? ' ***' : '';
+        console.log(`${siteID}: ${domain}${marker}`);
+    });
 }
