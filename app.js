@@ -581,6 +581,8 @@ http.createServer(async (req, res) => {
 
 }).listen(serverPort, '0.0.0.0');
 
+console.log(`iesCMS server listening on port ${serverPort}`);
 if (debugMode > 0) {
       appendFileSync(debugFile, "app.js Setup complete.\n");
+      appendFileSync(debugFile,`iesCMS server listening on port ${serverPort}\n`);
 }
