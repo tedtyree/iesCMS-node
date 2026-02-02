@@ -46,7 +46,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 const FlexJson = require('../FlexJson/FlexJsonClass.js');
 const iesDataReader = require('./iesDataReaderClass.js');
 const fs = require('fs');
-const mysql = require('mysql');
+const mysql = require('mysql2');
 
 class iesDB {
 	
