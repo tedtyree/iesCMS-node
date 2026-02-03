@@ -135,7 +135,10 @@ dlist.forEach(dDir => {
             }
 
             // Load/Reqiure website engine if it exists...
-            var enginePath = './require/website_' + dDir + '.js';
+            var enginePath = './websites/' + dDir + '/require/website_engine.js';
+            if (!existsSync(enginePath)) {
+                  enginePath = './require/website_' + dDir + '.js'; // Old location - backwards compatible
+            }
             if (existsSync(enginePath)) {
                   //var newEngine = requireDynamically(enginePath);
                   try {

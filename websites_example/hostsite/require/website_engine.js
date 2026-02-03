@@ -1,6 +1,6 @@
 const StringBuilder = require("string-builder");
-const FlexJson = require('./FlexJson/FlexJsonClass.js');
-const iesDbClass = require('./iesDB/iesDbClass.js');
+const FlexJson = require('../../../require/FlexJson/FlexJsonClass.js');
+const iesDbClass = require('../../../require/iesDB/iesDbClass.js');
 const axios = require('axios');
 const { existsSync, readFileSync } = require('fs');
 const { formatWithOptions } = require("util");
