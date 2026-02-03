@@ -326,7 +326,9 @@ http.createServer(async (req, res) => {
             cms.abort = true;  // this will skip other response types
             res.connection.destroy();
       }
-
+      if (debugMode > 20) {
+            appendFileSync(debugHttpFile, "requested siteId: [" + cms.siteId + "]\n");
+      }
       // NOTE: ALL .cfg files are forbidden within iesCMS because they may contain sensitive information
       if (cms.pathExt == 'cfg') {
             err = 993; // ERR993
@@ -389,7 +391,9 @@ http.createServer(async (req, res) => {
                         cms.mimic = override;
                   }
             }
-
+            if (debugMode > 20) {
+            appendFileSync(debugHttpFile, "effective siteId: [" + cms.siteId + "]\n");
+      }
             // Verify user.siteid - if incorrect, null-out the user and related permissions
             if (cms.user.siteId != cms.siteId) { cms.noUser(); }
 
@@ -450,6 +454,9 @@ http.createServer(async (req, res) => {
       */
       let responseBuilt = false;
       if (cms.abort && !cms.resultType) { cms.resultType = 'abort'; }
+      if (debugMode > 20) {
+            appendFileSync(debugHttpFile, "resultType: [" + cms.resultType + "]\n");
+      }
       if (cms.resultType == 'file') {
             if (!cms.fileFullPath) {
                   res.setHeader('Content-Type', 'text/plain');
