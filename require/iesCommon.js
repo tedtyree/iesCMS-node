@@ -3418,7 +3418,7 @@ class iesCommonLib {
                         catch (Exception)
                         {
                             //if (this.debugMode >= 3) { this.WriteLog("login", "Failed to store SessionLogin. [ERR3497]\n"); } // FUTURE: log event
-                            console.log("Failed to store SessionLogin. [ERR3497]");
+                            console.log("Failed to store SessionLogin. [ERR3497] " + Exception);
                         }
 
                         ret = true;
