@@ -3401,7 +3401,7 @@ class iesCommonLib {
                     {
                         // DEBUGGER: WARNING - PASSWORD IS BEING DISPLAYED IN THE LOG!
                         console.log("DEBUGGER: n_Pwd=[" + n_Pwd + "] compare=[" + Login_Pwd + "]\n");
-                        console.log("DEBUGGER: userRec=" + JSON.stringify(userRec) + "\n");
+                        console.log("DEBUGGER: userRec=" + userRec.jsonString + "\n");
                     }
                     if ((n_Pwd != "") && (n_Pwd == Login_Pwd.trim())  && (now < AllowDate))
                     {
