@@ -3388,8 +3388,8 @@ class iesCommonLib {
                 pwdData.forEach(userRec => {
                     n_Pwd = "";
                     // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
-                    n_Pwd = userRec.PWD || null;
-                    expiration = userRec.Expiration || null; // FUTURE: this field is missing from the db?!?!
+                    n_Pwd = userRec.getStr("PWD") || null;
+                    expiration = userRec.getDate("Expiration") || null; // FUTURE: this field is missing from the db?!?!
                     const now = new Date();
                     if (!expiration || !expiration.isDate())
                     {
