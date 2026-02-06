@@ -144,10 +144,11 @@ class webEngine {
                 } else {
                     */
                     await cms.SessionLogin(username,password,cms.siteId);
-                    if (cms.debugMode>3) {
+                    //if (cms.debugMode>3) {
                         // DEBUGGER WARNING! user record contains sensitive information
                         console.log("DEBUGGER: user record=[" + stringify.JSON(cms.user) + "]\n");
-                    }
+                        console.log("cms.debugMode=" + cms.debugMode);
+                    //}
                     if (cms.user.userKey < 0) {
                         this.errorMessage = 'login not successful';
                         cms.logMessage(3,"LOGIN ERROR for user [" + username + "]");
