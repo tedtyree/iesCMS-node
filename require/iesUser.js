@@ -1,4 +1,5 @@
 // iesUser: User Service
+const FlexJson = require('./FlexJson/FlexJsonClass.js');
 class iesUser {
 
     constructor(newUser) {
