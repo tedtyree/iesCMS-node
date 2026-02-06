@@ -3397,8 +3397,11 @@ class iesCommonLib {
                     }
 
                     //CheckDBerr(ErrMsg)
-                    //this.Response.Write("DEBUG: n_Pwd=" + n_Pwd + " [compare=" + Login_Pwd + "]<br>");
-                    //this.Response.Flush();
+                    if (this.debugMode >= 3)
+                    {
+                        // DEBUGGER: WARNING - PASSWORD IS BEING DISPLAYED IN THE LOG!
+                        console.log("DEBUG: n_Pwd=[" + n_Pwd + "] compare=[" + Login_Pwd + "]\n");
+                    }
                     if ((n_Pwd != "") && (n_Pwd == Login_Pwd.trim())  && (now < AllowDate))
                     {
                         // FUTURE: Need to translate from dbField names?
