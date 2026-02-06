@@ -3413,7 +3413,7 @@ class iesCommonLib {
                         try
                         {
                             //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
-                            Custom.Exec(cms, "SessionLogin", null);
+                            //Custom.Exec(cms, "SessionLogin", null); //Call custom code event/trigger (if defined)
                         }
                         catch (Exception)
                         {
