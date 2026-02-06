@@ -144,7 +144,7 @@ class webEngine {
                 } else {
                     */
                     await cms.SessionLogin(username,password,cms.siteId);
-                    if (cms.debugLevel>3) {
+                    if (cms.debugMode>3) {
                         // DEBUGGER WARNING! user record contains sensitive information
                         console.log("DEBUGGER: user record=[" + stringify.JSON(cms.user) + "]\n");
                     }
