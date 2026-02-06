@@ -98,6 +98,27 @@ if (serverCfg.Status != 0 && debugMode > 0) {
       appendFileSync(debugFile, "ERROR: Failed to load server.cfg. [ERR9417]\n");
 }
 
+const commonDir = 'cmsCommon';
+try {
+      // Load/Reqiure Common engine - should always exist...
+      var commonEnginePath = './' + commonDir + '/require/website_engine.js';
+      if (existsSync(commonEnginePath)) {
+            try {
+                  var newCEngine = require(commonEnginePath);
+            } catch (errWebCEngine) {
+                  console.log("!!! ERROR LOADING COMMON ENGINE: " + commonEnginePath);
+                  console.error(errWebCEngine);
+            }
+            websiteEngines[commonDir] = new newCEngine(commonDir);
+            console.log("LOAD/REQUIRE COMMON ENGINE: " + commonEnginePath);
+       } else {
+            console.log("!!! ERROR COMMON ENGINE NOT FOUND: " + commonEnginePath);
+       }
+
+} catch (err) {
+      console.error(err);
+}
+
 console.log('DIR List:' + JSON.stringify(dlist));
 dlist.forEach(dDir => {
       var dPath = websitePathTemplate.replace('{{siteID}}', dDir);
@@ -423,7 +444,7 @@ http.createServer(async (req, res) => {
             cms.debugMode = cms.getParamNum("debugMode");
 
             // PROCESS REQUEST
-            cms.hostsiteEngine = websiteEngines.hostsite;
+            cms.commonEngine = websiteEngines.cmsCommon;
             cms.thisEngine = websiteEngines[cms.siteId];
             cms.Html = "ERROR: nosite [ERR-14159]";
             
@@ -433,11 +454,11 @@ http.createServer(async (req, res) => {
                         cms.siteEngine = cms.siteId;
                         await cms.thisEngine.CreateHtml(cms);
                   } else {
-                        if (cms.hostsiteEngine && typeof cms.hostsiteEngine.CreateHtml == "function") {
-                              debugLog += "hostsiteEngine.CreateHtml(): hostsite\n";
-                              cms.siteEngine = "hostsite";
+                        if (cms.commonEngine && typeof cms.commonEngine.CreateHtml == "function") {
+                              debugLog += "commonEngine.CreateHtml(): cmsCommon\n";
+                              cms.siteEngine = "cmsCommon";
                               // We leave a reference to thisEngine in case it has Custom Tags
-                              await cms.hostsiteEngine.CreateHtml(cms);
+                              await cms.commonEngine.CreateHtml(cms);
                         }
                   }
             } catch (e) {
