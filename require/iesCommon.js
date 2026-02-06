@@ -3397,12 +3397,12 @@ class iesCommonLib {
                     }
 
                     //CheckDBerr(ErrMsg)
-                    if (this.debugMode >= 3)
+                    /*if (this.debugMode >= 3)
                     {
-                        // DEBUGGER: WARNING - PASSWORD IS BEING DISPLAYED IN THE LOG!
-                        console.log("DEBUGGER: n_Pwd=[" + n_Pwd + "] compare=[" + Login_Pwd + "]\n");
-                        console.log("DEBUGGER: userRec=" + userRec.jsonString + "\n");
-                    }
+                        // WARNING - PASSWORD IS BEING DISPLAYED IN THE LOG!
+                        console.log("DEBUG: n_Pwd=[" + n_Pwd + "] compare=[" + Login_Pwd + "]\n");
+                        console.log("DEBUG: userRec=" + userRec.jsonString + "\n");
+                    }*/
                     if ((n_Pwd != "") && (n_Pwd == Login_Pwd.trim())  && (now < AllowDate))
                     {
                         // FUTURE: Need to translate from dbField names?
