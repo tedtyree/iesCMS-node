@@ -360,10 +360,12 @@ class webEngine {
             //cms.minEditLevel = cms.SITE.i("defaultMinEditLevel").toNum(999); // default value
             //cms.minAdminLevel = cms.SITE.i("defaultMinAdminLevel").toNum(999);
             cms.setPermissionLevels();
-            
-            if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
-            if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
-            if (cms.user.userLevel >= cms.minViewLevel) {
+            let minViewLevel = cms.HEADER.getNum("minViewLevel",cms.minViewLevel || 0);
+            if (cms.overrideMinViewLevel > minViewLevel) { minViewLevel = cms.overrideMinViewLevel; }
+            let minEditLevel = cms.HEADER.getNum("minEditLevel",cms.minEditLevel || 0);
+            //if (cms.HEADER.contains("minViewLevel")) { cms.minViewLevel = cms.HEADER.i("minViewLevel").toNum(cms.minViewLevel); }
+            //if (cms.HEADER.contains("minEditLevel")) { cms.minEditLevel = cms.HEADER.i("minEditLevel").toNum(cms.minEditLevel); }
+            if (cms.user.userLevel >= minViewLevel) {
                 if (cms.HEADER.contains("ResponseType")) {
                     cms.resultType = cms.HEADER.i("ResponseType").toStr("html").trim().toLowerCase();
                 }
@@ -391,9 +393,9 @@ class webEngine {
                 cms.Html = await cms.ReplaceTags(template, pageHead, contentHtml, thisCustom, cms);
     
             } else {
-                cms.Html += `ERROR: Permission denied. (${cms.user.level}/${cms.minViewLevel}) [ERR7571]<br>`;
+                cms.Html += `ERROR: Permission denied. (${cms.user.level}/${minViewLevel}) [ERR7571]<br>`;
                 cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
-                cms.logMessage(1,`Warning: permission denied: (${cms.user.level}/${cms.minViewLevel}) [WARN5111]`);
+                cms.logMessage(1,`Warning: permission denied: (${cms.user.level}/${minViewLevel}) [WARN5111]`);
                 resolve('Warning: permission denied. [WARN5111]');
                 return;
             }

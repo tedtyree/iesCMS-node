@@ -2765,9 +2765,10 @@ class iesCommonLib {
     }
 
     setPermissionLevels() {
-        this.minViewLevel = this.SITE.i("defaultMinViewLevel").toNum(999); // default value
-        this.minEditLevel = this.SITE.i("defaultMinEditLevel").toNum(999); // default value
-        this.minAdminLevel = this.SITE.i("defaultMinAdminLevel").toNum(999); // default value
+        this.minViewLevel = this.SITE.getNum("defaultMinViewLevel",999); // default value
+        this.minEditLevel = this.SITE.getNum("defaultMinEditLevel",999); // default value
+        this.minAdminLevel = this.SITE.getNum("defaultMinAdminLevel",999); // default value
+        this.overrideMinViewLevel = this.SITE.getNum("overrideMinViewLevel",0); // default value (used for locking website)
     }
 
     PrepForJsonReturn(ret) {
