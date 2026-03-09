@@ -9,8 +9,8 @@ WEB_DIR="/var/www/iescms"
 echo "=== Starting iesCMS deployment ==="
 
 echo "1/8 - Stopping PM2 process..."
-pm2 stop iesCMS || echo "No running iesCMS process found, continuing..."
-pm2 delete iesCMS || echo "No iesCMS process to delete, continuing..."
+pm2 stop iescms || echo "No running iesCMS process found, continuing..."
+pm2 delete iescms || echo "No iesCMS process to delete, continuing..."
 
 
 echo "2/8 - Pull most recent app..."
@@ -29,7 +29,7 @@ rsync -avqr --delete ./hostsite/ "$WEB_DIR/websites/hostsite/"
 # 7) Start the app with PM2 and save config
 echo "6/8 - Starting application with PM2..."
 cd "$WEB_DIR/"
-pm2 start "app.js" --name iesCMS
+pm2 start "app.js" --name iescms
 pm2 save
 
 echo "=== Deployment completed successfully! ==="
