@@ -11,6 +11,7 @@ const FlexJson = require('./require/FlexJson/FlexJsonClass.js');
 const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
+const initSiteDatabases = require('./require/iesDB/iesDbInit.js');
 
 var httpQueryId = 0;
 
@@ -176,6 +177,13 @@ dlist.forEach(dDir => {
       } catch (err) {
             console.error(err)
       }
+});
+
+// Initialize site databases after the site list has been built.
+// Runs async in the background during startup — fires and doesn't block the HTTP server.
+initSiteDatabases(siteList, serverCfg, debugFile).catch(err => {
+      console.error('[DB-INIT] Unhandled error:', err);
+      if (debugFile) { appendFileSync(debugFile, '[DB-INIT] Unhandled error: ' + err.message + '\n'); }
 });
 
 function parseCookies(str) {

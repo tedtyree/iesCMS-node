@@ -1,0 +1,34 @@
+/* all-sites-db.jfx - FlexJSON
+** This is a master config for tables that are require in each
+** website's individual database.
+**
+** New version of app designed for postgreSQL
+**
+** Most objects are stored on disk and in the wobjects table:
+**  - web pages
+**  - templates
+**  - blog
+**  - etc.
+**
+** Images and Media are stored on disk and in the media table.
+** note: the media table is not required for all websites.
+** Image records have a self-reference to the original (parent) image.
+**
+** If a table-<name>.cfg is specified in an individual website's config,
+** then that table will override the master config table-<name>.jfx
+**
+** Each site should have a site-db.jfx with a list of the tables for
+** that sites's database.
+**
+** Most tables use the JSON field type to store the flexible 
+** fields/attributes and content of the object. The core fields
+** in each table are mostly for identification and indexing.
+**
+*/
+{ tables: [
+    "users"
+    ,"jobjects"
+    ,"jobjhist"
+    ,"log"
+    ]
+}
