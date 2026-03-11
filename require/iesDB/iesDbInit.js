@@ -30,23 +30,6 @@ function dbLog(msg, debugFile, toConsole = true) {
 }
 
 // -----------------------------------------------------------------------
-// parseConnectString — parse postgresql://user:password@host:port/dbname
-function parseConnectString(connectStr) {
-    try {
-        const u = new URL(connectStr);
-        return {
-            host:     u.hostname,
-            port:     parseInt(u.port) || 5432,
-            user:     decodeURIComponent(u.username),
-            password: decodeURIComponent(u.password),
-            database: u.pathname.replace(/^\//, '')
-        };
-    } catch {
-        return null;
-    }
-}
-
-// -----------------------------------------------------------------------
 // dbExists — check if a PostgreSQL database exists (query pg_database)
 async function dbExists(client, dbName) {
     const res = await client.query(
@@ -187,16 +170,21 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
 // -----------------------------------------------------------------------
 // initSiteDatabases — entry point, iterates siteList sequentially
 async function initSiteDatabases(siteList, serverCfg, debugFile) {
-    const connectStr = serverCfg.getStr('db1_connect', '');
-    if (!connectStr) {
-        console.log('[DB-INIT] No db1_connect in server config — skipping DB initialization.');
+    // Read DbConnect fields directly from the FlexJSON server config object
+    const dbConnectJson = serverCfg.i('DbConnect');
+    if (!dbConnectJson) {
+        console.log('[DB-INIT] No DbConnect in server config — skipping DB initialization.');
         return;
     }
-
-    const connInfo = parseConnectString(connectStr);
-    if (!connInfo) {
-        console.log('[DB-INIT] ERROR: Could not parse db1_connect connection string.');
-        if (debugFile) { appendFileSync(debugFile, '[DB-INIT] ERROR: Could not parse db1_connect.\n'); }
+    const connInfo = {
+        host:     dbConnectJson.i('host').toStr(),
+        port:     dbConnectJson.getNum('port', 5432),
+        user:     dbConnectJson.i('user').toStr(),
+        password: dbConnectJson.i('password').toStr(),
+    };
+    if (!connInfo.host || !connInfo.user) {
+        console.log('[DB-INIT] ERROR: DbConnect is missing host or user — skipping DB initialization.');
+        if (debugFile) { appendFileSync(debugFile, '[DB-INIT] ERROR: DbConnect missing host or user.\n'); }
         return;
     }
 

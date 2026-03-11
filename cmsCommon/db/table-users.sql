@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   loginID varchar(100) DEFAULT NULL, -- was uID previously
   userName varchar(255) DEFAULT NULL,
   userEmail varchar(255) DEFAULT NULL,
-  pwd varchar(255) DEFAULT NULL,
+  pwd varchar(2000) DEFAULT NULL,
   status varchar(20) DEFAULT NULL,
   userLevel int NOT NULL DEFAULT 0,  -- was [level]
   -- allowEmails varchar(20) DEFAULT 'yes',

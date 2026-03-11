@@ -3386,31 +3386,46 @@ class iesCommonLib {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
 
-                pwdData.forEach(userRec => {
-                    n_Pwd = "";
-                    // *** TEMP FUTURE - PASSWORD IS NOT CURRENTLY ENCODED
-                    n_Pwd = userRec.getStr("PWD","");
-                    expiration = userRec.getStr("Expiration",""); // FUTURE: this field is missing from the db?!?!
+                // for...of required (instead of forEach) to allow await inside the loop
+                for (const userRec of pwdData) {
+                    n_Pwd = userRec.getStr("pwd", ""); // pg returns lowercase column names
+                    expiration = userRec.getStr("Expiration", ""); // FUTURE: this field is missing from the db?!?!
                     const now = new Date();
-                    if (!expiration || !expiration.isDate())
-                    {
-                        AllowDate = now.addDays(7);
+                    if (!expiration || !expiration.isDate()) { AllowDate = now.addDays(7); }
+
+                    if (n_Pwd === "") { cnt++; continue; }
+
+                    let pwdMatch = false;
+                    if (this._isHashed(n_Pwd)) {
+                        // Standard path: verify against stored scrypt hash
+                        pwdMatch = this._verifyPassword(Login_Pwd.trim(), n_Pwd);
+                    } else {
+                        // Legacy plain-text path
+                        pwdMatch = (n_Pwd === Login_Pwd.trim());
+                        if (pwdMatch) {
+                            // Auto-upgrade: replace plain text with hash+salt on first successful login
+                            try {
+                                const newHash = this._hashPassword(Login_Pwd.trim());
+                                const userId = userRec.getNum("userid", 0); // pg returns lowercase
+                                if (userId > 0) {
+                                    const escapedHash = this.db.dbStr(newHash, -1, false);
+                                    await this.db.ExecuteSQL(
+                                        `UPDATE users SET pwd='${escapedHash}' WHERE "userID"=${userId}`
+                                    );
+                                    console.log('[AUTH] Upgraded plain-text password to hash for userID=' + userId);
+                                }
+                            } catch (upgradeErr) {
+                                // Non-fatal: login still succeeds, upgrade retried on next login
+                                console.log('[AUTH] WARNING: Failed to upgrade password hash: ' + upgradeErr.message);
+                            }
+                        }
                     }
 
-                    //CheckDBerr(ErrMsg)
-                    /*if (this.debugMode >= 3)
+                    if (pwdMatch && now < AllowDate)
                     {
-                        // WARNING - PASSWORD IS BEING DISPLAYED IN THE LOG!
-                        console.log("DEBUG: n_Pwd=[" + n_Pwd + "] compare=[" + Login_Pwd + "]\n");
-                        console.log("DEBUG: userRec=" + userRec.jsonString + "\n");
-                    }*/
-                    if ((n_Pwd != "") && (n_Pwd == Login_Pwd.trim())  && (now < AllowDate))
-                    {
-                        // FUTURE: Need to translate from dbField names?
-
                         // Store user in jwt token and in cms
-                        this.userSignedIn(userRec,this.siteId); // Override siteId in case of backdoor login
-                        
+                        this.userSignedIn(userRec, this.siteId); // Override siteId in case of backdoor login
+
                         try
                         {
                             //StoreSession(); // Stores User info in Sessions folder (based on this.user object)
@@ -3423,15 +3438,12 @@ class iesCommonLib {
                         }
 
                         ret = true;
-                        return; // no need to check additional records (break out of forEach)
+                        break; // stop checking additional records
+                    }
 
-                    }  // *** n_Pwd!="" && n_Pwd==Login_Pwd
-                       //CheckDBerr(ErrMsg)
-
-                    cnt = cnt + 1;
-                    if (cnt > 999) { return; } // *** Safety (break out of forEach)
-                                              //if (ErrMsg!="") { break; } // *** Saftey - FUTURE
-                }); // end for each
+                    cnt++;
+                    if (cnt > 999) { break; } // Safety
+                } // end for...of
             } // if !pwdRS==null
             else
             {
@@ -3486,6 +3498,32 @@ class iesCommonLib {
             console.log("DEBUGGER: MakeTruffle-IN: " + hashText);
             console.log("DEBUGGER: MakeTruffle-OUT: " + hBytes);
             return hBytes;
+        }
+
+        // -----------------------------------------------------------------------
+        // Password hashing helpers — scrypt via Node.js built-in crypto
+        // Storage format: $1$<base64-salt>$<base64-hash>
+        // The $1$ prefix distinguishes hashed values from legacy plain-text passwords.
+
+        _hashPassword(plain) {
+            const salt = crypto.randomBytes(16);
+            const hash = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 });
+            return '$1$' + salt.toString('base64') + '$' + hash.toString('base64');
+        }
+
+        _verifyPassword(plain, stored) {
+            try {
+                const parts = stored.split('$'); // ['', '1', salt64, hash64]
+                if (parts.length !== 4 || parts[1] !== '1') { return false; }
+                const salt     = Buffer.from(parts[2], 'base64');
+                const expected = Buffer.from(parts[3], 'base64');
+                const actual   = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 });
+                return crypto.timingSafeEqual(actual, expected); // prevents timing attacks
+            } catch { return false; }
+        }
+
+        _isHashed(stored) {
+            return typeof stored === 'string' && stored.startsWith('$1$');
         }
 
         timestamp() {
