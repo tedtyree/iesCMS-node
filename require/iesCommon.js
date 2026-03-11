@@ -3386,8 +3386,12 @@ class iesCommonLib {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
 
-                // for...of required (instead of forEach) to allow await inside the loop
-                for (const userRec of pwdData) {
+                // Standard for loop mirrors FlexJSON's forEach internally (.i(idx))
+                // but supports await — FlexJSON's forEach() is synchronous only.
+                // FUTURE: revisit when FlexJSON forEach is made async-compatible or
+                //         when the FlexJSON object is made natively iterable (for...of).
+                for (let _i = 0; _i < pwdData.length; _i++) {
+                const userRec = pwdData.i(_i);
                     n_Pwd = userRec.getStr("pwd", ""); // pg returns lowercase column names
                     expiration = userRec.getStr("Expiration", ""); // FUTURE: this field is missing from the db?!?!
                     const now = new Date();
@@ -3443,7 +3447,7 @@ class iesCommonLib {
 
                     cnt++;
                     if (cnt > 999) { break; } // Safety
-                } // end for...of
+                } // end for
             } // if !pwdRS==null
             else
             {
