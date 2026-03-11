@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
   userID bigserial NOT NULL PRIMARY KEY,
   userType varchar(50) DEFAULT NULL,
-  loginID varchar(100) DEFAULT NULL, -- was uID previously
+  loginid varchar(100) DEFAULT NULL, -- was uID previously
   userName varchar(255) DEFAULT NULL,
   userEmail varchar(255) DEFAULT NULL,
   pwd varchar(2000) DEFAULT NULL,
@@ -26,4 +26,4 @@ CREATE TABLE IF NOT EXISTS users (
   extra JSONB
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS users_loginid ON users (loginID);
+CREATE UNIQUE INDEX IF NOT EXISTS users_loginid ON users (loginid);

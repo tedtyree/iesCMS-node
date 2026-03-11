@@ -114,7 +114,7 @@ class iesCommonLib {
                 break;
             case "who_am_i":
                 if (cms.user.userLevel > 0) {
-                    content.append(cms.user.username + " [key=" + cms.user.userKey + ",login=" + cms.user.userLogin + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
+                    content.append(cms.user.username + " [key=" + cms.user.userKey + ",login=" + cms.user.loginid + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
                 } else {
                     content.append("User not logged in.");
                 }
@@ -3286,7 +3286,7 @@ class iesCommonLib {
             {
                 
                 // Create a fake user record...
-                let newUser = {userKey:0,userLevel:9,userLogin:Login_ID,userName:Login_ID,siteId: this.siteId };
+                let newUser = {userKey:0,userLevel:9,loginid:Login_ID,userName:Login_ID,siteId: this.siteId };
                 this.userSignedIn(newUser);
                 return;
             }
@@ -3297,8 +3297,8 @@ class iesCommonLib {
             // *** FIRST ATTEMPT TO LOGIN USING uID (For large lists, make sure there is a key on Members(uID))
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
             let sql = "SELECT * FROM users " +
-                " WHERE (userLogin=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
-                " AND (siteId='" + wToken + "') AND userLogin IS NOT NULL";
+                " WHERE (loginid=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND (siteId='" + wToken + "') AND loginid IS NOT NULL";
 
             if (await this.SessionLogin2(sql, Login_Pwd) == true)
             {
@@ -3307,7 +3307,7 @@ class iesCommonLib {
                 return;
             }
 
-/* MODIFIED TO LOOK FOR UserLogin and EMAIL in one query above
+/* MODIFIED TO LOOK FOR loginid and EMAIL in one query above
             // *** SECOND ATTEMPT TO LOGIN USING UserEmail (No index - make take a little time for large tables)
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
             sql = "SELECT * FROM members " +
@@ -3325,13 +3325,13 @@ class iesCommonLib {
             // check for BackDoor login (bdadmin)
             //sql="SELECT UserNo, uID, ObjID, uName, PWD, WorldID, Expiration, " + sLevel + " FROM members " +
             sql = "SELECT * FROM users " +
-                " WHERE userType='bdadmin' AND (userLogin=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
-                " AND siteId='bdadmin' AND userLogin IS NOT NULL";
+                " WHERE userType='bdadmin' AND (loginid=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
+                " AND siteId='bdadmin' AND loginid IS NOT NULL";
 
             await this.SessionLogin2(sql, Login_Pwd);  // *** Don't need to check for success... Session variables are set
             if (this.debugMode >= 3)
             {
-                if (this.user.userLogin != "" && this.user.userLevel > 0)
+                if (this.user.loginid != "" && this.user.userLevel > 0)
                 {
                     //this.WriteLog("login", "Successful bd login.\n"); // FUTURE: log event
                     console.log("Successful bd login.");

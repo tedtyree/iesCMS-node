@@ -7,7 +7,7 @@ class iesUser {
             let nu = newUser || {};
             this.userKey = nu.userKey || -1; // Database numeric key
             this.userName = nu.userName || '';
-            this.userLogin = nu.userLogin || ''; // login text ID
+            this.loginid = nu.loginid || ''; // login text ID
             this.userEmail = nu.userEmail || '';
             this.userLevel = nu.userLevel || 0;
             this.siteId = nu.siteId || '';
@@ -16,7 +16,7 @@ class iesUser {
         } else {
             this.userKey = newUser.getNum("userKey",-1); // Database numeric key
             this.userName = newUser.getStr("userName", '');
-            this.userLogin = newUser.getStr("userLogin", ''); // login text ID
+            this.loginid = newUser.getStr("loginid", ''); // login text ID
             this.userEmail = newUser.getStr("userEmail", '');
             this.userLevel = newUser.getNum("userLevel", 0);
             this.siteId = newUser.getStr("siteId", '');

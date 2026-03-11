@@ -130,7 +130,7 @@ class webEngine {
 
                     //this.errorMessage = 'login successful';
 
-                    let user = { userName: 'Joe', userLogin: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
+                    let user = { userName: 'Joe', loginid: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     cms.userSignedIn(user);
