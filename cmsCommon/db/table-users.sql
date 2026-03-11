@@ -1,5 +1,5 @@
-CREATE TABLE users (
-  userID bigint NOT NULL IDENTITY(1,1) PRIMARY KEY,  -- was UserNo previously
+CREATE TABLE IF NOT EXISTS users (
+  userID bigserial NOT NULL PRIMARY KEY,
   userType varchar(50) DEFAULT NULL,
   loginID varchar(100) DEFAULT NULL, -- was uID previously
   userName varchar(255) DEFAULT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE users (
   -- adcampaign varchar(10) DEFAULT NULL, -- Indicates that this customer is currently running an ad campaign or will be in the near future
   -- objID bigint DEFAULT NULL,
   siteID varchar(100) DEFAULT NULL,  -- was WorldID
-  extra       JSONB        -- flexible overflow (PostgreSQL syntax)
+  extra JSONB
 );
 
-CREATE UNIQUE INDEX users_loginID ON users (loginID);
+CREATE UNIQUE INDEX IF NOT EXISTS users_loginid ON users (loginID);
