@@ -3406,7 +3406,7 @@ class iesCommonLib {
                     } else {
                         // Legacy plain-text path
                         pwdMatch = (n_Pwd === Login_Pwd.trim());
-                        console.log("Legacy plain-text match: [" + n_Pwd + "] === [" + Login_Pwd.trim() + "] = " + pwdMatch);
+                        console.log("DEBUG: Legacy plain-text match: [" + n_Pwd + "] === [" + Login_Pwd.trim() + "] = " + pwdMatch);
                         if (pwdMatch) {
                             // Auto-upgrade: replace plain text with hash+salt on first successful login
                             try {
