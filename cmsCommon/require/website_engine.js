@@ -134,7 +134,7 @@ class webEngine {
 
                     //this.errorMessage = 'login successful';
 
-                    let user = { userName: 'Joe', loginid: 'joe', userKey: 1, userLevel: 9, siteId: cms.siteId };
+                    let user = { userName: 'Joe', loginid: 'joe', userid: 1, userLevel: 9, siteId: cms.siteId };
                     //var token = jwt.encode({user}, secretKey); 
 
                     cms.userSignedIn(user);
@@ -152,7 +152,7 @@ class webEngine {
                         cms.logMessage(3,"DEBUG: user record=" + JSON.stringify(cms.user) + "\n");
                         cms.logMessage(3,"DEBUG: cms.debugMode=" + cms.debugMode);
                     } */
-                    if (cms.user.userKey < 0) {
+                    if (cms.user.userid < 0) {
                         this.errorMessage = 'login not successful';
                         cms.logMessage(3,"LOGIN ERROR for user [" + username + "]");
                         // Invalidate Token

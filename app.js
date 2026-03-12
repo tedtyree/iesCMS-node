@@ -393,6 +393,7 @@ http.createServer(async (req, res) => {
                         // Later we verify user.siteid
                   }
             } catch (jwtErr) {
+                  console.log("cms.cookies.token=[" + cms.cookies.token + "]");
                   console.log("JWT ERROR: " + jwtErr.message);
             }
 

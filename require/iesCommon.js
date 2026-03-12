@@ -114,7 +114,7 @@ class iesCommonLib {
                 break;
             case "who_am_i":
                 if (cms.user.userLevel > 0) {
-                    content.append(cms.user.username + " [key=" + cms.user.userKey + ",login=" + cms.user.loginid + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
+                    content.append(cms.user.username + " [id=" + cms.user.userid + ",login=" + cms.user.loginid + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
                 } else {
                     content.append("User not logged in.");
                 }
@@ -3226,8 +3226,8 @@ class iesCommonLib {
     // Set the cms.user (does not affect the jwt token)
     setUser(newUser) {
         this.user = newUser;
-        //// UserKey = 0 is a valid Backdoor Admin
-        //if ((this.user.userKey + '') == '0') { this.userKey = 0; }
+        //// userid = 0 is a valid Backdoor Admin
+        //if ((this.user.userid + '') == '0') { this.userid = 0; }
     }
 
     // userSignedIn()
@@ -3289,7 +3289,7 @@ class iesCommonLib {
             {
                 
                 // Create a fake user record...
-                let newUser = {userKey:0,userLevel:9,loginid:Login_ID,userName:Login_ID,siteId: this.siteId };
+                let newUser = {userid:0,userLevel:9,loginid:Login_ID,userName:Login_ID,siteId: this.siteId };
                 this.userSignedIn(newUser);
                 return;
             }
