@@ -3428,6 +3428,7 @@ class iesCommonLib {
 
                     if (pwdMatch && now < AllowDate)
                     {
+                        console.log("DEBUG: pwdMatch=" + pwdMatch);
                         // Store user in jwt token and in cms
                         this.userSignedIn(userRec, this.siteId); // Override siteId in case of backdoor login
 
