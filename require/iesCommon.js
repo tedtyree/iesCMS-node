@@ -3415,7 +3415,7 @@ class iesCommonLib {
                                 if (userId > 0) {
                                     const escapedHash = this.db.dbStr(newHash, -1, false);
                                     await this.db.ExecuteSQL(
-                                        `UPDATE users SET pwd='${escapedHash}' WHERE "userID"=${userId}`
+                                        `UPDATE users SET pwd='${escapedHash}' WHERE userID=${userId}`
                                     );
                                     console.log('[AUTH] Upgraded plain-text password to hash for userID=' + userId);
                                 }
