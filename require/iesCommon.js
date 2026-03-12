@@ -3385,7 +3385,7 @@ class iesCommonLib {
                 {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
-
+                console.log("DEBUG: mode=" + this.debugMode + ", row count=" + pwdRS.length + ", sql=" + sql + "\n");
                 // Standard for loop mirrors FlexJSON's forEach internally (.i(idx))
                 // but supports await — FlexJSON's forEach() is synchronous only.
                 // FUTURE: revisit when FlexJSON forEach is made async-compatible or
