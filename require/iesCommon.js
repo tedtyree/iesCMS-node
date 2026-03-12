@@ -3234,11 +3234,14 @@ class iesCommonLib {
     // Update the cms.user and also set cookie token with new jwt
     userSignedIn(newUser,siteIdOverride = null) {
         let userObj = new iesUser(newUser); // copies user attributes to a valid user object
+        console.log("DEBUG: user=" + JSON.stringify(userObj));
         if (siteIdOverride) { userObj.siteId = siteIdOverride; }
+        console.log("DEBUG: siteIdOverride=" + siteIdOverride + ", userObj.siteid=" + userObj.siteId);
         const token = jwt.sign({ user:userObj }, this.JWT_SECRET, {
             expiresIn: this.JWT_EXPIRES_IN,
         });
         this.newToken = token;
+        console.log("DEBUG: newToken=[" + this.newToken + "]")
         this.setUser(userObj);
     }
 
