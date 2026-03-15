@@ -66,7 +66,7 @@ function timestamp() {
 const env = env_development;
 // const env = env_production;
 
-// Get list of websites
+// Get list of websites [#REQ-FOLDER-01-01] 
 var path = './websites'
 var dlist = readdirSync(path).filter(function (file) {
       return statSync(path + '/' + file).isDirectory();
@@ -74,7 +74,7 @@ var dlist = readdirSync(path).filter(function (file) {
 var iesDomains = {};
 var siteList = [];
 
-// Load SERVER parameters
+// Load SERVER parameters [#REQ-CONFIG-01-01]
 let serverCfg = new FlexJson();
 serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
 if (serverCfg.Status == 0) {
@@ -84,7 +84,6 @@ if (serverCfg.Status == 0) {
 } else {
       throw new Error('Error :failed to parse server config1 ' + serverCfg.statusMsg);
 }
-
 
 
 // This runs during startup. The debugMode is coming from server.cfg above

@@ -12,6 +12,8 @@
 //
 // Errors are logged to both console and the startup debugFile (if provided).
 // Successful creates are also logged so startup activity is visible in PM2 logs.
+//
+// FUTURE: Will need to move this into an Admin function rather than run every time the iesCMS starts up!
 
 const { existsSync, readFileSync, appendFileSync } = require('fs');
 const pg = require('pg');

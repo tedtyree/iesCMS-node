@@ -19,6 +19,8 @@ UNDER DEVELOPMENT
    - found in the templates/ folder - format layout_<template_name>.cfg 
    - also contains [[tags]] that get replaced at runtime.
 
+NOTE: Uses Flex Json: https://www.npmjs.com/package/flex-json
+
 # RUN  (currently on serverPort 8118)
 node app.js
 or
