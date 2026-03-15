@@ -21,6 +21,7 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
  - API endpoints are not typical NodeJS routes. Instead there is a single command endpoint that handles all API requests. [#REQ-FOLDER-01-06] - currently "cmd" but could be changed in the future to "api" or other standard.
  - Optional CustomForms() can be added per website in the custom engine to process forms that are unique to the website [#REQ-FOLDER-01-07]
  - Not yet implemented? handleEvents() can be added per website in the custom engine to extend functionality for events per website [#REQ-FOLDER-01-08]
+ - The admin-extras.cfg in pages folder is an extension of the admin page and can be used to add custom menu options/functionality to the admin page [#REQ-FOLDER-01-09]
 
 ## Database per Website [#REQ-DB-01]
  - Websites can load and run without a database (users will not be able to self-manage their accounts/content) [#REQ-DB-01-01]
