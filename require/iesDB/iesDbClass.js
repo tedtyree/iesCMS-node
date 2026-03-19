@@ -51,12 +51,13 @@ const pg = require('pg');
 class iesDB {
 
     DBClass = "pg";
-    DefaultDB = "wpl";
+    DefaultDB = ""; // There can no longer be a default DB
     status = 0;
     statusMessage = "";
     ConnectStatus = 0;
     iesConnection = null;
     ConnectObj = null; // CONNECT CREDENTIALS: { host, [db], user, password }
+    dbName = "";
     CmdStatus = 0;
     CmdStatusMessage = "";
     // Store table definition for 1 table to make repetitive data writes to the same table faster.
@@ -65,12 +66,14 @@ class iesDB {
     historyTable = "whistory"; // future: populate this parameter from SITE config or SERVER config
     debugMode = 0; // set to 9 to get all error messages & detail (FUTURE: need to develop this further)
 
-	constructor(connectObj,dbClass) {
+	constructor(siteId,connectObj,dbClass) {
 		if (dbClass) { this.DBClass = dbClass; }
         if (connectObj) {
             this.ConnectObj = connectObj;
             if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; } // default DB name
         }
+        // --- Derive DB name from SiteID (hyphens → underscores) ---
+        this.dbName = siteId.replace(/-/g, '_');
 	}
 
     //============================================================================== BEGIN HERE
@@ -95,7 +98,7 @@ class iesDB {
                     host: this.ConnectObj.host,
                     user: this.ConnectObj.user,
                     password: this.ConnectObj.password,
-                    database: this.ConnectObj.db,
+                    database: this.dbName, // not from ConnectObj
                     port: 5432
                 });
                 await this.iesConnection.connect();
