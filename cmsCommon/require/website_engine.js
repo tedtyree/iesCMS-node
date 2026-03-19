@@ -99,12 +99,11 @@ class webEngine {
         const dbName = cms.SITE.getStr('databasename', '');
         const dbConnectJson = cms.SERVER.i('DbConnect');
         if (dbName && dbConnectJson) {
-            cms.db = new iesDbClass({
+            cms.db = new iesDbClass(dbName,{
                 host:     dbConnectJson.i('host').toStr(),
                 port:     dbConnectJson.getNum('port', 5432),
                 user:     dbConnectJson.i('user').toStr(),
-                password: dbConnectJson.i('password').toStr(),
-                db:       dbName
+                password: dbConnectJson.i('password').toStr()
             });
         }
 

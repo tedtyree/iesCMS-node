@@ -72,7 +72,8 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
     if (!siteDbCfg.getBool('db_enabled', false)) { return; } // disabled — skip silently
 
     // --- Derive DB name from SiteID (hyphens → underscores) ---
-    const dbName = siteId.replace(/-/g, '_');
+    // FUTURE: Use iesDbClass to connect to the database
+    const dbName = siteDbCfg.getStr('databasename').replace(/-/g, '_');
     dbLog(`${prefix} db_enabled=true, database=${dbName}`, debugFile);
 
     // --- Build merged table list (common first, then site-specific) ---

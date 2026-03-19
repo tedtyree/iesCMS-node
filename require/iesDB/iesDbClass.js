@@ -66,14 +66,14 @@ class iesDB {
     historyTable = "whistory"; // future: populate this parameter from SITE config or SERVER config
     debugMode = 0; // set to 9 to get all error messages & detail (FUTURE: need to develop this further)
 
-	constructor(siteId,connectObj,dbClass) {
+	constructor(dbName,connectObj,dbClass) {
 		if (dbClass) { this.DBClass = dbClass; }
         if (connectObj) {
             this.ConnectObj = connectObj;
             if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; } // default DB name
         }
-        // --- Derive DB name from SiteID (hyphens → underscores) ---
-        this.dbName = siteId.replace(/-/g, '_');
+        // --- Derive DB name (hyphens → underscores) ---
+        this.dbName = dbName.replace(/-/g, '_');
 	}
 
     //============================================================================== BEGIN HERE
