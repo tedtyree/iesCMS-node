@@ -12,6 +12,7 @@ const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 const initSiteDatabases = require('./require/iesDB/iesDbInit.js');
+const { buildCmdRegistry } = require('./require/cmdRegistry.js');
 
 var httpQueryId = 0;
 
@@ -177,6 +178,9 @@ dlist.forEach(dDir => {
             console.error(err)
       }
 });
+
+// Build cmd API handler registry for all sites [#REQ-API-06]
+const cmdRegistry = buildCmdRegistry(siteList);
 
 // Initialize site databases after the site list has been built.
 // Runs async in the background during startup — fires and doesn't block the HTTP server.
@@ -447,6 +451,7 @@ http.createServer(async (req, res) => {
                   cfg = new FlexJson("{}");
             }
             cms.SITE = cfg;
+            cms.cmdRegistry = cmdRegistry[cms.siteId] || {}; // attach per-site cmd registry [#REQ-API-06-06]
 
             // Get a few key parameters from SITE
             cms.debugMode = cms.getParamNum("debugMode");

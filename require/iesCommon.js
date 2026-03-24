@@ -918,10 +918,12 @@ class iesCommonLib {
                         break;
                     */
                     case "runcmd":
-                        // runcmd IS PRIVATE - User must be level 3 or higher
-                        let cmd = cms.FormOrUrlParam("cmd");
-                        //cms.Response.Write("DEBUG:cmd=" + cmd + "<br>");
-                        await this.RunCmd(cmd, content, ret);
+                        // Dispatches to registered cmd handlers (auth:1+) or legacy RunCmd() fallback [#REQ-API-01]
+                        await this.CmdDispatch(false, ret);
+                        break;
+                    case "pubcmd":
+                        // Dispatches to registered public cmd handlers (auth:0 only) [#REQ-API-02]
+                        await this.CmdDispatch(true, ret);
                         break;
                     /*
                     case "qcmd":
@@ -1430,6 +1432,73 @@ class iesCommonLib {
                 this.PrepForJsonReturn(ret);
                 await this.GenerateJsonRecord(ret);
                 break;
+        }
+    }
+
+
+    // **************** CmdDispatch() — dispatch cmd API requests [#REQ-API]
+    // isPublic=true → pubcmd endpoint (only auth:0 handlers)
+    // isPublic=false → runcmd endpoint (auth:1+ handlers; legacy RunCmd() fallback for unknown cmds)
+    async CmdDispatch(isPublic, ret) {
+        const cmd = ((this.body && this.body.cmd) || (this.url && this.url.query && this.url.query.cmd) || '').trim().toLowerCase();
+
+        this.resultType = 'json';
+        this.ReturnJson = {};
+
+        const setError = (error, code) => {
+            this.ReturnJson = { success: false, error, code };
+            ret.ReturnJson = this.ReturnJson;
+        };
+
+        if (!cmd) {
+            setError('Missing cmd parameter', 'ERR-CMD-001');
+            return;
+        }
+
+        const registry = this.cmdRegistry || {};
+        const entry = registry[cmd];
+
+        if (!entry) {
+            if (!isPublic) {
+                // Unknown cmd — fall back to legacy RunCmd() switch/case [#REQ-API-12-01]
+                // Legacy cases always require level 3 (original page-level guarantee)
+                if (((this.user && this.user.userLevel) || 0) < 3) {
+                    setError('Unauthorized', 'ERR-AUTH-001');
+                    return;
+                }
+                await this.RunCmd(cmd, null, ret);
+            } else {
+                setError('Unknown command', 'ERR-CMD-002');
+            }
+            return;
+        }
+
+        // Auth enforcement — happens before handler is ever called [#REQ-API-08-01]
+        const requiredAuth = entry.auth;
+
+        if (isPublic && requiredAuth > 0) {
+            // pubcmd cannot call authenticated handlers [#REQ-API-08-03]
+            setError('This command requires authentication; use /runcmd', 'ERR-AUTH-002');
+            return;
+        }
+        if (!isPublic && requiredAuth === 0) {
+            // runcmd cannot call public-only handlers [#REQ-API-08-02]
+            setError('Use /pubcmd for public commands', 'ERR-AUTH-003');
+            return;
+        }
+        const userLevel = (this.user && this.user.userLevel) || 0;
+        if (requiredAuth > 0 && userLevel < requiredAuth) {
+            setError('Insufficient permissions', 'ERR-AUTH-004');
+            return;
+        }
+
+        // Call handler — dispatch-layer safety net catches any unhandled throw [#REQ-API-10-04]
+        try {
+            await entry.handler(this);
+            ret.ReturnJson = this.ReturnJson; // propagate to tag system
+        } catch (e) {
+            this.resultType = 'json';
+            setError(e.message || 'Handler error', 'ERR-HANDLER-001');
         }
     }
 
