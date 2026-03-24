@@ -399,9 +399,15 @@ class webEngine {
     
             } else {
                 if (cms.pageId.toLowerCase() != 'login') {
-                    cms.Html += `ERROR: Permission denied. (${cms.user.level}/${minViewLevel}) [ERR7571]<br>`;
-                    cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
-                    cms.logMessage(1,`Warning: permission denied: (${cms.user.level}/${minViewLevel}) [WARN5111]`);
+                    cms.logMessage(1,`Warning: permission denied: (${cms.user.userLevel}/${minViewLevel}) [WARN5111]`);
+                    if (cms.HEADER.getBool('noRedirect', false)) {
+                        // API endpoint — return JSON error instead of redirecting [noRedirect:true in page header]
+                        cms.resultType = 'json';
+                        cms.ReturnJson = { success: false, error: 'Unauthorized', code: 'ERR-AUTH-401' };
+                    } else {
+                        cms.Html += `ERROR: Permission denied. (${cms.user.userLevel}/${minViewLevel}) [ERR7571]<br>`;
+                        cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
+                    }
                     resolve('Warning: permission denied. [WARN5111]');
                 }
                 return;

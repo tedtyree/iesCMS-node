@@ -11,7 +11,8 @@ module.exports = {
             success: true,
             pong: true,
             site: cms.siteId,
-            source: 'cmsCommon'
+            source: 'cmsCommon',
+            timestamp: new Date().toISOString()
         };
     }
 };
