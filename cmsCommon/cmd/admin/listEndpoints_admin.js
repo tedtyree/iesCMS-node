@@ -1,4 +1,5 @@
-// cmsCommon/cmd/admin/listEndpoints.js
+// cmsCommon/cmd/admin/listEndpoints_admin.js
+// API Endpoint: /runcmd
 // Returns all registered cmd handlers for this site — useful for debugging and discovery.
 // Test: POST /runcmd  { "cmd": "admin/listEndpoints" }               → id + auth only
 // Test: POST /runcmd  { "cmd": "admin/listEndpoints", "showParams": "true" }  → includes params

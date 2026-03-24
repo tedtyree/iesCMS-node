@@ -1,4 +1,5 @@
-// cmsCommon/cmd/admin/serverInfo.js
+// cmsCommon/cmd/admin/serverInfo_admin.js
+// API Endpoint: /runcmd
 // Returns non-sensitive runtime info — useful for verifying the running server state.
 // Test: POST /runcmd  { "cmd": "admin/serverInfo" }  (requires auth level 3)
 module.exports = {

@@ -1,4 +1,5 @@
-// cmsCommon/cmd/utility/ping.js
+// cmsCommon/cmd/utility/ping_pub.js
+// API Endpoint: /pubcmd
 // Public liveness check — available to all sites, overridable per-site.
 // Test: POST /pubcmd  { "cmd": "utility/ping" }
 module.exports = {
