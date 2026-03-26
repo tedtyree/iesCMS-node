@@ -583,6 +583,7 @@ http.createServer(async (req, res) => {
             if (cms.ReturnJson) {
                   if (typeof cms.ReturnJson === 'object') {
                         if (cms.ReturnJson.constructor.name === 'FlexJson') {
+                              cms.ReturnJson.UseFlexJson = false; // Remove comments and force strict JSON output
                               res.end(cms.ReturnJson.jsonString);
                         } else {
                               res.end(JSON.stringify(cms.ReturnJson));

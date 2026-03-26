@@ -43,6 +43,9 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //     (this approach allows various sections of the code to act independant of each other
 //     but also may cause multiple "connect to database" actions in a single call)
 
+// FUTURE FUTURE FUTURE: DO NOT USE FlexJson in DB methods - return plain JS objects instead
+// PostGres returns JSONB as JS objects, so it already has the flexibilty we were trying to create
+
 const FlexJson = require('../FlexJson/FlexJsonClass.js');
 const iesDataReader = require('./iesDataReaderClass.js');
 const fs = require('fs');
