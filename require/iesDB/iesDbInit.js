@@ -179,12 +179,8 @@ async function initSiteDatabases(siteList, serverCfg, debugFile) {
         console.log('[DB-INIT] No DbConnect in server config — skipping DB initialization.');
         return;
     }
-    const connInfo = {
-        host:     dbConnectJson.i('host').toStr(),
-        port:     dbConnectJson.getNum('port', 5432),
-        user:     dbConnectJson.i('user').toStr(),
-        password: dbConnectJson.i('password').toStr(),
-    };
+    const connInfo = dbConnectJson.toNative();
+    connInfo.port ??= 5432;
     if (!connInfo.host || !connInfo.user) {
         console.log('[DB-INIT] ERROR: DbConnect is missing host or user — skipping DB initialization.');
         if (debugFile) { appendFileSync(debugFile, '[DB-INIT] ERROR: DbConnect missing host or user.\n'); }

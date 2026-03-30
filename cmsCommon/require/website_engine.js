@@ -99,12 +99,9 @@ class webEngine {
         const dbName = cms.SITE.getStr('databasename', '');
         const dbConnectJson = cms.SERVER.i('DbConnect');
         if (dbName && dbConnectJson) {
-            cms.db = new iesDbClass(dbName,{
-                host:     dbConnectJson.i('host').toStr(),
-                port:     dbConnectJson.getNum('port', 5432),
-                user:     dbConnectJson.i('user').toStr(),
-                password: dbConnectJson.i('password').toStr()
-            });
+            const connInfo = dbConnectJson.toNative();
+            connInfo.port ??= 5432;
+            cms.db = new iesDbClass(dbName, connInfo);
         }
 
         //check for user logout

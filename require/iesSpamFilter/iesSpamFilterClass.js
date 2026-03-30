@@ -227,8 +227,7 @@ class iesSpamFilter {
                 else
                 {
                     // PROCESS CONFIG FILE
-                    var spamArray = spamLib.toJsonArray(); // Convert FlexJson object to a javascript array
-                    for (const rx of spamArray)
+                    for (const rx of spamLib)
                     {
                         var rxID = rx.getStr("id","");
                         var rxMatch = rx.getStr("regex","");

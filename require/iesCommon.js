@@ -1414,7 +1414,7 @@ class iesCommonLib {
                     newHeader.add(this.editlistj.getStr("PrimaryKey"),"PrimaryKey");
                     newHeader.add(this.editlistj.getStr("PrimaryKeyNumeric"),"PrimaryKeyNumeric");
                     newHeader.add(this.editlistj.i("SearchList"),"SearchList");
-                    ret.ReturnJson = newHeader.jsonString;
+                    ret.ReturnJson = newHeader.Stringify();
                     break;
             case "editlist-data":
                 // Create HTML list of records
@@ -3458,12 +3458,7 @@ class iesCommonLib {
                     console.log("Login SQL found row count=" + pwdRS.length + "\n");
                 }
                 console.log("DEBUG: mode=" + this.debugMode + ", row count=" + pwdRS.length + ", sql=" + sql + "\n");
-                // Standard for loop mirrors FlexJSON's forEach internally (.i(idx))
-                // but supports await — FlexJSON's forEach() is synchronous only.
-                // FUTURE: revisit when FlexJSON forEach is made async-compatible or
-                //         when the FlexJSON object is made natively iterable (for...of).
-                for (let _i = 0; _i < pwdData.length; _i++) {
-                const userRec = pwdData.i(_i);
+                for (const userRec of pwdData) {
                     n_Pwd = userRec.getStr("pwd", ""); // pg returns lowercase column names
                     expiration = userRec.getStr("Expiration", ""); // FUTURE: this field is missing from the db?!?!
                     const now = new Date();

@@ -135,7 +135,7 @@ dlist.forEach(dDir => {
                               siteList.push(siteID);
                               // loop through 
                               let domainList = thiscfg.i('Domains');
-                              domainList.toJsonArray().forEach(oneDomain => {
+                              for (const oneDomain of domainList) {
                                     domainName = oneDomain.toStr().toLowerCase();
                                     // FUTURE: Check for duplicates - raise error
                                     if (iesDomains[domainName]) {
@@ -144,7 +144,7 @@ dlist.forEach(dDir => {
                                           console.log("  +++ " + domainName + " [" + siteID + "]");
                                           iesDomains[domainName] = siteID;
                                     }
-                              });
+                              }
                         } else {
                               // Problem with SITEID
                               console.log("ERROR: SiteID missmatch [" + siteID + "] ./websites/" + dDir);
@@ -583,8 +583,7 @@ http.createServer(async (req, res) => {
             if (cms.ReturnJson) {
                   if (typeof cms.ReturnJson === 'object') {
                         if (cms.ReturnJson.constructor.name === 'FlexJson') {
-                              cms.ReturnJson.UseFlexJson = false; // Remove comments and force strict JSON output
-                              res.end(cms.ReturnJson.jsonString);
+                              res.end(cms.ReturnJson.Stringify());
                         } else {
                               res.end(JSON.stringify(cms.ReturnJson));
                         }

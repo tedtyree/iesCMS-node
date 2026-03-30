@@ -95,14 +95,7 @@ class webEngine {
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
-        let dbConnectJson = cms.SERVER.i("dbConnect");
-        // FUTURE: Find better way to convert from FlexJson to JavaScript object???
-        let dbConnect = {
-            host: dbConnectJson.i("host").toStr()
-            ,db: dbConnectJson.i("db").toStr()
-            ,user: dbConnectJson.i("user").toStr()
-            ,password: dbConnectJson.i("password").toStr()
-        };
+        const dbConnect = cms.SERVER.i("dbConnect").toNative();
         cms.db = new iesDbClass(dbConnect);
 
         //check for user logout
