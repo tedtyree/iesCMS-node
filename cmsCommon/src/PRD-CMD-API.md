@@ -1,4 +1,5 @@
 # iesCMS – API Layer PRD
+
 **Status:** Draft
 **Date:** 2026-03-23
 **Related:** PRD.md [#REQ-FOLDER-01-06]
@@ -67,7 +68,7 @@ POST /pubcmd
 
 Both endpoints accept the same payload shape:
 
-```json
+```
 {
   "cmd": "utility/importBlogs",
   "param1": "value1",
@@ -99,7 +100,7 @@ The `cmd` value is a developer-defined string that identifies the endpoint. The 
 
 Each API handler is a small JavaScript module that exports a descriptor object. Handlers are self-contained and self-describing — no external registration step is required.
 
-```js
+```
 // Example: websites/acme/cmd/utility/importBlogs.js
 module.exports = {
   id: 'utility/importBlogs',       // cmd value to match on
@@ -192,7 +193,7 @@ The default response type for all API calls is JSON. Handlers may override this.
 
 **Default (JSON):**
 
-```json
+```
 { "success": true, "data": { ... } }
 ```
 
@@ -213,7 +214,7 @@ Three patterns are supported. Developers choose the appropriate pattern per hand
 **Pattern 1 — Silent (swallow):**
 Handler catches errors internally and returns a normal success response or empty result. Use when the caller does not need to know a failure occurred.
 
-```js
+```
 handler: async (cms) => {
   try {
     // ...
@@ -227,7 +228,7 @@ handler: async (cms) => {
 **Pattern 2 — JSON Error Response (recommended default):**
 Handler returns a structured error object. The dispatch layer also applies this pattern automatically for any unhandled throw — so a handler that does not catch errors will still return a clean JSON response rather than a silent failure or server crash [#REQ-API-10-01].
 
-```json
+```
 { "success": false, "error": "Reason message", "code": "ERR-XYZ" }
 ```
 
@@ -293,3 +294,7 @@ The following are explicitly **not** part of this API layer design and should no
 - **Versioning** — if an endpoint's contract needs to change, the recommended approach is a new `cmd` name (e.g. `utility/importBlogs_v2`) rather than URL versioning, keeping the single-endpoint model clean.
 - **Async handler timeout** — should the dispatch layer enforce a max execution time? Not required initially but worth considering for public-facing `pubcmd` endpoints.
 - **Registry inspection** — a built-in `admin/listEndpoints` common handler could dump the full registry for a site — useful for debugging and documentation.
+
+
+
+FUTURE: BUG: FIX: app.js at line 223. Node.js indicated that url.parse() (the old API) is being used. Node.js deprecated it because its behavior has some edge cases that can cause security issues. The modern replacement is new URL(...) (the WHATWG URL API).
