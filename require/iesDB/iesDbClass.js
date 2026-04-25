@@ -75,7 +75,8 @@ class iesDB {
             this.ConnectObj = connectObj;
             if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; } // default DB name
         }
-        // --- Derive DB name (hyphens → underscores) ---
+        // --- Derive DB name (hyphens → underscores)
+        console.log("DEBUG: dbName='" + dbName + "'");
         this.dbName = dbName.replace(/-/g, '_');
 	}
 
