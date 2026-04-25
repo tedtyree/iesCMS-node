@@ -47,6 +47,25 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
     - getParamStr() - gets a parameter from the configs
     - LoadHTMLfile() - loads an HTML file and processes it with Reaplcetags()
 
+## /orig Folder — Protected Original Site Reference [#REQ-ORIG-01]
+
+Allows a web developer to drop a complete original HTML website into a site's `/orig` subfolder and access it through the CMS with password protection. Useful during active CMS development: the developer can compare the in-progress CMS pages against the original HTML design.
+
+- Each website folder can optionally contain an `orig/` subfolder [#REQ-ORIG-01-01]
+- The `orig/` folder is intended to hold a complete original HTML website (typically with `index.html` as the default/home page) [#REQ-ORIG-01-02]
+- `site.cfg` can include an optional `origMinViewLevel` parameter (integer 0–9) [#REQ-ORIG-01-03]
+  - If absent from `site.cfg`, defaults to `1` (requires any logged-in user)
+  - `0` = publicly accessible (no login required)
+  - `1`–`9` = requires a user with that minimum access level
+- All requests whose URL path begins with `/orig` are intercepted in `app.js` before the website engine is invoked [#REQ-ORIG-01-04]
+  - If `origMinViewLevel == 0`, the file is served directly (publicly accessible) [#REQ-ORIG-01-05]
+  - If `user.userLevel >= origMinViewLevel`, the requested file is served as-is [#REQ-ORIG-01-06]
+  - If `user.userLevel < origMinViewLevel`, the user is redirected to the site's `LOGIN_PAGE` with the original URL passed as a `deeplink` query parameter [#REQ-ORIG-01-07]
+- Requests to `/orig` or `/orig/` (no file specified) serve `/orig/index.html` [#REQ-ORIG-01-08]
+- Path traversal outside the `orig/` folder is blocked (returns 404) [#REQ-ORIG-01-09]
+- Files are served with the correct MIME type using the standard CMS mime table [#REQ-ORIG-01-10]
+- Implemented entirely in `app.js` — no per-site engine changes needed [#REQ-ORIG-01-11]
+
 ## Ideas
 
 - Allow tag replacements in JS, CSS, and other documents? Would this slow things down or create awesome flexibility such as specifying a color #00A5B9 that will be used in many locations throughout the app?

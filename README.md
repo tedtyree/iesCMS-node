@@ -63,6 +63,27 @@ Rather than cloning each website to a git sync location and then copying it to t
 
 So everything is being cloned to the specific location on s3.
 
+# /orig Folder — Protected Original Site Reference
+
+Each website can optionally include an `orig/` subfolder containing a complete original HTML website (typically with `index.html` as the home page). This is useful during active development — the developer can view the original HTML design alongside the in-progress CMS version.
+
+Access to `/orig/**` is gated by the `origMinViewLevel` parameter in `site.cfg`:
+
+| Value | Behavior |
+|---|---|
+| (absent) | Defaults to `1` — requires any logged-in user |
+| `0` | Publicly accessible — no login required |
+| `1`–`9` | Requires a user with that minimum access level |
+
+If a user without sufficient access tries to reach any `/orig/...` URL, the CMS redirects them to the site's login page (with the original URL as a `deeplink` query parameter).
+
+Example `site.cfg` entry:
+```
+,origMinViewLevel:1  // protect the /orig folder — requires login
+```
+
+This feature is implemented entirely in `app.js` and requires no per-site engine customization.
+
 # CONVERT WEBSITE TO iesCMS-Node
 1) rename site.cfg to all lowercase letters (linux/node is case sensitive)
 2) fix any json errors in site.cfg (example: fixed a missing quote)

@@ -7,6 +7,7 @@ const { Console } = require('console');
 
 //const querystring = require('querystring');
 const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
+const path = require('path');
 const FlexJson = require('./require/FlexJson/FlexJsonClass.js');
 const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
@@ -456,12 +457,41 @@ http.createServer(async (req, res) => {
             // Get a few key parameters from SITE
             cms.debugMode = cms.getParamNum("debugMode");
 
+            // /orig folder gatekeeper [#REQ-ORIG-01]
+            // cms.url.pathname and cms.pathExt are already parsed above — no re-splitting needed.
+            const _origPathNorm = cms.url.pathname.toLowerCase();
+            if (!cms.abort && (_origPathNorm === '/orig' || _origPathNorm.startsWith('/orig/'))) {
+                  const origMinViewLevel = cms.SITE.getNum('origMinViewLevel', 1);
+                  if (cms.user.userLevel >= origMinViewLevel) {
+                        // Authorized — resolve and serve the file directly [#REQ-ORIG-01-05,06]
+                        const siteOrigBase = path.resolve('./websites/' + cms.siteId + '/orig');
+                        let origRelPath = decodeURI(cms.url.pathname);
+                        // Default to index.html when no specific file requested [#REQ-ORIG-01-08]
+                        if (origRelPath === '/orig' || origRelPath === '/orig/') { origRelPath = '/orig/index.html'; }
+                        const origFileFull = path.resolve('./websites/' + cms.siteId + origRelPath);
+                        // Block path traversal outside the orig/ folder [#REQ-ORIG-01-09]
+                        if (!origFileFull.startsWith(siteOrigBase + path.sep) && origFileFull !== siteOrigBase) {
+                              cms.resultType = 'notfound';
+                        } else {
+                              cms.fileFullPath = existsSync(origFileFull) ? origFileFull : '';
+                              cms.mimeType = cms.mime[cms.pathExt] || 'application/octet-stream';
+                              cms.resultType = 'file';
+                        }
+                  } else {
+                        // Not authorized — redirect to login with deeplink [#REQ-ORIG-01-07]
+                        const loginPage = cms.SITE.getStr('LOGIN_PAGE', 'login');
+                        cms.redirect = '/' + loginPage + '?deeplink=' + encodeURIComponent(cms.url.pathname + (cms.url.search || ''));
+                        cms.resultType = 'redirect';
+                  }
+            }
+
             // PROCESS REQUEST
             cms.commonEngine = websiteEngines.cmsCommon;
             cms.thisEngine = websiteEngines[cms.siteId];
             cms.Html = "ERROR: nosite [ERR-14159]";
-            
+
             try {
+                  if (!cms.resultType) { // skip engine if /orig gatekeeper already handled the request
                   if (cms.thisEngine && typeof cms.thisEngine.CreateHtml == "function") {
                         debugLog += "thisEngine.CreateHtml(): " + cms.siteId + "\n";
                         cms.siteEngine = cms.siteId;
@@ -474,6 +504,7 @@ http.createServer(async (req, res) => {
                               await cms.commonEngine.CreateHtml(cms);
                         }
                   }
+                  } // end if (!cms.resultType)
             } catch (e) {
                   cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
                   cms.resultType = 'html';
