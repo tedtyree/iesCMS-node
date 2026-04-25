@@ -69,15 +69,32 @@ class iesDB {
     historyTable = "whistory"; // future: populate this parameter from SITE config or SERVER config
     debugMode = 0; // set to 9 to get all error messages & detail (FUTURE: need to develop this further)
 
-	constructor(dbName,connectObj,dbClass) {
+	constructor(dbName, connectObj, dbClass) {
+        // Accept either:
+        //   Separate args    → new iesDbClass(dbName, connectObj, dbClass)
+        //   Plain JS object  → new iesDbClass({ dbName, host, user, password, [port], [dbClass] })
+        //   FlexJson object  → new iesDbClass(flexJsonCfg)  — dbName from 'dbName' or legacy 'databasename'
+        if (dbName && typeof dbName === 'object') {
+            let cfg = dbName;
+            if (typeof cfg.getStr === 'function') {
+                // FlexJson — extract named fields and convert to plain object
+                cfg = cfg.toNative();
+                if (!cfg.dbName) { cfg.dbName = cfg.databasename; } // some older site.cfg files specify databasename instead of dbName
+            }
+            // cfg is now a plain JS object
+            dbName  = cfg.dbName  || '';
+            dbClass = cfg.dbClass || dbClass;
+            const { dbName: _n, dbClass: _c, ...connFields } = cfg;
+            connectObj = connFields;
+        }
 		if (dbClass) { this.DBClass = dbClass; }
         if (connectObj) {
-            this.ConnectObj = connectObj;
-            if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; } // default DB name
+            // Accept FlexJson as connectObj — normalize to plain object
+            this.ConnectObj = (typeof connectObj.toNative === 'function') ? connectObj.toNative() : connectObj;
+            if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; }
         }
-        // --- Derive DB name (hyphens → underscores)
-        console.log("DEBUG: dbName='" + dbName + "'");
-        this.dbName = dbName.replace(/-/g, '_');
+        console.log("DEBUG: iesDB.constructor.dbName='" + dbName + "'");
+        this.dbName = (dbName || '').replace(/-/g, '_');
 	}
 
     //============================================================================== BEGIN HERE

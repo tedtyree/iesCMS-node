@@ -95,8 +95,8 @@ class webEngine {
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
-        const dbConnect = cms.SERVER.i("dbConnect").toNative();
-        cms.db = new iesDbClass(dbConnect);
+        const dbCfg = cms.SERVER.i('DbConnect');
+        if (dbCfg) { cms.db = new iesDbClass(cms.SITE.getStr('databasename', ''), dbCfg); }
 
         //check for user logout
         if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {

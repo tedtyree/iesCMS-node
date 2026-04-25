@@ -96,13 +96,8 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         // Credentials come from server.cfg (DbConnect), database name from site.cfg (databasename)
-        const dbName = cms.SITE.getStr('databasename', '');
-        const dbConnectJson = cms.SERVER.i('DbConnect');
-        if (dbName && dbConnectJson) {
-            const connInfo = dbConnectJson.toNative();
-            connInfo.port ??= 5432;
-            cms.db = new iesDbClass(dbName, connInfo);
-        }
+        const dbCfg = cms.SERVER.i('DbConnect');
+        if (dbCfg) { cms.db = new iesDbClass(cms.SITE.getStr('databasename', ''), dbCfg); }
 
         //check for user logout
         if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
