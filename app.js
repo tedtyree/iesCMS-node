@@ -68,10 +68,10 @@ function timestamp() {
 const env = env_development;
 // const env = env_production;
 
-// Get list of websites [#REQ-FOLDER-01-01] 
-var path = './websites'
-var dlist = readdirSync(path).filter(function (file) {
-      return statSync(path + '/' + file).isDirectory();
+// Get list of websites [#REQ-FOLDER-01-01]
+var sitesPath = './websites'
+var dlist = readdirSync(sitesPath).filter(function (file) {
+      return statSync(sitesPath + '/' + file).isDirectory();
 });
 var iesDomains = {};
 var siteList = [];
