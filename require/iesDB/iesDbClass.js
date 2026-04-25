@@ -91,7 +91,8 @@ class iesDB {
         if (connectObj) {
             // Accept FlexJson as connectObj — normalize to plain object
             this.ConnectObj = (typeof connectObj.toNative === 'function') ? connectObj.toNative() : connectObj;
-            if (!this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; }
+            console.log("DEBUG iesDB constructor: connectObj type=" + typeof connectObj + " jsonType=" + (connectObj.jsonType||'n/a') + " ConnectObj=" + JSON.stringify(this.ConnectObj));
+            if (this.ConnectObj && !this.ConnectObj.db) { this.ConnectObj.db = this.DefaultDB; }
         }
         console.log("DEBUG: iesDB.constructor.dbName='" + dbName + "'");
         this.dbName = (dbName || '').replace(/-/g, '_');

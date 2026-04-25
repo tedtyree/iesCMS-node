@@ -96,8 +96,14 @@ class webEngine {
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
         // Credentials come from server.cfg (DbConnect), database name from site.cfg (databasename)
+        console.log("DEBUG cmsCommon: cms.SERVER type=" + typeof cms.SERVER + " cms.SITE type=" + typeof cms.SITE);
         const dbCfg = cms.SERVER.i('DbConnect');
-        if (dbCfg) { cms.db = new iesDbClass(cms.SITE.getStr('databasename', ''), dbCfg); }
+        console.log("DEBUG cmsCommon: dbCfg type=" + typeof dbCfg + " dbCfg jsonType=" + (dbCfg && dbCfg.jsonType) + " truthy=" + !!dbCfg);
+        if (dbCfg) {
+            const dbNameStr = cms.SITE.getStr('databasename', '');
+            console.log("DEBUG cmsCommon: dbNameStr='" + dbNameStr + "'");
+            cms.db = new iesDbClass(dbNameStr, dbCfg);
+        }
 
         //check for user logout
         if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
