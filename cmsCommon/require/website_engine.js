@@ -442,8 +442,8 @@ class webEngine {
         // ================================================ END
             } catch (err) {
                 let errmsg = "ERROR: " + _siteID + ".CreateHtml(): " + err;
-                console.log(errmsg);
-                cms.logError(errmsg + " [ERR5141]");
+                console.log(errmsg + "\n" + err.stack);
+                cms.logError(errmsg + "\n" + err.stack + " [ERR5141]");
                 reject(errmsg);
                 return;
             }
