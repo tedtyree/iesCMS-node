@@ -6,7 +6,7 @@ const { parse, stringify } = require('querystring');// form submission
 const { Console } = require('console');
 
 //const querystring = require('querystring');
-const { readdirSync, statSync, existsSync, createReadStream, appendFileSync } = require('fs');
+const { readdirSync, statSync, existsSync, createReadStream, appendFileSync, readFileSync } = require('fs');
 const path = require('path');
 const FlexJson = require('./require/FlexJson/FlexJsonClass.js');
 const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
@@ -473,15 +473,25 @@ http.createServer(async (req, res) => {
                         // Block path traversal outside the orig/ folder [#REQ-ORIG-01-09]
                         if (!origFileFull.startsWith(siteOrigBase + path.sep) && origFileFull !== siteOrigBase) {
                               cms.resultType = 'notfound';
+                        } else if (cms.pathExt === 'html' || cms.pathExt === 'htm') {
+                              // Serve HTML files through the html response handler so the browser renders them
+                              if (existsSync(origFileFull)) {
+                                    cms.Html = readFileSync(origFileFull, 'utf8');
+                                    cms.resultType = 'html';
+                              } else {
+                                    cms.resultType = 'notfound';
+                              }
                         } else {
                               cms.fileFullPath = existsSync(origFileFull) ? origFileFull : '';
                               cms.mimeType = cms.mime[cms.pathExt] || 'application/octet-stream';
                               cms.resultType = 'file';
                         }
                   } else {
-                        // Not authorized — redirect to login with deeplink [#REQ-ORIG-01-07]
+                        // Not authorized — redirect to login, store return path as session cookie [#REQ-ORIG-01-07]
                         const loginPage = cms.SITE.getStr('LOGIN_PAGE', 'login');
-                        cms.redirect = '/' + loginPage + '?deeplink=' + encodeURIComponent(cms.url.pathname + (cms.url.search || ''));
+                        if (!cms.newCookies) { cms.newCookies = {}; }
+                        cms.newCookies.redirect_after_login = cms.url.pathname + (cms.url.search || '');
+                        cms.redirect = '/' + loginPage;
                         cms.resultType = 'redirect';
                   }
             }
@@ -556,7 +566,13 @@ http.createServer(async (req, res) => {
             if (cms.newToken) {
                   myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
             }
-            // FUTURE: TODO: Add cms.newCookies to the cookie list!
+            for (const [_ck, _cv] of Object.entries(cms.newCookies || {})) {
+                  if (_cv === '') {
+                        myHead.push(['Set-Cookie', _ck + '=; Max-Age=0; Path=/']);
+                  } else {
+                        myHead.push(['Set-Cookie', _ck + '=' + encodeURIComponent(_cv) + '; Path=/']);
+                  }
+            }
             myHead.push(['Content-Type', 'text/html']);
 
             if (cms.redirect) {
@@ -633,6 +649,13 @@ http.createServer(async (req, res) => {
                   // This one does notshow an HTML page, does not set cookies, but only redirects.
                   // (see above for alternate redirect that displays an HTML page and sets cookies)
                   let myHead = [];
+                  for (const [_ck, _cv] of Object.entries(cms.newCookies || {})) {
+                        if (_cv === '') {
+                              myHead.push(['Set-Cookie', _ck + '=; Max-Age=0; Path=/']);
+                        } else {
+                              myHead.push(['Set-Cookie', _ck + '=' + encodeURIComponent(_cv) + '; Path=/']);
+                        }
+                  }
                   myHead.push(['Location', cms.redirect]);
                   res.writeHead(302, myHead);
 

@@ -161,10 +161,13 @@ class webEngine {
                     } else {
                         // login success
                         cms.logMessage(3,"Login successful for user [" + username + "]");
-                        // Redirect to deeplink if provided (same-site paths only), else MEMBER_DEFAULT_PAGE
-                        const deeplink = (cms.body.deeplink || '').trim();
-                        const safeDeeplink = (deeplink.startsWith('/') && !deeplink.startsWith('//')) ? deeplink : '';
-                        cms.redirect = safeDeeplink || ('/' + cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin'));
+                        // Read redirect_after_login session cookie; fall back to MEMBER_DEFAULT_PAGE
+                        const _ral = ((cms.cookies && cms.cookies.redirect_after_login) || '').trim();
+                        const _safeRal = (_ral.startsWith('/') && !_ral.startsWith('//')) ? _ral : '';
+                        cms.redirect = _safeRal || ('/' + cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin'));
+                        // Clear the session cookie
+                        if (!cms.newCookies) { cms.newCookies = {}; }
+                        cms.newCookies.redirect_after_login = '';
                     }
                 // } // else (username || password)
             }
@@ -410,7 +413,10 @@ class webEngine {
                         cms.ReturnJson = { success: false, error: 'Unauthorized', code: 'ERR-AUTH-401' };
                     } else {
                         cms.Html += `ERROR: Permission denied. (${cms.user.userLevel}/${minViewLevel}) [ERR7571]<br>`;
-                        cms.redirect = cms.SITE.i("LOGIN_PAGE").toStr("login");
+                        const _loginPage = cms.SITE.i("LOGIN_PAGE").toStr("login");
+                        if (!cms.newCookies) { cms.newCookies = {}; }
+                        cms.newCookies.redirect_after_login = cms.url.pathname + (cms.url.search || '');
+                        cms.redirect = '/' + _loginPage;
                     }
                     resolve('Warning: permission denied. [WARN5111]');
                 }
