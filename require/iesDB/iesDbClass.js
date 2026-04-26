@@ -235,7 +235,7 @@ class iesDB {
                     if (err) {
                         this.status = -377; // query error
                         this.statusMessage = "ERROR: Query failed: " + err.message;
-                        console.log(this.statusMessage);
+                        console.log(this.statusMessage + "\n  SQL: " + sql.substring(0, 500));
                         reject(this.statusMessage); return;
                         }
                     const rows = result.rows;
@@ -350,7 +350,7 @@ class iesDB {
                     if (err) {
                         this.status = -477; // query error
                         this.statusMessage = "ERROR: Query failed: " + err.message;
-                        console.log(this.statusMessage);
+                        console.log(this.statusMessage + "\n  SQL: " + sql.substring(0, 500));
                         reject(this.statusMessage); return;
                         }
                     resolve(result); return;
