@@ -824,6 +824,7 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 			GenerateOpts(newObj,sOpts,dValue);
 			ret += "</td>" + sInterpret + "</tr>";
 		}
+		break;
 		/*
 	case "opt2"
 		fAddLit(mEditRow & "<td>" & sOpts2 )
@@ -847,6 +848,7 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		ret += "<tr><td colspan=2 valign=top>" + bld1 + sAlias + ":" + bld2 + "<br>";
 		ret += fAddNoteBox(dValue,dField2,nWidth,nHeight,bReadOnly);
 		ret += "</td>" + sInterpret + "</tr>";
+		break;
 		/*
 	case "note2"  '*** NOTE: TITLE GOES TO THE LEFT OF TEXT BOX
 		fAddLit(mEditRow & "<td>")
