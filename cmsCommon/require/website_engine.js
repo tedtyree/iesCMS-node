@@ -95,14 +95,18 @@ class webEngine {
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
-        // Credentials come from server.cfg (DbConnect), database name from site.cfg (databasename)
-        console.log("DEBUG cmsCommon: cms.SERVER type=" + typeof cms.SERVER + " cms.SITE type=" + typeof cms.SITE);
-        const dbCfg = cms.SERVER.i('DbConnect');
-        console.log("DEBUG cmsCommon: dbCfg type=" + typeof dbCfg + " dbCfg jsonType=" + (dbCfg && dbCfg.jsonType) + " truthy=" + !!dbCfg);
-        if (dbCfg) {
-            const dbNameStr = cms.SITE.getStr('databasename', '');
-            console.log("DEBUG cmsCommon: dbNameStr='" + dbNameStr + "'");
-            cms.db = new iesDbClass(dbNameStr, dbCfg);
+        // DESIGN: DbConnect credentials are shared across all sites — stored in secrets/server.cfg.
+        //         Each site has its own database, named by 'databasename' in site.cfg.
+        //         Only create cms.db when BOTH are present; sites without a database skip this.
+        const dbName = cms.SITE.getStr('databasename', '');
+        const dbCfg  = cms.SERVER.i('DbConnect');
+        if (dbName && dbCfg) {
+            cms.db = new iesDbClass(dbName, dbCfg);
+            cms.logMessage(5, 'DB configured for: ' + dbName);
+        } else if (!dbName) {
+            cms.logMessage(5, 'DB skipped: no databasename in site.cfg');
+        } else {
+            cms.logMessage(1, 'DB skipped: DbConnect missing from server.cfg (databasename=' + dbName + ')');
         }
 
         //check for user logout

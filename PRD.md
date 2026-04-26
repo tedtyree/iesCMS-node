@@ -30,6 +30,21 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
 ## Database per Website [#REQ-DB-01]
 
 - Websites can load and run without a database (users will not be able to self-manage their accounts/content) [#REQ-DB-01-01]
+- Each website that requires a database declares `databasename` in its `site.cfg` — this is the single authoritative source for the database name [#REQ-DB-01-02]
+  - The presence of `databasename` in `site.cfg` is the trigger for both DB initialization at startup and DB connection in the website engine
+  - Sites without `databasename` in `site.cfg` are silently skipped by both systems
+- Database connection credentials (`host`, `port`, `user`, `password`) are shared across all sites and stored in `secrets/server.cfg` under the `DbConnect` key — no per-site credentials [#REQ-DB-01-03]
+- At startup, `iesDbInit.js` automatically creates any missing site databases and tables [#REQ-DB-01-04]:
+  - Reads `databasename` from each site's `site.cfg`
+  - Connects to the PostgreSQL admin (`postgres`) database and issues `CREATE DATABASE` if the site DB does not exist
+  - Connects to the site database and creates any missing tables using `.sql` files from `cmsCommon/db/` (common tables) and optionally `websites/<siteId>/db/` (site-specific tables)
+- Each site can optionally extend the common table set by providing `websites/<siteId>/db/site-db.jfx` with a `tables` array listing additional table names [#REQ-DB-01-05]
+  - `site-db.jfx` is not required — sites that only use common tables do not need this file
+  - SQL schema for each table (common or site-specific) must exist as `table-<tablename>.sql` in either `cmsCommon/db/` or the site's `db/` folder; the site-local file takes precedence
+- The website engine (`website_engine.js`) sets up the DB connection object at request time using `iesDbClass(dbName, dbCfg)` — no actual connection is made until the first DB query [#REQ-DB-01-06]
+  - `dbName` comes from `cms.SITE.getStr('databasename', '')`
+  - `dbCfg` comes from `cms.SERVER.i('DbConnect')` (shared credentials from `server.cfg`)
+  - If either is absent, `cms.db` is not created and the site runs without a database for that request
 
 ## Config Files and Layers [#REQ-CONFIG-01]
 

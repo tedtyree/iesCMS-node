@@ -57,24 +57,24 @@ async function tableExists(client, tableName) {
 async function initSiteDatabase(siteId, connInfo, debugFile) {
     const prefix = `[DB-INIT][${siteId}]`;
 
-    // --- Read site-db.jfx ---
-    const siteDbPath = `./websites/${siteId}/db/site-db.jfx`;
-    if (!existsSync(siteDbPath)) { return; } // not configured — skip silently
+    // --- Read databasename from site.cfg (primary source) ---
+    // DESIGN: databasename in site.cfg is the authoritative trigger for DB init.
+    //         If absent, this site has no database — skip silently.
+    //         site-db.jfx is optional and only used to add site-specific tables.
+    const siteCfgPath = `./websites/${siteId}/site.cfg`;
+    if (!existsSync(siteCfgPath)) { return; }
 
-    let siteDbCfg = new FlexJson();
-    siteDbCfg.DeserializeFlexFile(siteDbPath);
-    if (siteDbCfg.Status != 0) {
-        dbLog(`${prefix} ERROR: Failed to parse ${siteDbPath}: ${siteDbCfg.statusMsg}`, debugFile);
+    let siteCfg = new FlexJson();
+    siteCfg.DeserializeFlexFile(siteCfgPath);
+    if (siteCfg.Status != 0) {
+        dbLog(`${prefix} ERROR: Failed to parse ${siteCfgPath}: ${siteCfg.statusMsg}`, debugFile);
         return;
     }
 
-    // --- Check db_enabled ---
-    if (!siteDbCfg.getBool('db_enabled', false)) { return; } // disabled — skip silently
+    const dbName = siteCfg.getStr('databasename', '').replace(/-/g, '_');
+    if (!dbName) { return; } // no databasename in site.cfg — skip silently
 
-    // --- Derive DB name from SiteID (hyphens → underscores) ---
-    // FUTURE: Use iesDbClass to connect to the database
-    const dbName = siteDbCfg.getStr('databasename').replace(/-/g, '_');
-    dbLog(`${prefix} db_enabled=true, database=${dbName}`, debugFile);
+    dbLog(`${prefix} databasename=${dbName}`, debugFile);
 
     // --- Build merged table list (common first, then site-specific) ---
     let allTables = [];
@@ -92,10 +92,20 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
         }
     }
 
-    siteDbCfg.i('tables').toJsonArray().forEach(t => {
-        let name = t.toStr().trim();
-        if (name && !allTables.includes(name)) { allTables.push(name); }
-    });
+    // --- Optionally read site-db.jfx for site-specific table extensions ---
+    const siteDbPath = `./websites/${siteId}/db/site-db.jfx`;
+    if (existsSync(siteDbPath)) {
+        let siteDbCfg = new FlexJson();
+        siteDbCfg.DeserializeFlexFile(siteDbPath);
+        if (siteDbCfg.Status == 0) {
+            siteDbCfg.i('tables').toJsonArray().forEach(t => {
+                let name = t.toStr().trim();
+                if (name && !allTables.includes(name)) { allTables.push(name); }
+            });
+        } else {
+            dbLog(`${prefix} WARNING: Failed to parse ${siteDbPath} (site-specific tables ignored)`, debugFile);
+        }
+    }
 
     dbLog(`${prefix} Tables to ensure: [${allTables.join(', ')}]`, debugFile);
 

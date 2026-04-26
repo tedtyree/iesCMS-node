@@ -63,6 +63,19 @@ Rather than cloning each website to a git sync location and then copying it to t
 
 So everything is being cloned to the specific location on s3.
 
+# Database per Website
+
+Sites that need a PostgreSQL database declare `databasename` in `site.cfg`. That single entry drives everything:
+
+- **Startup (`iesDbInit.js`):** automatically creates the database if missing, then creates any missing tables using `.sql` files from `cmsCommon/db/` (common) and optionally `websites/<id>/db/` (site-specific).
+- **Request time (`website_engine.js`):** creates `cms.db` (an `iesDbClass` instance) using the name from `site.cfg` and shared credentials from `secrets/server.cfg → DbConnect`.
+
+Sites without `databasename` in `site.cfg` are silently skipped by both systems — no DB required.
+
+**Optional site-specific tables:** create `websites/<id>/db/site-db.jfx` with a `tables` array. Each table needs a matching `table-<name>.sql` schema file.
+
+**Credentials** (`host`, `port`, `user`, `password`) live in `secrets/server.cfg → DbConnect` — shared across all sites, never in `site.cfg`.
+
 # /orig Folder — Protected Original Site Reference
 
 Each website can optionally include an `orig/` subfolder containing a complete original HTML website (typically with `index.html` as the home page). This is useful during active development — the developer can view the original HTML design alongside the in-progress CMS version.

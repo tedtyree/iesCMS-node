@@ -95,8 +95,19 @@ class webEngine {
         cms.pageId = filePath;
 
         // Setup DATABASE for connection (if needed) ... do not connect yet
-        const dbCfg = cms.SERVER.i('DbConnect');
-        if (dbCfg) { cms.db = new iesDbClass(cms.SITE.getStr('databasename', ''), dbCfg); }
+        // DESIGN: DbConnect credentials are shared across all sites — stored in secrets/server.cfg.
+        //         Each site has its own database, named by 'databasename' in site.cfg.
+        //         Only create cms.db when BOTH are present; sites without a database skip this.
+        const dbName = cms.SITE.getStr('databasename', '');
+        const dbCfg  = cms.SERVER.i('DbConnect');
+        if (dbName && dbCfg) {
+            cms.db = new iesDbClass(dbName, dbCfg);
+            cms.logMessage(5, 'DB configured for: ' + dbName);
+        } else if (!dbName) {
+            cms.logMessage(5, 'DB skipped: no databasename in site.cfg');
+        } else {
+            cms.logMessage(1, 'DB skipped: DbConnect missing from server.cfg (databasename=' + dbName + ')');
+        }
 
         //check for user logout
         if (cms.urlParam("logout","").trim().toLowerCase() == 'true') {
