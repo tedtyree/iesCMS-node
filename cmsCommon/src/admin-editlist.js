@@ -813,19 +813,21 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		fAddLit(mEditRow & "<td>")
 		fAddTxtBox(FldDate(dValue),dField2,nWidth,bReadOnly)
 		fAddLit("</td>" & sInterpret & "</tr>")
-    case "list", "lkup", "class"
-		fAddLit(mEditRow & "<td>")
-		If useFormContent AND sOpts2="" Then 
-			sOpts2=GenerateOpts2(sOpts,dValue)
-			fAddDDown(dField2, nWidth,sOpts2)
-		Else
-			newObj=fAddDDown(dField2, nWidth)
-			GenerateOpts(newObj,sOpts,dValue)
-			fAddLit("</td>" & sInterpret & "</tr>")
-		End If
+		*/
+    case "list", "lkup", "class":
+		ret += mEditRow + "<td>";
+		if (useFormContent && sOpts2=="") { 
+			sOpts2=GenerateOpts2(sOpts,dValue);
+			fAddDDown(dField2, sOpts2, nWidth);
+		} else {
+			newObj=fAddDDown(dField2, sOpts, nWidth);
+			GenerateOpts(newObj,sOpts,dValue);
+			ret += "</td>" + sInterpret + "</tr>";
+		}
+		/*
 	case "opt2"
 		fAddLit(mEditRow & "<td>" & sOpts2 )
-'		newObj=fAddDDown("fld" & dField, nWidth)
+'		newObj=fAddDDown("fld" & dField, sOpts, nWidth)
 '		GenerateOpts(newObj,sOpts,dValue)
 		fAddLit("</td>" & sInterpret & "</tr>")
     case "question-yesno"
@@ -834,9 +836,9 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		sOpts="Yes,No"
 		If useFormContent AND sOpts2="" Then 
 			sOpts2=GenerateOpts2(sOpts,dValue)
-			fAddDDown(dField2, nWidth,sOpts2)
+			fAddDDown(dField2, sOpts2, nWidth)
 		Else
-			newObj=fAddDDown(dField2, nWidth)
+			newObj=fAddDDown(dField2, sOpts, nWidth)
 			GenerateOpts(newObj,sOpts,dValue)
 			fAddLit("</td>" & sInterpret & "</tr>")
 		End If 
@@ -1043,18 +1045,13 @@ function fAddHid(sText="", sID="") {
 	*/
 } // End function
 
-function fAddDDown(sID="", nCols=35, sOpts="") {
-	return "fAddDDown";
-	
-	/*
-	'*** sOpts is NOT used in this version
-	fAddDDown=New DropDownList()
-	If sID<>"" Then fAddDDown.ID=sID
-'*** DEBUG - FIX THIS! FUTURE
-'	fAddDDown.Columns=nCols
-	editobjform.Controls.Add(fAddDDown)
-	'*** NOTE: DropDown options get added later
-	*/
+function fAddDDown(sID="", sOpts=[{}], width=35) {
+	var ret="<select id='" + sID + "' name='" + sID + "' style='width: " + width + "px;'>";
+	for (var i = 0; i < sOpts.length; i++) {
+		ret += "<option value='" + sOpts[i].value + "'>" + sOpts[i].text + "</option>";
+	}
+	ret += "</select>";
+	return ret;
 } // End function
 
 function fAddRichText(sText="", sID="", sCtlConfig="", nCols=45, nHeight=5) {
@@ -1086,5 +1083,23 @@ If ckTOOLBAR="" Then ckTOOLBAR="Basic"
 	editobjform.Controls.Add(vObj)
 	vObj=Nothing
 		
+	*/
+} // End function
+
+function GenerateOpts(newObj,sOpts,dValue) {
+	debugger;
+	return [{}];
+	/*
+	'*** NOTE: sOpts is NOT used in this version
+	'*** NOTE: dValue is NOT used in this version
+	*/
+} // End function
+
+function GenerateOpts2(newObj,sOpts,dValue) {
+	debugger;
+	return [{}];
+	/*
+	'*** NOTE: sOpts is NOT used in this version
+	'*** NOTE: dValue is NOT used in this version
 	*/
 } // End function
