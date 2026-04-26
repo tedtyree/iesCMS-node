@@ -1407,6 +1407,7 @@ class iesCommonLib {
                     // Send key Config info to front-end for edit-data-tables
                     this.PrepForJsonReturn(ret);
                     this.LoadEditListIfNeeded();
+                    if (this.editlisterror) { this.logError("editlist-info: " + this.editlisterror); ret.ReturnJson = JSON.stringify({ error: this.editlisterror }); break; }
                     let newHeader = new FlexJson("{}");
                     newHeader.add(this.editlistj.getStr("Title"),"Title");
                     newHeader.add(this.editlistj.getStr("Table"),"Table");
@@ -3872,6 +3873,7 @@ class iesCommonLib {
             let configpath = this.FindFileInFolders(eclassfile, this.getParamStr("ConfigFolder"), this.getParamStr("DefaultConfigFolder"), this.getParamStr("CommonConfigFolder"));
             if (!configpath)
             {
+                this.editlistj = new FlexJson("{}"); // ensure never null
                 this.editlisterror = "Config file not found: " + eclassfile + " [err7971]";
                 return;
             }
