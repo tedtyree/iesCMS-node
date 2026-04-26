@@ -226,7 +226,8 @@ function OpenItem(sItem,sType,worldOpt) {
 }
 
 function SetItem(sData,sItem) {
-	var form = GenForm(sData.editfields, sData.data, sData.PrimaryKey, sData.id);
+	// FUTURE: pass defaults from eclass*.cfg (Defaults field) so new records pre-populate correctly
+	var form = GenForm(sData.editfields, sData.data, sData.PrimaryKey, sData.id, {});
 	$('#editlist_form').html(form);
 	$('#editobjform > *').change( function() {FormDirty();} );   // DEBUG DEBUG DEBUG - fix here!!! WORK FUTURE
 
@@ -502,7 +503,8 @@ function cleanStr(sVal) {
 	return ('' + sVal).trim();
 }
 	
-function GenForm(editFields, fieldData, primaryKey, id) {
+function GenForm(editFields, fieldData, primaryKey, id, defaults) {
+	if (!defaults) { defaults = {}; }
 	var ret = "";
 debugger; 
 	//**********************************
@@ -538,10 +540,9 @@ debugger;
 //	   If ReshowForm<>True Then
 		//*** Set PrimaryKey=*new*
 		if (sFlags.indexOf("p")>=0 && gUserEntersNewKey==false) { dValue="*new*"; }
-		for (const zPair of sDefaults.split(";")) {
-		  let zArr=zPair.split("=",2);
-		  if (NoBracket(('' + zArr[0]).toLowerCase().trim())==dFieldName.toLowerCase().trim()) { dValue=zArr[1]; }
-		} // Next
+		for (const [zKey, zVal] of Object.entries(defaults)) {
+		  if (NoBracket(zKey.toLowerCase().trim()) == dFieldName.toLowerCase().trim()) { dValue = zVal; }
+		}
 //	   End If
 	   if (sFlags.indexOf("p")>=0 && gUserEntersNewKey==false) { ShowField=false; }
 	   //if (('' + gParams.SpecialFlags).indexOf("ShowNew")>=0) { ShowField=true; } // DEBUG FUTURE PUT THIS BACK
