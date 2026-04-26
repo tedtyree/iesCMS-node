@@ -1896,30 +1896,24 @@ class iesCommonLib {
                     if (flags.indexOf("noworldid") >= 0) { w = ""; }
                     
                     let wId = id;
-                    if (!PrimaryKeyNumeric) { wId = this.db.dbStr(wId,-1,true); }
-                    let w2 = PrimaryKey + " = " + wId;
-                    if (w2 != "") { if (w != "") { w += " AND "; } w += "(" + w2 + ")"; }
-
-                    if (w.trim() != "") { w = " WHERE " + w; }
-                    
-                    sql3 = "SELECT * FROM " + ThisTable + " " + w;
-                    /* DEBUG
-                    using (StreamWriter writer = new StreamWriter(SITE.ConfigFolder + "\\temp-SQL.txt"))
-                    {
-                        writer.Write(sql3);
-                    } 
-                    */
-                    //this.Response.Write("DEBUG: connect=" + this.db.ConnectString + "<br><br>"); //DEBUG 
-                    // let rData = await this.db.GetDataReader(sql3);
-                    let rDataFirst = await this.db.GetFirstRow(sql3);
-                    //    rDataFirst = rDataAll.GetJSON(); // should only be 1
-
-                    // Now we need to build a JSON object with only the necessary fields
                     let retRecord = new FlexJson("{}");
-                    if (rDataFirst) {
-                        for (const col of out.Cols.split(",")) {
-                            let fieldName = col.replace(/`/g, "");
-                            retRecord.add(rDataFirst.i(fieldName),fieldName);
+
+                    if (id.toLowerCase() != "*new*") {
+                        if (!PrimaryKeyNumeric) { wId = this.db.dbStr(wId,-1,true); }
+                        let w2 = PrimaryKey + " = " + wId;
+                        if (w2 != "") { if (w != "") { w += " AND "; } w += "(" + w2 + ")"; }
+
+                        if (w.trim() != "") { w = " WHERE " + w; }
+
+                        sql3 = "SELECT * FROM " + ThisTable + " " + w;
+                        let rDataFirst = await this.db.GetFirstRow(sql3);
+
+                        // Now we need to build a JSON object with only the necessary fields
+                        if (rDataFirst) {
+                            for (const col of out.Cols.split(",")) {
+                                let fieldName = col.replace(/`/g, "");
+                                retRecord.add(rDataFirst.i(fieldName),fieldName);
+                            }
                         }
                     }
 
@@ -1928,7 +1922,6 @@ class iesCommonLib {
                     jret.add(EditFields, "editfields");
                     jret.add(PrimaryKey, "PrimaryKey");
                     jret.add(wId, "id");
-                    jret.add(sql3, "sql"); //DEBUG
                     ret.ReturnJson = jret;
                 }
                 catch (ee4)
