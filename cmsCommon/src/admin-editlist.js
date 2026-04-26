@@ -229,7 +229,7 @@ function SetItem(sData,sItem) {
 	// FUTURE: pass defaults from eclass*.cfg (Defaults field) so new records pre-populate correctly
 	var form = GenForm(sData.editfields, sData.data, sData.PrimaryKey, sData.id, {});
 	$('#editlist_form').html(form);
-	$('#editobjform > *').change( function() {FormDirty();} );   // DEBUG DEBUG DEBUG - fix here!!! WORK FUTURE
+	$('#editlist_form :input').change( function() {FormDirty();} );   // DEBUG DEBUG DEBUG - fix here!!! WORK FUTURE
 
 	//*** REPLACE/CONVERT all rt_ text boxes to become a CKEditor...
 	var $textareas = $("textarea");
@@ -343,14 +343,14 @@ function SaveItem(CloseAfter) {
 				});
 			}
 		if (recType=="OBJ") {
-			$.post("/admin/EditWObj/EditList-SaveObj.aspx?cmd=" + eCmd + "&eclass=" + eClass + sworld,$('#editobjform').serialize(),
+			$.post("/admin/EditWObj/EditList-SaveObj.aspx?cmd=" + eCmd + "&eclass=" + eClass + sworld,$('#editlist_form :input').serialize(),
 				function(data) { SaveComplete(data,CloseAfter); })
 					.error(function(jqXHR, status, error) { alert("Failed to save record. (err247)");
 				//alert(status + ": " + error);
 				});
 			} else {
 				// POST to runcmd — eclass in body, sworld dropped (server uses cms.siteId)
-				var saveData = $('#editobjform').serialize() + '&cmd=admin/saveRecord&eclass=' + encodeURIComponent(eClass);
+				var saveData = $('#editlist_form :input').serialize() + '&cmd=admin/saveRecord&eclass=' + encodeURIComponent(eClass);
 				$.post('/runcmd', saveData,
 					function(data) { SaveComplete(data, CloseAfter); })
 					.error(function() { alert('Failed to save record. (err248)'); });
