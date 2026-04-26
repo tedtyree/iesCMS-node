@@ -349,11 +349,11 @@ function SaveItem(CloseAfter) {
 				//alert(status + ": " + error);
 				});
 			} else {
-			$.post("/admin/EditWObj/EditList-SaveRec.aspx?cmd=save&eclass=" + eClass + sworld,$('#editobjform').serialize(),
-				function(data) { SaveComplete(data); })
-					.error(function(jqXHR, status, error) { alert("Failed to save record. (err248)");
-				//alert(status + ": " + error);
-				});
+				// POST to runcmd — eclass in body, sworld dropped (server uses cms.siteId)
+				var saveData = $('#editobjform').serialize() + '&cmd=admin/saveRecord&eclass=' + encodeURIComponent(eClass);
+				$.post('/runcmd', saveData,
+					function(data) { SaveComplete(data, CloseAfter); })
+					.error(function() { alert('Failed to save record. (err248)'); });
 			}
 		}
 	catch (err) {
@@ -363,9 +363,22 @@ function SaveItem(CloseAfter) {
 }
 
 function SaveComplete(sData,CloseAfter) {
-//alert(sData); // DEBUG DEBUG DEBUG
-if (sData.substr(0,20).toLowerCase().indexOf("successful")>=0) {
-	//alert('save successful sData=' + sData);  //DEBUG DEBUG DEBUG
+	let ok = false;
+	let errMsg = '';
+	if (sData && typeof sData === 'object') {
+		// JSON response from runcmd handler
+		ok = (sData.success === true);
+		if (!ok) { errMsg = sData.error || 'Unknown error'; }
+	} else {
+		// Legacy fallback: old ASPX returned plain text beginning with "Successful"
+		ok = (typeof sData === 'string' && sData.substring(0,20).toLowerCase().indexOf('successful') >= 0);
+		if (!ok) { errMsg = ('' + sData).replace('<br>','\n'); }
+	}
+	if (!ok) {
+		alert('Error attempting to ' + eCmd + ' this record. (err249)\n' + errMsg);
+		if (eCmd=='Delete' || eCmd=='Remove') { eCmd='Save'; }
+		return;
+	}
 	eCmd="Save"; //*** Keeps us from making another 'copy' of the record.
 	if (CloseAfter==false) { FormClean(); return; }
 	if (fSingleRecord==false) {
@@ -375,11 +388,6 @@ if (sData.substr(0,20).toLowerCase().indexOf("successful")>=0) {
 	  FormClean();
 	  }
 	else { history.back(); }
-	}
- else { 
-	alert("Error occured attempting to " + eCmd + " this record. (err249)\n" + sData.replace('<br>','\n'));
-	if (eCmd=="Delete" || eCmd=="Remove") { eCmd="Save"; }
- }
 }
 
 function CancelEdit() {
@@ -524,6 +532,9 @@ debugger;
 			"<Font size=3 color=#309040><B>*** NEW RECORD ***</B>" +
 			"</td></tr>";
 	}
+
+	// Hidden id field — included in serialized POST so the save handler knows which record to update
+	ret += '<input type="hidden" name="id" value="' + id + '">';
 
     var safety=99999;
     for (const dFld1 of editFields) {

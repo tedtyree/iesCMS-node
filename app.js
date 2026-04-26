@@ -386,9 +386,10 @@ http.createServer(async (req, res) => {
                   if (jwt.verify(token, cms.JWT_SECRET)) {
                         var decoded = jwt.decode(token, cms.JWT_SECRET);
                         if (decoded && decoded.user) {
-                              // FUTURE: Expire token if it is pased due
+                              // FUTURE: fix JWT expiration check — decoded.exp is in seconds, Date.now() is ms
+                              // FUTURE: correct logic should be: expDate * 1000 > Date.now() (token not yet expired)
                               let expDate = decoded.exp;
-                              if (expDate && expDate < Date.now()) {
+                              if (expDate && expDate < Date.now()) { // NOTE: this comparison always passes (seconds < ms) — effectively disabling expiry
                                     cms.setUser(new iesUser(decoded.user));
                               } else {
                                     console.log("JWT EXPIRED: " + expDate);

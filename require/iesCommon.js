@@ -3454,9 +3454,15 @@ class iesCommonLib {
                 console.log("DEBUG: mode=" + this.debugMode + ", row count=" + pwdRS.length + ", sql=" + sql + "\n");
                 for (const userRec of pwdData) {
                     n_Pwd = userRec.getStr("pwd", ""); // pg returns lowercase column names
-                    expiration = userRec.getStr("Expiration", ""); // FUTURE: this field is missing from the db?!?!
+                    expiration = userRec.getStr("Expiration", ""); // FUTURE: add Expiration column to users table to support account expiry
                     const now = new Date();
-                    if (!expiration || !expiration.isDate()) { AllowDate = now.addDays(7); }
+                    // FUTURE: when Expiration column is added, enforce it: AllowDate = new Date(expiration); check isNaN
+                    if (!expiration) {
+                        AllowDate = new Date(8640000000000000); // No expiration — allow indefinitely (JS max date)
+                    } else {
+                        AllowDate = new Date(expiration);
+                        if (isNaN(AllowDate.getTime())) { AllowDate = new Date(8640000000000000); } // Invalid date → no expiration
+                    }
 
                     if (n_Pwd === "") { cnt++; continue; }
 
