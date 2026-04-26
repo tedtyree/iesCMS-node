@@ -842,10 +842,12 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 			GenerateOpts(newObj,sOpts,dValue)
 			fAddLit("</td>" & sInterpret & "</tr>")
 		End If 
-    case "note" '*** NOTE: TITLE GOES ABOVE TEXT BOX
-		fAddLit("<tr><td colspan=2 valign=top>" & bld1 & sAlias & ":" & bld2 & "<br>")
-		fAddNoteBox(dValue,dField2,nWidth,nHeight,bReadOnly)
-		fAddLit("</td>" & sInterpret & "</tr>")
+		*/
+    case "note": // *** NOTE: TITLE GOES ABOVE TEXT BOX
+		ret += "<tr><td colspan=2 valign=top>" + bld1 + sAlias + ":" + bld2 + "<br>";
+		ret += fAddNoteBox(dValue,dField2,nWidth,nHeight,bReadOnly);
+		ret += "</td>" + sInterpret + "</tr>";
+		/*
 	case "note2"  '*** NOTE: TITLE GOES TO THE LEFT OF TEXT BOX
 		fAddLit(mEditRow & "<td>")
 		fAddNoteBox(dValue,dField2,nWidth,nHeight,bReadOnly)
@@ -1015,21 +1017,11 @@ function fAddTxtBox(sText="", sID="",nCols=45, bReadOnly=false) {
 		} // End function
 
 function fAddNoteBox(sText="", sID="", nCols=45, nRows=5, bReadOnly=false) {
-			return "fAddNoteBox";
-		/*
-	var vObj as New TextBox() 
-
-	vObj.TextMode=TextBoxMode.MultiLine
-	vObj.Columns=nCols
-	vObj.Rows=nRows
-	vObj.Wrap=True
-	vObj.ReadOnly=bReadOnly
-	If bReadOnly=True Then vObj.BackColor=System.Drawing.Color.LightGray
-	If sText<>"" Then vObj.Text=sText
-	If sID<>"" Then vObj.ID=sID
-	editobjform.Controls.Add(vObj)
-	vObj=Nothing
-	*/
+			let ret = "";
+			let readonly = "";
+			if (bReadOnly) { readonly = " readonly "; }
+			ret = "<textarea id='" + sID + "' name='" + sID + "' cols=" + nCols + " rows=" + nRows + "'" + readonly + ">" + sText + "</textarea>"; // FUTURE HANDLE QUOTES AND SPECIAL CHARACTERS
+			return ret;
 } // End function
 
 function fAddHid(sText="", sID="") {
