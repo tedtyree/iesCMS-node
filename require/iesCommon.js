@@ -1910,9 +1910,23 @@ class iesCommonLib {
 
                         // Now we need to build a JSON object with only the necessary fields
                         if (rDataFirst) {
-                            for (const col of out.Cols.split(",")) {
-                                let fieldName = col.replace(/`/g, "");
-                                retRecord.add(rDataFirst.i(fieldName),fieldName);
+                            // Parse extra JSONB once for fields with Flags:e
+                            let extraData = {};
+                            try {
+                                const rawExtra = rDataFirst.i('extra');
+                                if (rawExtra) { extraData = (typeof rawExtra === 'object') ? rawExtra : JSON.parse(rawExtra); }
+                            } catch(eEx) { /* ignore parse errors — extraData stays {} */ }
+
+                            // Walk EditFields to respect Flags:e
+                            const efArr = EditFields.toJsonArray() || [];
+                            for (const fldDef of efArr) {
+                                const fieldName = fldDef.getStr('Field').replace(/`/g, '').trim();
+                                if (!fieldName) { continue; }
+                                if (fldDef.getStr('Flags').toLowerCase().indexOf('e') >= 0) {
+                                    retRecord.add(extraData[fieldName] !== undefined ? extraData[fieldName] : '', fieldName);
+                                } else {
+                                    retRecord.add(rDataFirst.i(fieldName), fieldName);
+                                }
                             }
                         }
                     }
