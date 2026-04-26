@@ -3378,7 +3378,7 @@ class iesCommonLib {
             // Use * to select from the members table because some versions contain a field "expiration" and others do not
             let sql = "SELECT * FROM users " +
                 " WHERE (loginid=" + Login_ID2 + " OR userEmail=" + Login_ID2 + ") AND Status='Active'" +
-                " AND (siteId='" + wToken + "') AND loginid IS NOT NULL";
+                " AND loginid IS NOT NULL"; // SiteID filter removed — each site now has its own database
 
             if (await this.SessionLogin2(sql, Login_Pwd) == true)
             {

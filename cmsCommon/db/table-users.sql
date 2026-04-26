@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   -- adcustomer varchar(10) DEFAULT NULL, -- Indicates this member has been an Ad Customer at some point
   -- adcampaign varchar(10) DEFAULT NULL, -- Indicates that this customer is currently running an ad campaign or will be in the near future
   -- objID bigint DEFAULT NULL,
-  siteID varchar(100) DEFAULT NULL,  -- was WorldID
+  siteID varchar(100) DEFAULT NULL,  -- No Longer Needed: was WorldID
   extra JSONB
 );
 
