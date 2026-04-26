@@ -38,8 +38,9 @@ module.exports = {
         const ej         = cms.editlistj;
         const table      = ej.getStr('Table');
         const primaryKey = ej.getStr('PrimaryKey');
-        const pkNumeric  = ej.getBool('PrimaryKeyNumeric', false);
-        const noWorldId  = ej.getStr('SpecialFlags').toLowerCase().indexOf('noworldid') >= 0;
+        const pkNumeric        = ej.getBool('PrimaryKeyNumeric', false);
+        const userEntersNewKey = ej.getBool('UserEntersNewKey', true); // false = DB generates PK on INSERT (bigserial)
+        const noWorldId        = ej.getStr('SpecialFlags').toLowerCase().indexOf('noworldid') >= 0;
 
         if (!table)      { return setError('eclass config missing Table [err-els-002]'); }
         if (!primaryKey) { return setError('eclass config missing PrimaryKey [err-els-002]'); }
@@ -64,6 +65,7 @@ module.exports = {
 
             if (!fieldName) { continue; }
             if (flags.indexOf('p') >= 0) { continue; } // primary key — handled by id, not written as a field
+            if (isNew && !userEntersNewKey && fieldName.toLowerCase() === primaryKey.toLowerCase()) { continue; } // DB generates PK on INSERT
 
             // FUTURE: enforce Flags:r (readonly) server-side — currently trusting the front-end
             // if (flags.indexOf('r') >= 0) { continue; }
