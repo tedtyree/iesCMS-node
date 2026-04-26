@@ -470,10 +470,12 @@ http.createServer(async (req, res) => {
                         // Default to index.html when no specific file requested [#REQ-ORIG-01-08]
                         if (origRelPath === '/orig' || origRelPath === '/orig/') { origRelPath = '/orig/index.html'; }
                         const origFileFull = path.resolve('./websites/' + cms.siteId + origRelPath);
+                        // Derive extension from the actual file path (origRelPath may have been defaulted to index.html)
+                        const origExt = path.extname(origFileFull).slice(1).toLowerCase();
                         // Block path traversal outside the orig/ folder [#REQ-ORIG-01-09]
                         if (!origFileFull.startsWith(siteOrigBase + path.sep) && origFileFull !== siteOrigBase) {
                               cms.resultType = 'notfound';
-                        } else if (cms.pathExt === 'html' || cms.pathExt === 'htm') {
+                        } else if (origExt === 'html' || origExt === 'htm') {
                               // Serve HTML files through the html response handler so the browser renders them
                               if (existsSync(origFileFull)) {
                                     cms.Html = readFileSync(origFileFull, 'utf8');
@@ -483,7 +485,7 @@ http.createServer(async (req, res) => {
                               }
                         } else {
                               cms.fileFullPath = existsSync(origFileFull) ? origFileFull : '';
-                              cms.mimeType = cms.mime[cms.pathExt] || 'application/octet-stream';
+                              cms.mimeType = cms.mime[origExt] || 'application/octet-stream';
                               cms.resultType = 'file';
                         }
                   } else {
