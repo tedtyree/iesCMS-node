@@ -161,8 +161,10 @@ class webEngine {
                     } else {
                         // login success
                         cms.logMessage(3,"Login successful for user [" + username + "]");
-                        // FUTURE: check for deeplink and route if specified
-                        cms.redirect = cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin');
+                        // Redirect to deeplink if provided (same-site paths only), else MEMBER_DEFAULT_PAGE
+                        const deeplink = (cms.body.deeplink || '').trim();
+                        const safeDeeplink = (deeplink.startsWith('/') && !deeplink.startsWith('//')) ? deeplink : '';
+                        cms.redirect = safeDeeplink || ('/' + cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin'));
                     }
                 // } // else (username || password)
             }
