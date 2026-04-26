@@ -501,7 +501,7 @@ http.createServer(async (req, res) => {
             // PROCESS REQUEST
             cms.commonEngine = websiteEngines.cmsCommon;
             cms.thisEngine = websiteEngines[cms.siteId];
-            cms.Html = "ERROR: nosite [ERR-14159]";
+            if (!cms.resultType) { cms.Html = "ERROR: nosite [ERR-14159]"; }
 
             try {
                   if (!cms.resultType) { // skip engine if /orig gatekeeper already handled the request
