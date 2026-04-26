@@ -506,13 +506,14 @@ function cleanStr(sVal) {
 function GenForm(editFields, fieldData, primaryKey, id, defaults) {
 	if (!defaults) { defaults = {}; }
 	var ret = "";
-debugger; 
+debugger;
 	//**********************************
 	//******* GENERATE EDIT FORM
 	//**********************************
 	var bViewOnly=true;
     //If PermGen>1 Then bViewOnly=False
-  	//If PermGen>1 AND (ErrMsg="") Then
+	bViewOnly=false; // FUTURE REMOVE THIS LINE
+  	//If PermGen>1 AND (ErrMsg="") Then ... FUTURE CHECK FOR ERROR MESSAGE? IS THIS A FAILED SUBMIT?
 	ret += "<table border=0 width=550 cellpadding=0><TBODY>";
 	//If InStr(gParams.Param("SpecialFlags"),"CopyButton")>0 AND f_Key<>"*new*" Then _
 	//Response.Write("<tr><td colspan=2 align=right>" & _
