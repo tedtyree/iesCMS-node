@@ -768,7 +768,8 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		sOpts="Active,Deleted";
 		sFieldType="list";
 		break;
-    case "list-status3", "list-status":
+    case "list-status3":
+	case "list-status":
 		sOpts="Active,Inactive,Deleted";
 		sFieldType="list";
 		break;
