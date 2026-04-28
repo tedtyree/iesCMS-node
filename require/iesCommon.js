@@ -1441,7 +1441,7 @@ class iesCommonLib {
     // isPublic=true → pubcmd endpoint (only auth:0 handlers)
     // isPublic=false → runcmd endpoint (auth:1+ handlers; legacy RunCmd() fallback for unknown cmds)
     async CmdDispatch(isPublic, ret) {
-        const cmd = ((this.body && this.body.cmd) || (this.url && this.url.query && this.url.query.cmd) || '').trim().toLowerCase();
+        const cmd = ((this.body && this.body.cmd) || (this.url && this.url.searchParams && this.url.searchParams.get('cmd')) || '').trim().toLowerCase();
 
         this.resultType = 'json';
         this.ReturnJson = {};
@@ -2835,7 +2835,7 @@ class iesCommonLib {
 
     urlParam(paramId, defaultValue = null) {
         try {
-            let v = this.url.query[paramId];
+            let v = this.url.searchParams.get(paramId);
             if (v) { return v; }
         } catch { }
         return defaultValue;

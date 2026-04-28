@@ -1,5 +1,4 @@
 var http = require('http');
-var url = require('url');
 //var axios = require('axios');
 const jwt = require('jsonwebtoken');
 const { parse, stringify } = require('querystring');// form submission 
@@ -221,13 +220,13 @@ http.createServer(async (req, res) => {
 
       //const { method, url, headers } = req;
       const q = 'z'; //url.parse(req.url,true).query;
-      cms.url = url.parse(req.url, true);
+      cms.url = new URL(req.url, 'http://localhost');
       cms.SERVER = serverCfg;
       cms.secretsFolder = serverSecretsFolder;
       cms.req = req;
       cms.setHttpQueryId(httpQueryId++);
 
-      debugLog = "app.js:http.createServer(): url=" + url.toString + "\n";
+      debugLog = "app.js:http.createServer(): url=" + req.url + "\n";
 
       
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
@@ -413,8 +412,8 @@ http.createServer(async (req, res) => {
             if (cms.siteId == 'hostsite') {
                   var override = '';
                   // check if mimic specified in URL
-                  if (cms.url.query.mimic) {
-                        override = cms.url.query.mimic;
+                  if (cms.url.searchParams.get('mimic')) {
+                        override = cms.url.searchParams.get('mimic');
                         // set mimic cookie
                         cms.newMimic = override;
                         cms.newCookies.mimic = override;
@@ -593,7 +592,7 @@ http.createServer(async (req, res) => {
                   'method=' + req.method + '\n'
                   + 'url Path=' + cms.url.pathname + '\n'
                   + 'url PathExtension=' + cms.pathExt + '\n'
-                  + 'url Params=' + JSON.stringify(cms.url.query) + '\n'
+                  + 'url Params=' + JSON.stringify(Object.fromEntries(cms.url.searchParams)) + '\n'
                   + 'host=' + cms.urlHost + '\n'
                   + 'protocol=' + req.headers.protocol + '\n'
                   + 'x-forwarded-host=' + req.headers['x-forwarded-host'] + '\n'
