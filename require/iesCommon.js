@@ -303,9 +303,9 @@ class iesCommonLib {
                     case "sitetitle":
                         Content.Append(cms.SITE.config["SiteTitle"].ToStr().Trim());
                         break;
-
+                    ****/
                     case "title": // Title straight from page header
-                        Content.Append(cms.wiki["Header"]["Title"].ToStr().Trim());
+                        content.append(cms.getParam("Title").toStr().trim());
                         break;
 
                     // *** NOTE: USE 'title' FOR TEXT VERSION OF PAGE TITLE
@@ -313,19 +313,20 @@ class iesCommonLib {
                     case "page_title_tag":
                         // Page_Title can either be specified by the WikiPage in the header,
                         // or specified in the default.config file.  The header parameter overrides.
-                        string GenerateTag = "";
-                        GenerateTag = cms.wiki["Header"]["Page_Title"].ToStr().Trim();
-                        if (this.isNullOrWhiteSpace(GenerateTag))
+                        let GenerateTag = "";
+                        GenerateTag = cms.getParam["Page_Title"].toStr().trim();
+                        /* if (!GenerateTag)
                         {
                             GenerateTag = cms.SITE.config["Page_Title"].ToStr().Trim();
-                        }
-                        if (!this.isNullOrWhiteSpace(GenerateTag) && ret.Tag == "page_title_tag")
+                        } */
+                        if (GenerateTag && ret.Tag.toLowerCase() == "page_title_tag")
                         {
                             GenerateTag = "<title>" + GenerateTag + "</title>";
                         }
-                        Content.Append(GenerateTag);
+                        content.append(GenerateTag);
                         break;
 
+                    /* ****
                     case "description":
                     case "page_description":
                     case "description_tag":
