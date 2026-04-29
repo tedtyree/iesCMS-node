@@ -61,6 +61,7 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
     - Reaplcetags() - replaces [[tags]] in content with values from the config (or in some cases a custome process)
     - getParamStr() - gets a parameter from the configs
     - LoadHTMLfile() - loads an HTML file and processes it with Reaplcetags()
+- **Tag collision warning** [#REQ-COMMON-01-02]: The tag processor scans ALL content in `.cfg` files (pages, templates, partials) for `[[...]]` sequences. Any literal `[[` in page content — including JavaScript, JSX, or HTML — will be treated as a tag substitution and may corrupt the output. **To include a literal `[[` in page content, insert a space: write `[ [` instead of `[[`.** Common trigger: JavaScript array-of-arrays literals inside JSX `.map()` calls.
 
 ## /orig Folder — Protected Original Site Reference [#REQ-ORIG-01]
 

@@ -109,6 +109,11 @@ websites/<siteId>/
 **Templates** (`templates/layout_<name>.cfg`):
 - Full HTML document with `[[content_area]]` where page body is injected
 
+**Escaping `[[` in page/template content:**
+The CMS tag processor treats any `[[...]]` sequence as a tag substitution. If page content (e.g. JSX or JavaScript) contains a literal `[[`, the CMS will try to process it as a tag and corrupt the output.
+- **Fix:** insert a space — write `[ [` instead of `[[` — so the CMS does not recognize it as a tag.
+- Common trigger: JavaScript array-of-arrays literals like `[ ['a','A'], ['b','B'] ]` passed inline to `.map()` inside JSX.
+
 ---
 
 ## FlexJSON (`.jfx` / `.cfg` files)
