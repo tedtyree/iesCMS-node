@@ -3561,6 +3561,7 @@ class iesCommonLib {
         // If the token is invalid or the email is not found in the DB, cms.user.userid remains -1.
         async SessionLoginGoogle(credential) {
             try {
+                console.log('[GoogleSSO] Starting token verification, credentialLength=' + (credential||'').length);
                 // Verify the ID token via Google's tokeninfo endpoint (no extra npm deps needed)
                 const tokenData = await new Promise((resolve, reject) => {
                     const url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential);
@@ -3574,20 +3575,26 @@ class iesCommonLib {
                     }).on('error', reject);
                 });
 
+                console.log('[GoogleSSO] tokeninfo response: error=' + tokenData.error + ', aud=' + tokenData.aud + ', email=' + tokenData.email);
+
                 if (tokenData.error) {
+                    console.log('[GoogleSSO] FAIL: Token verification failed: ' + tokenData.error);
                     this.logMessage(1, '[GoogleSSO] Token verification failed: ' + tokenData.error);
                     return;
                 }
 
                 // Validate audience matches our client ID (prevents use of tokens from other apps)
                 const clientId = this.GOOGLE_CLIENT_ID || '';
+                console.log('[GoogleSSO] clientId from config=[' + clientId + '], token aud=[' + tokenData.aud + ']');
                 if (clientId && tokenData.aud !== clientId) {
+                    console.log('[GoogleSSO] FAIL: Token audience mismatch');
                     this.logMessage(1, '[GoogleSSO] Token audience mismatch');
                     return;
                 }
 
                 const email = (tokenData.email || '').toLowerCase().trim();
                 if (!email) {
+                    console.log('[GoogleSSO] FAIL: No email in token payload');
                     this.logMessage(1, '[GoogleSSO] No email in token payload');
                     return;
                 }
@@ -3595,15 +3602,20 @@ class iesCommonLib {
                 // Look up CMS user by email — LOWER() on both sides for case-insensitive match
                 const emailParam = this.db.dbStr(email); // email is already .toLowerCase()'d above
                 const sql = "SELECT * FROM users WHERE LOWER(userEmail)=" + emailParam + " AND Status='Active'";
+                console.log('[GoogleSSO] DB query: ' + sql);
                 const rs = await this.db.GetDataReader(sql);
                 const rows = rs ? rs.GetAllRecords() : [];
+                console.log('[GoogleSSO] DB rows returned: ' + rows.length);
                 if (rows.length > 0) {
                     this.userSignedIn(rows[0], this.siteId);
+                    console.log('[GoogleSSO] Login successful for ' + email + ', userid=' + this.user.userid);
                     this.logMessage(1, '[GoogleSSO] Login successful for ' + email);
                 } else {
+                    console.log('[GoogleSSO] FAIL: Email not found in users: ' + email);
                     this.logMessage(1, '[GoogleSSO] Email not found in users: ' + email);
                 }
             } catch (err) {
+                console.log('[GoogleSSO] EXCEPTION: ' + err.message + '\n' + err.stack);
                 this.logMessage(1, '[GoogleSSO] Error: ' + err.message);
             }
         } // End SessionLoginGoogle
