@@ -136,7 +136,7 @@ function ReturnSearch(sData) {
 					let link2b = "";
 					for (var k of SearchConfig.SearchList) {
 						let field = (k.Field + '').replace(/\`/g,'');
-						let j = row[field];
+						let j = row[field] !== undefined ? row[field] : row[field.toLowerCase()];
 						if (j) { j = j + ''; } else { j = ''; }
 						if (k.Flags && k.Flags.toLowerCase().indexOf('l')>0) {
 							link2a = link1a;
@@ -542,7 +542,7 @@ debugger;
 		let ShowField=true;
 		let dFieldName=NoBracket(cleanStr(dFld1.Field));
 		let sFlags=cleanStr(dFld1.Flags);
-		if (id.toLowerCase().trim() != "*new*") { dValue=cleanStr(fieldData[dFieldName]); }
+		if (id.toLowerCase().trim() != "*new*") { dValue=cleanStr(fieldData[dFieldName] !== undefined ? fieldData[dFieldName] : fieldData[dFieldName.toLowerCase()]); }
 //	If ReshowForm=True Then
 //		dValue=Request.Form("fld" & dFieldName)
 //		If f_Key="*new*" AND InStr(sFlags,"p")>0 _
