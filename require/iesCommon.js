@@ -3604,10 +3604,18 @@ class iesCommonLib {
                 const sql = "SELECT * FROM users WHERE LOWER(userEmail)=" + emailParam + " AND Status='Active'";
                 console.log('[GoogleSSO] DB query: ' + sql);
                 const rs = await this.db.GetDataReader(sql);
-                const rows = rs ? rs.GetAllRecords() : [];
-                console.log('[GoogleSSO] DB rows returned: ' + rows.length);
-                if (rows.length > 0) {
-                    this.userSignedIn(rows[0], this.siteId);
+                const rows = rs ? rs.GetAllRecords() : null;
+                console.log('[GoogleSSO] DB rows returned: ' + (rows ? rows.length : 'null'));
+                // GetAllRecords() returns a FlexJson array — must iterate with for...of, not [0]
+                let found = false;
+                if (rows) {
+                    for (const userRow of rows) {
+                        this.userSignedIn(userRow, this.siteId);
+                        found = true;
+                        break; // only need the first match
+                    }
+                }
+                if (found) {
                     console.log('[GoogleSSO] Login successful for ' + email + ', userid=' + this.user.userid);
                     this.logMessage(1, '[GoogleSSO] Login successful for ' + email);
                 } else {
