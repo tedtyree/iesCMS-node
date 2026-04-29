@@ -5,6 +5,7 @@ const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
 const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesSpamFilter = require('./iesSpamFilter/iesSpamFilterClass.js');
 const { connect } = require("http2");
+const https = require('https');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
@@ -1353,6 +1354,10 @@ class iesCommonLib {
                 break;
             */
 				
+            case "google_client_id":
+                content.append(cms.GOOGLE_CLIENT_ID || '');
+                break;
+
             default:
                 let vv = this.getParamStr(ret.Tag, null, true, true);
                 if (vv === null) {
@@ -3550,6 +3555,58 @@ class iesCommonLib {
             return ret;
 
         } // End SessionLogin2
+
+        // SessionLoginGoogle()
+        // Verify a Google Identity Services credential (JWT ID token) and sign in the matching CMS user.
+        // If the token is invalid or the email is not found in the DB, cms.user.userid remains -1.
+        async SessionLoginGoogle(credential) {
+            try {
+                // Verify the ID token via Google's tokeninfo endpoint (no extra npm deps needed)
+                const tokenData = await new Promise((resolve, reject) => {
+                    const url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential);
+                    https.get(url, (res) => {
+                        let body = '';
+                        res.on('data', chunk => { body += chunk; });
+                        res.on('end', () => {
+                            try { resolve(JSON.parse(body)); }
+                            catch (e) { reject(new Error('Invalid JSON from tokeninfo')); }
+                        });
+                    }).on('error', reject);
+                });
+
+                if (tokenData.error) {
+                    this.logMessage(1, '[GoogleSSO] Token verification failed: ' + tokenData.error);
+                    return;
+                }
+
+                // Validate audience matches our client ID (prevents use of tokens from other apps)
+                const clientId = this.GOOGLE_CLIENT_ID || '';
+                if (clientId && tokenData.aud !== clientId) {
+                    this.logMessage(1, '[GoogleSSO] Token audience mismatch');
+                    return;
+                }
+
+                const email = (tokenData.email || '').toLowerCase().trim();
+                if (!email) {
+                    this.logMessage(1, '[GoogleSSO] No email in token payload');
+                    return;
+                }
+
+                // Look up CMS user by email — LOWER() on both sides for case-insensitive match
+                const emailParam = this.db.dbStr(email); // email is already .toLowerCase()'d above
+                const sql = "SELECT * FROM users WHERE LOWER(userEmail)=" + emailParam + " AND Status='Active'";
+                const rs = await this.db.GetDataReader(sql);
+                const rows = rs ? rs.GetAllRecords() : [];
+                if (rows.length > 0) {
+                    this.userSignedIn(rows[0], this.siteId);
+                    this.logMessage(1, '[GoogleSSO] Login successful for ' + email);
+                } else {
+                    this.logMessage(1, '[GoogleSSO] Email not found in users: ' + email);
+                }
+            } catch (err) {
+                this.logMessage(1, '[GoogleSSO] Error: ' + err.message);
+            }
+        } // End SessionLoginGoogle
 
         // isTruffle() - return bool
         isTruffle(fld1, fld2)

@@ -229,8 +229,9 @@ http.createServer(async (req, res) => {
       debugLog = "app.js:http.createServer(): url=" + req.url + "\n";
 
       
-      cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET"); 
+      cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET");
       cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
+      cms.GOOGLE_CLIENT_ID = cms.SERVER.getStr("GOOGLE_CLIENT_ID"); // Google Identity Services client ID
 
       // Get post data using query string 
       try {

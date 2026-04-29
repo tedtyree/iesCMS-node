@@ -121,55 +121,43 @@ class webEngine {
 
         if (cms.pageId.toLowerCase() == 'login') {
 
+            const googleCredential = cms.body.google_credential;
             let username = cms.body.username;
             let password = cms.body.password;
-            cms.logMessage(3,"Login for user [" + username + "]");
 
-            // if username is correct and password 
-            // create a JWT and return it to frontend 
-            // redirect to the landing page  
-            // if invalid password display error message  
-            if (username || password) {
-                /*
-                if (username == 'joe' && password == 'friendofFelix84') {
-
-                    //this.errorMessage = 'login successful';
-
-                    let user = { userName: 'Joe', loginid: 'joe', userid: 1, userLevel: 9, siteId: cms.siteId };
-                    //var token = jwt.encode({user}, secretKey); 
-
-                    cms.userSignedIn(user);
-                    / *
-                    const token = jwt.sign({ user }, cms.JWT_SECRET, {
-                        expiresIn: cms.JWT_EXPIRES_IN,
-                    });
-                    cms.newToken = token;
-                    * /
-
+            if (googleCredential) {
+                // Google Identity Services sign-in path
+                cms.logMessage(3, 'Google SSO login attempt');
+                await cms.SessionLoginGoogle(googleCredential);
+                if (cms.user.userid < 0) {
+                    this.errorMessage = 'Google account not authorized';
+                    cms.logMessage(3, 'Google SSO login failed');
+                    cms.userSignedOut();
                 } else {
-                    */
+                    cms.logMessage(3, 'Google SSO login successful for ' + cms.user.userEmail);
+                    const _ral = ((cms.cookies && cms.cookies.redirect_after_login) || '').trim();
+                    const _safeRal = (_ral.startsWith('/') && !_ral.startsWith('//')) ? _ral : '';
+                    cms.redirect = _safeRal || ('/' + cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin'));
+                    if (!cms.newCookies) { cms.newCookies = {}; }
+                    cms.newCookies.redirect_after_login = '';
+                }
+
+            } else if (username || password) {
+                // Username/password sign-in path
+                cms.logMessage(3,"Login for user [" + username + "]");
                     await cms.SessionLogin(username,password,cms.siteId);
-                    /*if (cms.debugMode>3) {
-                        cms.logMessage(3,"DEBUG: user record=" + JSON.stringify(cms.user) + "\n");
-                        cms.logMessage(3,"DEBUG: cms.debugMode=" + cms.debugMode);
-                    } */
                     if (cms.user.userid < 0) {
                         this.errorMessage = 'login not successful';
                         cms.logMessage(3,"LOGIN ERROR for user [" + username + "]");
-                        // Invalidate Token
                         cms.userSignedOut();
                     } else {
-                        // login success
                         cms.logMessage(3,"Login successful for user [" + username + "]");
-                        // Read redirect_after_login session cookie; fall back to MEMBER_DEFAULT_PAGE
                         const _ral = ((cms.cookies && cms.cookies.redirect_after_login) || '').trim();
                         const _safeRal = (_ral.startsWith('/') && !_ral.startsWith('//')) ? _ral : '';
                         cms.redirect = _safeRal || ('/' + cms.SITE.getStr('MEMBER_DEFAULT_PAGE', 'admin'));
-                        // Clear the session cookie
                         if (!cms.newCookies) { cms.newCookies = {}; }
                         cms.newCookies.redirect_after_login = '';
                     }
-                // } // else (username || password)
             }
 
         }
