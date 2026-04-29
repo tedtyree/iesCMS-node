@@ -305,7 +305,7 @@ class iesCommonLib {
                         break;
                     ****/
                     case "title": // Title straight from page header
-                        content.append(cms.getParam("Title").toStr().trim());
+                        content.append(cms.getParam("Title")?.toStr()?.trim() || "");
                         break;
 
                     // *** NOTE: USE 'title' FOR TEXT VERSION OF PAGE TITLE
@@ -314,7 +314,7 @@ class iesCommonLib {
                         // Page_Title can either be specified by the WikiPage in the header,
                         // or specified in the default.config file.  The header parameter overrides.
                         let GenerateTag = "";
-                        GenerateTag = cms.getParam["Page_Title"].toStr().trim();
+                        GenerateTag = cms.getParam("Page_Title")?.toStr()?.trim() || "";
                         /* if (!GenerateTag)
                         {
                             GenerateTag = cms.SITE.config["Page_Title"].ToStr().Trim();
