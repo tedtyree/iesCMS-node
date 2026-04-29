@@ -170,6 +170,31 @@ Site-specific tables: optional `websites/<siteId>/db/site-db.jfx` + `table-*.sql
 
 **PostgreSQL only.** No MySQL. Do not use backtick-quoted identifiers (`` `field` ``) — PostgreSQL uses double quotes or unquoted names.
 
+### Working with DB results
+
+`GetDataReader(sql)` returns an `iesDataReader`. Call `GetAllRecords()` on it to get all rows.
+
+**`GetAllRecords()` returns a FlexJson array — NOT a plain JS array.**
+- ✅ Iterate with `for...of`: `for (const row of rows) { ... }`
+- ❌ Never subscript with `[0]` — FlexJson objects do not support index access; `rows[0]` is always `undefined`
+- Each `row` is a FlexJson object — use `row.getStr('field', '')`, `row.getNum('field', 0)`, etc.
+- PostgreSQL returns all column names **lowercase** — `row.getStr('userid')` not `row.getStr('userID')`
+
+```javascript
+// Correct pattern:
+const rs = await cms.db.GetDataReader(sql);
+const rows = rs ? rs.GetAllRecords() : null;
+if (rows) {
+    for (const row of rows) {
+        const val = row.getStr('fieldname', '');
+        // ...
+        break; // if you only need the first row
+    }
+}
+```
+
+For a single row lookup, `GetFirstRow(sql)` is also available and returns a FlexJson directly (or null).
+
 ---
 
 ## Admin Edit System (eclass)
