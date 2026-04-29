@@ -1,3 +1,7 @@
+const _startBanner = '========================================\n========================================\n#### iesCMS Startup Process\n';
+process.stdout.write(_startBanner);
+process.stderr.write(_startBanner);
+
 var http = require('http');
 //var axios = require('axios');
 const jwt = require('jsonwebtoken');
