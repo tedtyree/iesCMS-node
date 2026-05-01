@@ -3324,7 +3324,6 @@ class iesCommonLib {
             expiresIn: this.JWT_EXPIRES_IN,
         });
         this.newToken = token;
-        console.log("DEBUG: newToken=[" + this.newToken + "]")
         this.setUser(userObj);
     }
 

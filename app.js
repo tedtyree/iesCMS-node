@@ -387,20 +387,11 @@ http.createServer(async (req, res) => {
       if (cms.cookies.token && !cms.abort) {
             let token = cms.cookies.token;
             try {
-                  if (jwt.verify(token, cms.JWT_SECRET)) {
-                        var decoded = jwt.decode(token, cms.JWT_SECRET);
-                        if (decoded && decoded.user) {
-                              // FUTURE: fix JWT expiration check — decoded.exp is in seconds, Date.now() is ms
-                              // FUTURE: correct logic should be: expDate * 1000 > Date.now() (token not yet expired)
-                              let expDate = decoded.exp;
-                              if (expDate && expDate < Date.now()) { // NOTE: this comparison always passes (seconds < ms) — effectively disabling expiry
-                                    cms.setUser(new iesUser(decoded.user));
-                              } else {
-                                    console.log("JWT EXPIRED: " + expDate);
-                              }
-                        }
-                        // Later we verify user.siteid
+                  const decoded = jwt.verify(token, cms.JWT_SECRET); // throws if expired or invalid
+                  if (decoded && decoded.user) {
+                        cms.setUser(new iesUser(decoded.user));
                   }
+                  // Later we verify user.siteid
             } catch (jwtErr) {
                   console.log("cms.cookies.token=[" + cms.cookies.token + "]");
                   console.log("JWT ERROR: " + jwtErr.message);
@@ -570,7 +561,14 @@ http.createServer(async (req, res) => {
                   myHead.push(['Set-Cookie', 'mimic=' + cms.newMimic]);
             }
             if (cms.newToken) {
-                  myHead.push(['Set-Cookie', 'token=' + cms.newToken]);
+                  if (cms.newToken === '-') {
+                        // Logout: clear the cookie immediately
+                        myHead.push(['Set-Cookie', 'token=; Max-Age=0; Path=/; SameSite=Lax']);
+                  } else {
+                        // 7-day persistent cookie so closing the browser doesn't log the user out
+                        const maxAge = cms.JWT_EXPIRES_IN || 604800;
+                        myHead.push(['Set-Cookie', `token=${cms.newToken}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax`]);
+                  }
             }
             for (const [_ck, _cv] of Object.entries(cms.newCookies || {})) {
                   if (_cv === '') {
