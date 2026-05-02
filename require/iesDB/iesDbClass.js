@@ -223,7 +223,8 @@ class iesDB {
 
                             });
 
-                    });
+                    })
+                    .catch(err => { reject(this.errPipe(func,"ERR7554",err)); });
             });
         }
 
@@ -339,7 +340,8 @@ class iesDB {
                             .catch(err2 => {
                                 reject(this.errPipe(func,"ERR7753",err2)); return;
                             });
-                    });
+                    })
+                    .catch(err => { reject(this.errPipe(func,"ERR7754",err)); });
             });
         }
 

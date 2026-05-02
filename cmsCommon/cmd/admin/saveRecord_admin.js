@@ -101,7 +101,7 @@ module.exports = {
 
         // 4. Build and execute SQL
         try {
-            cms.db.Open();
+            await cms.db.Open();
             let savedId = null;
 
             // Merge extra JSONB fields into the regular col/val lists (INSERT) or SET clause (UPDATE)
