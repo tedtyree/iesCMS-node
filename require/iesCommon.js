@@ -1685,7 +1685,7 @@ class iesCommonLib {
             // CHECK SECURITY LEVEL
             let Permit = this.EditFormSecurityLevel();  // Default=No Access
             // let bViewOnly = (Permit <= 1) ? true : false;
-            this.db.Open();
+            await this.db.Open();
             if (Permit <= 0)
             {
                 ret.ReturnJson.error = "ERROR: Permission denied.";
@@ -1887,7 +1887,7 @@ class iesCommonLib {
             // CHECK SECURITY LEVEL
             let Permit = this.EditFormSecurityLevel();  // Default=No Access
             // let bViewOnly = (Permit <= 1) ? true : false;
-            this.db.Open();
+            await this.db.Open();
             if (Permit <= 0)
             {
                 ret.ReturnJson.error = "ERROR: Permission denied.";
