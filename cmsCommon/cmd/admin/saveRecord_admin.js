@@ -129,7 +129,7 @@ module.exports = {
                 savedId = id;
             }
 
-            cms.db.Close();
+            await cms.db.Close();
             cms.ReturnJson = { success: true, id: savedId };
 
         } catch (err) {

@@ -1740,7 +1740,7 @@ class iesCommonLib {
                     ret.ReturnJson = jret;
                 }
             } // end if-else (Permit<=0)
-            this.db.Close();
+            await this.db.Close();
         } // end function
 
         // FUTURE: first parameter "ret" is no longer a StringBuilder. This is expecting a JSON object to be generated.
@@ -1955,7 +1955,7 @@ class iesCommonLib {
                     ret.ReturnJson = jret;
                 }
             } // end if-else (Permit<=0)
-            this.db.Close();
+            await this.db.Close();
         } // end function
 
         /*
@@ -2155,9 +2155,9 @@ class iesCommonLib {
 
                         try
                         {
-                            cms.db.Open();
+                            await cms.db.Open();
                             jRec = cms.db.GetFirstRow(sql);
-                            cms.db.Close();
+                            await cms.db.Close();
                         }
                         catch (Exception e) { content.append("ERROR: Query record failed. [err4646]<br>"); if (this.debugMode > 0) { Content.Append(e.ToString()); } return; }
                         //content.append("SQL=" + sql + "<br>");//DEBUG

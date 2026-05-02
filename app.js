@@ -517,7 +517,7 @@ http.createServer(async (req, res) => {
                   cms.Html = "SERVER ERROR [ERR-0001]: " + e + "<br>" + cms.Html;
                   cms.resultType = 'html';
             } finally {
-                  if (cms.db) { cms.db.Close(); } // close DB connection if needed
+                  if (cms.db) { await cms.db.Close(); } // close DB connection if needed
             }
       } // end if(cmsSiteID)
 
