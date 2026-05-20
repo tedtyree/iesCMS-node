@@ -11,6 +11,7 @@ What makes it unique:
 - Tag replacement is built in
 - Configs and tag replacement enable single source - for example one menu (html) used on each web page.
 - Flex JSON config files make it easy to read and manage the server, system, and each website.
+- This CMS is designed to make it easy for a developer/admin to setup and manage simple websites. It is not intended to be all-things-to-all-people or to be a build-your-own-website platform. (Although Claude-AI seems to be very proficient at developing websites in this environment making it easy for a non-technical person to create a website from scratch)
 
 &nbsp;
 
