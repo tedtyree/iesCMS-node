@@ -1,15 +1,18 @@
 # iesCMS - NodeJS
 
-Super simple content management system (CMS)leveraging NodeJS.
+Super simple content management system (CMS) leveraging NodeJS.
 
 What makes it unique:
 
 - Very easy to install/setup and config a new website
 - Each website is contained within its own folder
-- Optional .js extensions can be added per website; require/website_<id>.js
+- Optional .js extensions/engine can be added per website; require/website_<id>.js
 - Front-end is very much HTML/CSS/JS ... not a complex proprietary framework
 - Tag replacement is built in
+- Configs and tag replacement enable single source - for example one menu (html) used on each web page.
 - Flex JSON config files make it easy to read and manage the server, system, and each website.
+
+&nbsp;
 
    NOTE: Uses Flex JSON: https://www.npmjs.com/package/flex-json
 
