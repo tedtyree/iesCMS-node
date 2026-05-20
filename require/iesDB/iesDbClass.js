@@ -123,7 +123,7 @@ class iesDB {
                     user: this.ConnectObj.user,
                     password: this.ConnectObj.password,
                     database: this.dbName, // not from ConnectObj
-                    port: 5432
+                    port: this.ConnectObj.port || 5432
                 });
                 await this.iesConnection.connect();
             } catch (ex) {
@@ -304,7 +304,7 @@ class iesDB {
             return new Promise(async (resolve,reject) => {
                 try {
                     let sqlWhere = strWhere.trim();
-                    if (!sqlWhere) { if (sqlWhere.slice(0,5).toUpperCase() != "WHERE") { sqlWhere = " WHERE " + sqlWhere; } }
+                    if (sqlWhere && sqlWhere.slice(0,5).toUpperCase() != "WHERE") { sqlWhere = " WHERE " + sqlWhere; }
                     let sql = "SELECT COUNT(*) FROM " + sTable + " " + sqlWhere;
                     let rs = await this.GetFirstRow(sql,true); // js object
                     // PostgreSQL returns COUNT(*) as column named 'count' (lowercase)
