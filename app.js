@@ -40,20 +40,6 @@ function requireDynamically(path) {
       return eval(`require('${path}');`); // Ensure Webpack does not analyze the require statement
 }
 
-// =======================================================
-// DEVELOPMENT ENVIRONMENT
-const env_development = {
-      serverBasePath: 'C:\\~Local\\github\\iesCMS-node'  // Local PC - Development Environment
-      , pathSeperator: '\\'  // Local PC - Development Environment
-}
-
-// =======================================================
-// PRODUCTION ENVIRONMENT
-const env_production = {
-      serverBasePath: '/var/www/s99.tedtyree.com/nodejs'  // Linux Server - Production Environment
-      , pathSeperator: '/'  // Linux Server = Production Environment
-}
-
 function timestamp() {
       function pad(n) { return n < 10 ? "0" + n : n }
       let d = new Date();
@@ -66,11 +52,6 @@ function timestamp() {
             pad(d.getSeconds())
 }
 
-// =======================================================
-// Select one environment - comment out the others...
-// FUTURE: TO-DO: IS THIS USED ANY MORE? server.cfg should be used instead
-const env = env_development;
-// const env = env_production;
 
 // Get list of websites [#REQ-FOLDER-01-01]
 var sitesPath = './websites'
