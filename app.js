@@ -265,33 +265,6 @@ http.createServer(async (req, res) => {
       if (!cms.body) { cms.body = {}; }
 
 
-      // EXPERIMENT TEST - FORWARD /api REQUESTS TO ANOTHER PORT OR SERVER
-      // FUTURE - REMOVE THIS TEST SECTION - DEBUG DEBUG DEBUG
-      //if (cms.url.pathname.substr(0,5).toLowerCase() == '/api_NOMATCH/') {
-      //      try {
-      //      let api = await axios({
-      //            url: 'https://api.maddash2u.com' + cms.url.pathname,
-      //            method: cms.req.method || 'GET',
-      //            headers: {
-      //                  'Content-Type': 'application/json'
-      //                },
-      //            data: cms.bodyText
-      //          });
-      //      } catch (e) { 
-      //            let myHeadJ = [];
-      //            myHeadJ.push(['Content-Type', 'application/json']);
-      //            res.writeHead(500, myHeadJ);
-      //            res.end(JSON.stringify({"error":e.message}));
-      //            return; 
-      //      }
-      //
-      //      let myHeadJ = [];
-      //      myHeadJ.push(['Content-Type', 'application/json']);
-      //      res.writeHead(200, myHeadJ);
-      //      res.end(JSON.stringify(api.data));
-      //      return; // exit and don't run any of the below
-      //}
-
       cms.noUser();
       const p = 'z'; //url.parse(req.url,true).pathname;
       const s = 'z'; //url.parse(req.url,true).search;
@@ -330,15 +303,6 @@ http.createServer(async (req, res) => {
       cms.newCookies = {};
       cms.abort = false; // set to TRUE to abort the request
       
-      /*
-      let urlSepPosition = urlPath.indexOf("?"); ** use cms.url.pathname
-      try {
-          if (urlSepPosition >=0) { 
-                // urlParamString = urlPath.slice(urlSepPosition+1); ** use cms.url.query 
-                urlPath = urlPath.slice(0,urlSepPosition);
-          }
-      } catch (errSepPosition) {}
-      */
       cms.urlPathList = decodeURI(cms.url.pathname).split("/");  // FUTURE: Not sure this is needed
       if (!cms.urlPathList[0]) { cms.urlPathList.shift(); } // removed the initial /
       if (cms.urlPathList.length <= 1 || (!cms.urlPathList[0])) {
@@ -522,13 +486,6 @@ http.createServer(async (req, res) => {
             }
       } // end if(cmsSiteID)
 
-      /* FUTURE: HOW TO HANDLE GET/POST/etc.
-      if (req.method !== 'GET') {
-            res.statusCode = 501;
-            res.setHeader('Content-Type', 'text/plain');
-            return res.end('Method not implemented');
-        }
-      */
       let responseBuilt = false;
       if (cms.abort && !cms.resultType) { cms.resultType = 'abort'; }
       if (debugMode > 20) {
@@ -541,17 +498,47 @@ http.createServer(async (req, res) => {
                   res.end('Not found');
                   responseBuilt = true;
             } else {
-                  var streamFile = createReadStream(cms.fileFullPath);
-                  streamFile.on('open', function () {
-                        res.setHeader('Content-Type', cms.mimeType);
-                        streamFile.pipe(res);
-                  });
-                  streamFile.on('error', function () {
-                        // FUTURE: may want to indicate or log other types of errors here?
-                        res.setHeader('Content-Type', 'text/plain');
-                        res.statusCode = 404;
-                        res.end('Not found');
-                  });
+                  // JS/CSS tag replacement: process [[...]] tags for .js and .css files [#REQ-TAG-02]
+                  const tagExts = ['js', 'css'];
+                  if (tagExts.includes(cms.pathExt) && cms.commonEngine) {
+                        try {
+                              const rawText = readFileSync(cms.fileFullPath, 'utf8');
+                              if (rawText.includes('[[')) {
+                                    const processed = await cms.commonEngine.ReplaceTags(
+                                          rawText, cms.SITE, '', cms.thisEngine, cms
+                                    );
+                                    res.setHeader('Content-Type', cms.mimeType);
+                                    res.statusCode = 200;
+                                    res.end(processed);
+                              } else {
+                                    var streamFile = createReadStream(cms.fileFullPath);
+                                    streamFile.on('open', function () {
+                                          res.setHeader('Content-Type', cms.mimeType);
+                                          streamFile.pipe(res);
+                                    });
+                                    streamFile.on('error', function () {
+                                          res.setHeader('Content-Type', 'text/plain');
+                                          res.statusCode = 404;
+                                          res.end('Not found');
+                                    });
+                              }
+                        } catch {
+                              res.statusCode = 500;
+                              res.end('Server error');
+                        }
+                  } else {
+                        var streamFile = createReadStream(cms.fileFullPath);
+                        streamFile.on('open', function () {
+                              res.setHeader('Content-Type', cms.mimeType);
+                              streamFile.pipe(res);
+                        });
+                        streamFile.on('error', function () {
+                              // FUTURE: may want to indicate or log other types of errors here?
+                              res.setHeader('Content-Type', 'text/plain');
+                              res.statusCode = 404;
+                              res.end('Not found');
+                        });
+                  }
                   responseBuilt = true;
             }
       }
