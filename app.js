@@ -30,7 +30,7 @@ var forwardedHost = false;  // For PRODUCTION set this to true :: forces us to r
 let vStatic = null;
 let vDynamic = null;
 
-var serverPort = 8118;
+var serverPort = 8118; // default port can be overridden in server.cfg
 const serverSecretsFolder = "./secrets/";
 const serverConfig = serverSecretsFolder + "server.cfg";
 const websitePathTemplate = './websites/{{siteID}}/site.cfg';
@@ -68,6 +68,7 @@ function timestamp() {
 
 // =======================================================
 // Select one environment - comment out the others...
+// FUTURE: TO-DO: IS THIS USED ANY MORE? server.cfg should be used instead
 const env = env_development;
 // const env = env_production;
 
