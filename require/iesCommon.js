@@ -25,7 +25,8 @@ class iesCommonLib {
         png: 'image/png',
         svg: 'image/svg+xml',
         js: 'application/javascript',
-        pdf: 'application/pdf'
+        pdf: 'application/pdf',
+        apk: 'application/vnd.android.package-archive'
     };
 
     constructor() { 
