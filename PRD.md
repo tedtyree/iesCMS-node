@@ -67,6 +67,16 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
     - LoadHTMLfile() - loads an HTML file and processes it with Reaplcetags()
 - **Tag collision warning** [#REQ-COMMON-01-02]: The tag processor scans ALL content in `.cfg` files (pages, templates, partials) for `[[...]]` sequences. Any literal `[[` in page content — including JavaScript, JSX, or HTML — will be treated as a tag substitution and may corrupt the output. **To include a literal `[[` in page content, insert a space: write `[ [` instead of `[[`.** Common trigger: JavaScript array-of-arrays literals inside JSX `.map()` calls.
 
+## Tag Replacement in JS/CSS Static Files [#REQ-TAG-02]
+
+Opt-in only, to avoid the REQ-COMMON-01-02 collision problem in third-party/minified files.
+
+- A `.js`/`.css` file is only considered for tag processing if its first 3 characters are exactly `[[{` — anything else is streamed raw, untouched [#REQ-TAG-02-01]
+- That header runs from `[[{` to the first `}]]`, parsed as FlexJson, and is always stripped from the response regardless of its contents [#REQ-TAG-02-02]
+- `ReplaceTags:true` in the header runs the remaining file body through the normal `ReplaceTags()` (same as page/template tags, just with no layout template wrapped around it); default is `false` if the key is omitted [#REQ-TAG-02-03]
+- If `}]]` is missing or the header fails to parse, the file is served completely as-is (no strip, no error) [#REQ-TAG-02-04]
+- Example: `cmsCommon/src/ckFinderLogin.js` starts with `[[{ ReplaceTags: true }]]` to substitute `[[userObjID]]`, `[[world]]`, `[[sessionID]]` [#REQ-TAG-02-05]
+
 ## /orig Folder — Protected Original Site Reference [#REQ-ORIG-01]
 
 Allows a web developer to drop a complete original HTML website into a site's `/orig` subfolder and access it through the CMS with password protection. Useful during active CMS development: the developer can compare the in-progress CMS pages against the original HTML design.
@@ -88,5 +98,4 @@ Allows a web developer to drop a complete original HTML website into a site's `/
 
 ## Ideas
 
-- Allow tag replacements in JS, CSS, and other documents? Would this slow things down or create awesome flexibility such as specifying a color #00A5B9 that will be used in many locations throughout the app?
 - Make FlexJson object iterable + easy way to convert to a traditional JSON object
