@@ -1,4 +1,4 @@
-
+[[{ ReplaceTags: true }]]
 $(document).ready(function() {
    // login to ASPX to enable CKFinder (which only works with ASPX)
    $.ajax({

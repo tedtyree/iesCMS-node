@@ -9,7 +9,7 @@ const { parse, stringify } = require('querystring');// form submission
 const { Console } = require('console');
 
 //const querystring = require('querystring');
-const { readdirSync, statSync, existsSync, createReadStream, appendFileSync, readFileSync } = require('fs');
+const { readdirSync, statSync, existsSync, createReadStream, appendFileSync, readFileSync, openSync, readSync, closeSync } = require('fs');
 const path = require('path');
 const FlexJson = require('./require/FlexJson/FlexJsonClass.js');
 const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
@@ -479,30 +479,40 @@ http.createServer(async (req, res) => {
                   res.end('Not found');
                   responseBuilt = true;
             } else {
-                  // JS/CSS tag replacement: process [[...]] tags for .js and .css files [#REQ-TAG-02]
+                  // JS/CSS tag replacement: opt-in only, via a leading [[{ ... }]] FlexJson header [#REQ-TAG-02]
+                  // Files without that exact 3-byte prefix are streamed raw with zero overhead - this
+                  // keeps third-party/minified files (which may coincidentally contain '[[') untouched.
                   const tagExts = ['js', 'css'];
+                  let hasHeader = false;
                   if (tagExts.includes(cms.pathExt) && cms.commonEngine) {
                         try {
+                              const fd = openSync(cms.fileFullPath, 'r');
+                              const peekBuf = Buffer.alloc(3);
+                              readSync(fd, peekBuf, 0, 3, 0);
+                              closeSync(fd);
+                              hasHeader = peekBuf.toString('utf8') === '[[{';
+                        } catch { hasHeader = false; }
+                  }
+                  if (hasHeader) {
+                        try {
                               const rawText = readFileSync(cms.fileFullPath, 'utf8');
-                              if (rawText.includes('[[')) {
-                                    const processed = await cms.commonEngine.ReplaceTags(
-                                          rawText, cms.SITE, '', cms.thisEngine, cms
-                                    );
-                                    res.setHeader('Content-Type', cms.mimeType);
-                                    res.statusCode = 200;
-                                    res.end(processed);
-                              } else {
-                                    var streamFile = createReadStream(cms.fileFullPath);
-                                    streamFile.on('open', function () {
-                                          res.setHeader('Content-Type', cms.mimeType);
-                                          streamFile.pipe(res);
-                                    });
-                                    streamFile.on('error', function () {
-                                          res.setHeader('Content-Type', 'text/plain');
-                                          res.statusCode = 404;
-                                          res.end('Not found');
-                                    });
+                              let body = rawText; // malformed/unparsable header -> serve file untouched
+                              const p2 = rawText.indexOf('}]]');
+                              if (p2 >= 0) {
+                                    const headJson = rawText.substring(2, p2 + 1); // keep outer '{' ... '}'
+                                    const fileHeader = new FlexJson();
+                                    fileHeader.DeserializeFlex(headJson);
+                                    if (fileHeader.Status == 0 && fileHeader.jsonType == 'object') {
+                                          body = rawText.slice(p2 + 3);
+                                          cms.HEADER = fileHeader; // same role as pageHead for html pages [#REQ-TAG-02]
+                                          if (fileHeader.getBool('ReplaceTags', false)) {
+                                                body = await cms.commonEngine.ReplaceTags(body, cms.HEADER, '', cms.thisEngine, cms);
+                                          }
+                                    }
                               }
+                              res.setHeader('Content-Type', cms.mimeType);
+                              res.statusCode = 200;
+                              res.end(body);
                         } catch {
                               res.statusCode = 500;
                               res.end('Server error');
