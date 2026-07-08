@@ -217,7 +217,8 @@ http.createServer(async (req, res) => {
       
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET");
       cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
-      cms.GOOGLE_CLIENT_ID = cms.SERVER.getStr("GOOGLE_CLIENT_ID"); // Google Identity Services client ID
+      cms.GOOGLE_CLIENT_ID = cms.SERVER.getStr("GOOGLE_CLIENT_ID");                 // Google web OAuth client ID
+      cms.GOOGLE_ANDROID_CLIENT_ID = cms.SERVER.getStr("GOOGLE_ANDROID_CLIENT_ID"); // Google Android OAuth client ID (mobile app)
 
       // Get post data using query string 
       try {
@@ -343,6 +344,20 @@ http.createServer(async (req, res) => {
                   console.log("JWT ERROR: " + jwtErr.message);
             }
 
+      }
+
+      // Bearer token support for mobile API clients that cannot use cookies
+      if ((!cms.user || cms.user.userid < 0) && !cms.abort) {
+            const authHeader = req.headers['authorization'] || '';
+            if (authHeader.startsWith('Bearer ')) {
+                  try {
+                        const bearerToken = authHeader.slice(7);
+                        const decoded = jwt.verify(bearerToken, cms.JWT_SECRET);
+                        if (decoded && decoded.user) {
+                              cms.setUser(new iesUser(decoded.user));
+                        }
+                  } catch (e) { /* invalid/expired token — stays unauthenticated */ }
+            }
       }
 
       // This is already done above?

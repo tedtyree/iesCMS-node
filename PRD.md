@@ -96,6 +96,20 @@ Allows a web developer to drop a complete original HTML website into a site's `/
 - Files are served with the correct MIME type using the standard CMS mime table [#REQ-ORIG-01-10]
 - Implemented entirely in `app.js` — no per-site engine changes needed [#REQ-ORIG-01-11]
 
+## Mobile / API Client Authentication [#REQ-MOBILE-AUTH-01]
+
+The standard auth flow issues the JWT as an `HttpOnly` cookie (`Set-Cookie: token=<jwt>`) and reads it back from `Cookie: token=<jwt>` on subsequent requests. Browser clients handle this automatically. Native mobile apps (e.g. React Native / Expo) cannot rely on cookie jars in the same way, and secure-storage best practice is to hold the token in the OS keychain (iOS Keychain / Android Keystore) and send it as a header.
+
+To support this without changing the JWT payload, secret, or expiry:
+
+- **Login endpoint** [#REQ-MOBILE-AUTH-01-01]: a per-site `pubcmd` handler (e.g. `cmd/align/auth-login_pub.js`) can accept JSON credentials (`username`, `password`) and return the signed JWT in the **response body** (`{ success:true, token:"eyJ..." }`) rather than as a cookie. The handler uses the same `cms._isHashed()` / `cms._verifyPassword()` helpers and `jwt.sign()` call as the browser login path — the resulting token is identical.
+- **Bearer token fallback in `app.js`** [#REQ-MOBILE-AUTH-01-02]: after the existing `Cookie: token` check, `app.js` also checks the `Authorization: Bearer <token>` request header. If the cookie check left the user unauthenticated and a valid Bearer token is present, it is verified with the same `jwt.verify()` / `cms.setUser()` call. The existing siteId cross-site rejection runs afterwards and applies equally to Bearer tokens.
+- **No change to JWT internals** [#REQ-MOBILE-AUTH-01-03]: payload shape, `JWT_SECRET`, and `JWT_EXPIRES_IN` are shared between cookie and Bearer paths. A token issued by the mobile login handler is accepted by the cookie path and vice versa.
+- **Security properties unchanged** [#REQ-MOBILE-AUTH-01-04]: scrypt password verification, timing-safe comparison, and site-scoped token validation all apply. The mobile app is responsible for storing the token in the OS keychain (not `AsyncStorage`) and transmitting it only over HTTPS.
+- **Android Google OAuth client ID** [#REQ-MOBILE-AUTH-01-05]: `app.js` reads `GOOGLE_ANDROID_CLIENT_ID` from `secrets/server.cfg` and exposes it as `cms.GOOGLE_ANDROID_CLIENT_ID` alongside the existing `cms.GOOGLE_CLIENT_ID` (web). This is needed because Android OAuth tokens carry the Android client ID as the `aud` claim rather than the web client ID — a per-site `auth-google` handler must validate against both. The `secrets_SAMPLE/server-PUBLIC-SAMPLE.cfg` includes an empty placeholder for this key.
+
+*First implemented for the delta_align site's MAR (Med Reminder) mobile app — see `websites/delta_align/docs/MED-Security.md` for the full design.*
+
 ## Ideas
 
 - Make FlexJson object iterable + easy way to convert to a traditional JSON object
