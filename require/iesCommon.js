@@ -3583,8 +3583,9 @@ class iesCommonLib {
                     return;
                 }
 
-                // Validate audience matches our client ID (prevents use of tokens from other apps)
-                const clientId = this.GOOGLE_CLIENT_ID || '';
+                // Validate audience matches our client ID (prevents use of tokens from other apps).
+                // A site can override the server-wide default via its own site.cfg GOOGLE_CLIENT_ID.
+                const clientId = (this.SITE && this.SITE.getStr('GOOGLE_CLIENT_ID', '')) || this.GOOGLE_CLIENT_ID || '';
                 console.log('[GoogleSSO] clientId from config=[' + clientId + '], token aud=[' + tokenData.aud + ']');
                 if (clientId && tokenData.aud !== clientId) {
                     console.log('[GoogleSSO] FAIL: Token audience mismatch');

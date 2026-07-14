@@ -217,8 +217,12 @@ http.createServer(async (req, res) => {
       
       cms.JWT_SECRET = cms.SERVER.getStr("JWT_SECRET");
       cms.JWT_EXPIRES_IN = cms.SERVER.getNum("JWT_EXPIRES_IN"); // seconds
-      cms.GOOGLE_CLIENT_ID = cms.SERVER.getStr("GOOGLE_CLIENT_ID");                 // Google web OAuth client ID
-      cms.GOOGLE_ANDROID_CLIENT_ID = cms.SERVER.getStr("GOOGLE_ANDROID_CLIENT_ID"); // Google Android OAuth client ID (mobile app)
+      // Google web OAuth client ID — server-wide default. A site can override this via its
+      // own site.cfg GOOGLE_CLIENT_ID (see cms.SITE.getStr in SessionLoginGoogle / per-site
+      // auth-google handlers). There is deliberately no server-wide GOOGLE_ANDROID_CLIENT_ID:
+      // each mobile app has its own Android package + signing key, so that value only makes
+      // sense per-site — see websites/delta_align/site.cfg and PRD.md #REQ-MOBILE-AUTH-01-05.
+      cms.GOOGLE_CLIENT_ID = cms.SERVER.getStr("GOOGLE_CLIENT_ID");
 
       // Get post data using query string 
       try {
