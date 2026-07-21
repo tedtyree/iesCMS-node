@@ -1,5 +1,6 @@
 # Config files containing passwords and secrets
-secrets/
+secrets/*
+!secrets/.gitkeep
 
 # CK Editor / CK Finder
 cmsCommon/ckeditor
@@ -100,7 +101,8 @@ dist
 .vuepress/dist
 
 # Websites directory and required .js
-websites/
+websites/*
+!websites/.gitkeep
 require/website_*.js
 
 # Serverless directories
