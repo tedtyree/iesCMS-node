@@ -139,7 +139,48 @@ cfg.WriteToFile('./output.jfx')
 
 **Important:** `cfg.i('missingKey')` returns a special null-like FlexJson object that is **truthy** in JS — always check `cfg.Status` or use `getStr`/`getNum`/`getBool`.
 
+**`add(value, key)` only accepts a primitive or an existing `FlexJson` node — never a raw
+native JS array/object.** `convertType()` can't distinguish a plain object from an array
+(both are `typeof "object"`), so passing one in directly mis-detects the type and corrupts
+that node (`jsonType` becomes `"error"`), which then fails serialization of the **entire**
+file on `WriteToFile()` — not just that one field. Use the FlexJson helper functions to
+convert native values first: `FlexJson.FromNativeArray(arr)`, `FlexJson.FromNativeObject(obj)`,
+or `FlexJson.FromNative(value)` (dispatches by type; passes an existing `FlexJson` instance
+through unchanged). Example: `cfg.add(FlexJson.FromNativeArray(['#tag1', '#tag2']), 'tags')`.
+**As of 2026-07-24 this vendored copy (`require/FlexJson/FlexJsonClass.js`) is synced with the
+canonical `flex-json` repo (`C:\~Local\github\FlexJson`)** — the fix and helpers are present
+and usable. The canonical repo is the source of truth; re-sync this vendored copy (a straight
+file copy — confirmed via diff there is no iesCMS-specific customization in this file) whenever
+it's updated there.
+
 **Tag replacement** in string values: `[[SERVER_FOLDER]]`, `[[SiteID]]`, etc. — resolved by `getStr()`.
+
+---
+
+## Static Asset Cache-Busting (`[[v]]`)
+
+`[[v]]` is a built-in tag (`require/iesCommon.js`, `AdminTags()`) that expands to the site's
+`ScriptVersion` string from `site.cfg`. Append it as a bare query string on `<script src>` /
+`<link href>` tags for site-owned JS/CSS so browsers don't serve a stale cached copy after a
+deploy:
+
+```html
+<script src="/src/myfile.js?[[v]]"></script>
+<link rel="stylesheet" href="/src/myfile.css?[[v]]">
+```
+
+Note the convention is `?[[v]]` (the tag has no `v=` prefix baked in), not `?v=[[v]]`. This
+pattern is already used throughout `cmsCommon/pages` and `cmsCommon/templates` (e.g.
+`layout_admin.cfg`, `admin-edit-form.cfg`).
+
+**`ScriptVersion` is a static, manually-maintained value** — it does NOT auto-change on
+deploy or server restart. If you fix a bug in a `.js`/`.css` file that's cache-busted this
+way, you must also bump `ScriptVersion` in that site's `site.cfg` (e.g. `"1.0.0"` →
+`"1.0.1"`) for the fix to actually reach users — otherwise browsers/CDNs may keep serving
+the pre-fix file indefinitely even after the server-side file is updated. This is easy to
+forget when debugging "I fixed the code but the bug is still happening" reports — always
+check whether the affected page's script/link tags are cache-busted at all, and whether
+`ScriptVersion` was bumped on the relevant deploy.
 
 ---
 
