@@ -2908,6 +2908,23 @@ class iesCommonLib {
         this.logMessage(0,"ERROR: " + errMsg); // errors are written even if debug mode is 0?  FUTURE: Fix this if not intended
     }
 
+    async appLog(event, level, message, detail, context = null) {
+        if (!this.db) return;
+        try {
+            const detailVal = detail
+                ? this.db.dbStr(JSON.stringify(detail)) + '::jsonb'
+                : 'NULL';
+            const contextVal = context ? this.db.dbStr(context) : 'NULL';
+            await this.db.ExecuteSQL(
+                `INSERT INTO app_log (event, level, message, context, detail, created_at)
+                 VALUES (${this.db.dbStr(event)}, ${this.db.dbStr(level)},
+                         ${this.db.dbStr(message)}, ${contextVal}, ${detailVal}, NOW())`
+            );
+        } catch (_) {
+            // Log write failure is non-fatal, same as the original per-site helper
+        }
+    }
+
     appendFile(filePath,outputText) {
         try {
             appendFileSync(filePath,outputText); // FUTURE: Do we need certain options here?
@@ -3448,6 +3465,13 @@ class iesCommonLib {
                 }
             }
 
+            if (!(this.user.loginid != "" && this.user.userLevel > 0)) {
+                await this.appLog('login-failed', 'alert', 'Failed login attempt: ' + Login_ID,
+                    { siteId: this.siteId, ip: this.clientIp || '', attempted_loginid: Login_ID,
+                      password_provided: !!Login_Pwd },
+                    'login');
+            }
+
         } // End SessionLogin()
 
         async SessionLogin2(sql, Login_Pwd)
@@ -3548,6 +3572,10 @@ class iesCommonLib {
                             //if (this.debugMode >= 3) { this.WriteLog("login", "Failed to store SessionLogin. [ERR3497]\n"); } // FUTURE: log event
                             console.log("Failed to store SessionLogin. [ERR3497] " + Exception);
                         }
+
+                        await this.appLog('login', 'info', 'Successful login: ' + this.user.loginid,
+                            { userid: this.user.userid, siteId: this.user.siteId, ip: this.clientIp || '' },
+                            'login');
 
                         ret = true;
                         break; // stop checking additional records

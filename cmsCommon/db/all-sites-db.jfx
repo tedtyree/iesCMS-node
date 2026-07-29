@@ -29,6 +29,6 @@
     "users"
     ,"jobjects"
     ,"jobjhist"
-    ,"log"
+    ,"app_log"
     ]
 }

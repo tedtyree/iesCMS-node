@@ -280,6 +280,9 @@ http.createServer(async (req, res) => {
       cms.urlHost = null;
       if (!forwardedHost) { cms.urlHost = req.headers.host; }
       else { cms.urlHost = req.headers['x-forwarded-host']; }
+      cms.clientIp = forwardedHost
+          ? (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+          : req.socket.remoteAddress;
       cms.urlBasePath = '';
       cms.urlFileName = '';
       cms.fileFullPath = ''; // This should get set by the website engine
