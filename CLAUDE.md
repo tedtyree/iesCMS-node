@@ -109,6 +109,10 @@ websites/<siteId>/
 **Templates** (`templates/layout_<name>.cfg`):
 - Full HTML document with `[[content_area]]` where page body is injected
 
+**Adding new `[[tags]]`:**
+- Built-in tags are `case` labels in `AdminTags()` in `require/iesCommon.js` — add new read-only tags there (e.g. `who_am_i`, `my_username`, `my_loginid`, `my_userid`).
+- A tag with no matching case falls through to a generic lookup: `cms.HEADER` (page header) → `cms.SITE` (site.cfg) → `cms.SERVER` (server.cfg), by key name — so e.g. `[[DefaultPageID]]` on any page resolves straight from `site.cfg` with zero extra code.
+
 **Escaping `[[` in page/template content:**
 The CMS tag processor treats any `[[...]]` sequence as a tag substitution. If page content (e.g. JSX or JavaScript) contains a literal `[[`, the CMS will try to process it as a tag and corrupt the output.
 - **Fix:** insert a space — write `[ [` instead of `[[` — so the CMS does not recognize it as a tag.
@@ -205,6 +209,15 @@ Unknown `runcmd` commands fall back to `cms.RunCmd()` — a large switch/case in
 
 ---
 
+## Authentication & User Sessions
+
+- The logged-in user is `cms.user` (an `iesUser`, `require/iesUser.js`), fields: `userid`, `userName` (capital N — not `username`), `loginid`, `userEmail`, `userLevel`, `siteId`. Rebuilt fresh every request from the JWT (`token` cookie or `Authorization: Bearer`) in `app.js`.
+- **Never trust a client-submitted user id.** Any "user manages their own record" endpoint (e.g. change-password) should be `auth:'user'` and scope all queries to `cms.user.userid` from the verified session.
+- `minViewLevel` in a page header is enforced automatically — a request below the required level redirects to the site's `LOGIN_PAGE` (return URL preserved via a `redirect_after_login` cookie). Add `noRedirect:true` to the header to get a JSON `401` instead (used by API-style pages like `runcmd.cfg`).
+- Passwords: `cms._hashPassword(plain)` (scrypt, format `$1$<salt>$<hash>`, both base64) / `cms._verifyPassword(plain, stored)` / `cms._isHashed(stored)` (`require/iesCommon.js`) — always reuse these for anything touching `users.pwd`. Legacy plain-text passwords still in the DB are auto-upgraded to a hash on next successful login.
+
+---
+
 ## Database
 
 `databasename` in `site.cfg` is the **single source of truth** for whether a site uses a DB. Its presence triggers both:
@@ -240,6 +253,32 @@ if (rows) {
 ```
 
 For a single row lookup, `GetFirstRow(sql)` is also available and returns a FlexJson directly (or null).
+
+### Shared connection across multiple handlers
+
+`Open()` returns `true` if it opened the connection, `false` if it was already open. Use this to write handlers that are safe whether called standalone **or** from a parent handler that owns the connection:
+
+```javascript
+// In every handler that touches the DB:
+const needToClose = await cms.db.Open();
+// ... queries ...
+if (needToClose) await cms.db.Close();
+```
+
+A parent handler (e.g. a combined endpoint that calls several sub-handlers) can then open once, let all sub-handlers share the connection without closing it, and close once at the end:
+
+```javascript
+// Parent / combined handler:
+await cms.db.Open();          // opens once; sub-handlers see it's already open
+await handlerA.handler(cms); // Open() → false; needToClose=false; no close
+await handlerB.handler(cms); // Open() → false; needToClose=false; no close
+await handlerC.handler(cms); // Open() → false; needToClose=false; no close
+await cms.db.Close();         // single close owned by the parent
+```
+
+When a handler is called on its own (one handler per request, the normal case), `Open()` returns `true` and the handler closes as usual. The pattern is transparent to callers.
+
+**Important:** always `await cms.db.Close()` — an unawaited `Close()` creates a race condition where the connection is torn down while a subsequent handler's query is still in flight.
 
 ---
 

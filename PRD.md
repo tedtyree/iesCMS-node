@@ -110,6 +110,16 @@ To support this without changing the JWT payload, secret, or expiry:
 
 *First implemented for the delta_align site's MAR (Med Reminder) mobile app — see `websites/delta_align/docs/MED-Security.md` for the full design.*
 
+## Password Hashing & Self-Service Account Management [#REQ-AUTH-02]
+
+- Passwords are hashed with scrypt: `cms._hashPassword(plain)` / `cms._verifyPassword(plain, stored)` / `cms._isHashed(stored)` (`require/iesCommon.js`), stored as `$1$<base64-salt>$<base64-hash>` in `users.pwd` [#REQ-AUTH-02-01]
+  - Legacy plain-text passwords (no `$1$` prefix) are matched by direct string compare and auto-upgraded to a hash on next successful login [#REQ-AUTH-02-02]
+  - Any code path that reads or writes `users.pwd` must reuse these three helpers rather than re-implementing hashing [#REQ-AUTH-02-03]
+- `cms.user` (an `iesUser`, `require/iesUser.js`) is the only source of the current session's identity — fields `userid`, `userName`, `loginid`, `userEmail`, `userLevel`, `siteId` — rebuilt from the verified JWT on every request [#REQ-AUTH-02-04]
+- A "user manages their own record" cmd handler (e.g. self-service change-password) uses `auth:'user'` and must key every query off `cms.user.userid` from the session — never an id supplied in the request body [#REQ-AUTH-02-05]
+- `minViewLevel` on a page header is enforced automatically by the website engine: below-level requests redirect to the site's login page (deep-link preserved), or get a JSON `401` if the page header sets `noRedirect:true` [#REQ-AUTH-02-06]
+- No password complexity rules exist beyond a minimum length check (currently 6 characters, enforced server-side) — client-side checks are UX-only and never authoritative [#REQ-AUTH-02-07]
+
 ## Ideas
 
 - Make FlexJson object iterable + easy way to convert to a traditional JSON object

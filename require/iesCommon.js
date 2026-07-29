@@ -116,9 +116,28 @@ class iesCommonLib {
                 break;
             case "who_am_i":
                 if (cms.user.userLevel > 0) {
-                    content.append(cms.user.username + " [id=" + cms.user.userid + ",login=" + cms.user.loginid + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
+                    content.append(cms.user.userName + " [id=" + cms.user.userid + ",login=" + cms.user.loginid + ",level=" + cms.user.userLevel + ",site=" + cms.user.siteId + "]");
                 } else {
                     content.append("User not logged in.");
+                }
+                break;
+            case "my_username":
+                content.append(cms.user.userLevel > 0 ? cms.user.userName : '');
+                break;
+            case "my_loginid":
+                content.append(cms.user.userLevel > 0 ? cms.user.loginid : '');
+                break;
+            case "my_userid":
+                content.append(cms.user.userLevel > 0 ? cms.user.userid : '');
+                break;
+            case "my_useremail":
+                content.append(cms.user.userLevel > 0 ? cms.user.userEmail : '');
+                break;
+            case "my_phonenumber":
+                // Not part of the JWT session (iesUser doesn't carry it) — small per-request lookup
+                if (cms.user.userLevel > 0 && this.db) {
+                    let phoneRow = await this.db.GetFirstRow(`SELECT phonenumber FROM users WHERE userid = ${cms.user.userid}`);
+                    content.append(phoneRow ? phoneRow.getStr('phonenumber', '') : '');
                 }
                 break;
 
