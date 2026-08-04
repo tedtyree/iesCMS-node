@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- src=/util/check/index_html.txt -->
+<meta charset="UTF-8">
+<title>Site Under Construction</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<h1>Coming Soon</h1>
+<p>This site is currently under construction. Please check back later.</p>
+</body>
+</html>
