@@ -1375,7 +1375,7 @@ class iesCommonLib {
             */
 				
             case "google_client_id":
-                content.append(cms.GOOGLE_CLIENT_ID || '');
+                content.append((cms.SITE && cms.SITE.getStr('GOOGLE_CLIENT_ID', '')) || cms.GOOGLE_CLIENT_ID || '');
                 break;
 
             default:
