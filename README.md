@@ -35,12 +35,25 @@ browse to > localhost:8118
 
 Use localhost:8118/home?mimic=<siteid> to mimic a specific website for testing
 
+**NOTE — always use `localhost:8118` (or a real registered domain), never a bare IP like `127.0.0.1:8118`:**
+iesCMS resolves which site to serve strictly by matching the request's `Host` header against every
+site's `Domains` list (`app.js`, `iesDomains[cms.urlHost.toLowerCase()]`). A host that matches nothing
+is treated as unknown/scanning traffic — the TCP connection is destroyed immediately with **zero HTTP
+response** (`res.connection.destroy()`), not a 404. This is deliberate, pre-existing anti-scanning
+behavior, not a bug. `curl`/browsers hitting `127.0.0.1` instead of `localhost` (or any other
+unregistered host/IP) will see this as a hang or "Empty reply from server" — it can look exactly like
+the server being dead when it's actually healthy and serving other requests fine. This has caused
+real, extended debugging chases before (mistaking it for a hung/broken server) — if you ever need to
+test against a different hostname or IP, add it to the relevant site's `Domains` list first (usually
+`hostsite`'s `site.cfg`/`site.jfx`) — see `websites_example/hostsite/site.cfg`, which already lists
+`"localhost:8118"` for exactly this reason.
+
 # DEBUGGING ON LOCAL PC
 
 Open app.js in the editor (select the app.js tab if not selected)
 Select Run > Start Debugging
 Select "Node.js"
-Navigate to http://localhost:8118
+Navigate to http://localhost:8118 — **not** `http://127.0.0.1:8118` (see NOTE above)
 To test a specific website, for example "chatbot" (That is the site id) navigate to http://loclhost:8118?mimic=chatbot
 
 # INSTALL
