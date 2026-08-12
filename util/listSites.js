@@ -21,7 +21,10 @@ for (const subdir of subdirs) {
         continue;
     }
     
-    const json = new FlexJson();
+    // ThrowOnError=false: a malformed site.cfg reports via Status/statusMsg (exact line/position)
+    // instead of throwing — this is a plain top-level loop with no try/catch, so an uncaught
+    // exception here would silently drop every remaining site from the listing.
+    const json = new FlexJson(undefined, undefined, false);
     json.DeserializeFlexFile(siteCfgPath);
     
     if (json.Status !== 0) {

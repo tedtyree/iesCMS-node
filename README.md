@@ -66,6 +66,7 @@ Websites should each be their own git repository.
 - copy websites/<id>/require/website_<id>.js to require/website_<id>.js
 - site.cfg contains core site parameters - update as needed
   - **TEMPORARY, during migration:** the file may instead be named `site.jfx`. Every place that loads it resolves through `require/resolveSiteConfig.js`, which checks `site.jfx` first, then falls back to `site.cfg`. If both exist for a site, `site.jfx` wins and `site.cfg` is ignored. This dual-lookup will be removed once all sites are migrated to `site.jfx`.
+  - The parsed config is cached at server startup and kept fresh via a cheap per-request file-modified-time check (not a full re-parse every request) — editing a live site's `site.cfg`/`site.jfx` (e.g. the `OverrideMinViewLevel` "lock this site" trick) still takes effect on the very next request, no restart needed.
 - For development purposes they can be included in the websites/ folder but are ignored by the parent git repository.
 - Restart the iesCMS app so that it sees the website config (and optional .js)
 
@@ -87,6 +88,23 @@ Sites without `databasename` in `site.cfg` are silently skipped by both systems 
 **Optional site-specific tables:** create `websites/<id>/db/site-db.jfx` with a `tables` array. Each table needs a matching `table-<name>.sql` schema file.
 
 **Credentials** (`host`, `port`, `user`, `password`) live in `secrets/server.cfg → DbConnect` — shared across all sites, never in `site.cfg`.
+
+# Per-Site Secrets (`cms.SECRETS`)
+
+Some websites need credentials (API keys, tokens, etc.) that must not end up in `site.cfg`/`site.jfx`, since that file is normally committed to that website's own git repo.
+
+- Create `websites/<id>/secrets/secrets.jfx` — a FlexJSON file, structured however that site needs (e.g. `{ anthropic: { apiKey: "..." } }`). Optional — sites with no secrets just omit it.
+- It's loaded **once, at server startup**, then kept fresh with a cheap per-request file-modified-time check — not a full re-read/re-parse every request. (`site.cfg`/`site.jfx` itself now uses the identical cache+mtime-check pattern — see below.) **Rotating a token in an already-existing `secrets.jfx` takes effect on the next request, no restart needed** — only sites that use this feature pay the (very cheap) check, and it never touches other sites' cached secrets. Adding a `secrets.jfx` to a site that didn't have one at boot still needs a restart, same as adding a brand-new site folder.
+- Any code (a `cmd/` handler, a custom engine, etc.) reads it via `cms.SECRETS.getStr('someKey', '')` / `getNum(...)` / `getBool(...)` — same accessor pattern as `cms.SITE`/`cms.SERVER`. `cms.SECRETS` is always a valid FlexJson object, even for a site with no secrets file (empty in that case).
+- **`cms.SECRETS` is never part of the `[[tag]]` replacement chain** (HEADER → SITE → SERVER) — a `[[someTag]]` in a page or template will never resolve from it. Secrets can only be read by code that explicitly asks for them, so they can't leak into rendered HTML by accident.
+- **Required if you use this feature:** add to that website's own `.gitignore`:
+  ```
+  /secrets/*
+  !/secrets/.gitkeep
+  ```
+  and commit an empty `secrets/.gitkeep` plus a `secrets-example.jfx` template at the site root (documented, placeholder values) so other developers know what to fill in.
+
+Start from `secrets_SAMPLE/website-secrets-SAMPLE.jfx` for a generic template, or see `websites/chatbot/secrets-example.jfx` for a real example (Anthropic/OpenAI API keys).
 
 # /orig Folder — Protected Original Site Reference
 

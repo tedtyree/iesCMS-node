@@ -60,6 +60,8 @@ var dlist = readdirSync(sitesPath).filter(function (file) {
 });
 var iesDomains = {};
 var siteList = [];
+var siteSecrets = {}; // siteID -> { cfg: FlexJson, path, mtimeMs }, from websites/<siteID>/secrets/secrets.jfx — see getSiteSecrets() below [#REQ-SECRETS-01]
+var siteConfigs = {}; // siteID -> { cfg: FlexJson, path, mtimeMs }, from each site's site.cfg/site.jfx — see getSiteConfig() below [#REQ-CONFIG-01-07]
 
 // Load SERVER parameters [#REQ-CONFIG-01-01]
 let serverCfg = new FlexJson();
@@ -112,14 +114,45 @@ dlist.forEach(dDir => {
       try {
             if (dPath) {
                   //file exists
-                  let thiscfg = new FlexJson();
+                  // ThrowOnError=false: a parse failure sets Status/statusMsg with the exact
+                  // line/position of the problem instead of throwing — see the Status==0 check below.
+                  let thiscfg = new FlexJson(undefined, undefined, false);
                   thiscfg.DeserializeFlexFile(dPath);
                   if (thiscfg.Status == 0 && thiscfg.jsonType == 'object') {
                         let siteID = thiscfg.i("SITEID").toStr();
                         if (siteID != '' && siteID == dDir) {
                               console.log('>>> SITEID: ' + thiscfg.i("SITEID").toStr());
                               siteList.push(siteID);
-                              // loop through 
+
+                              // Cache the already-parsed site config (avoids a second parse of the
+                              // same file), kept fresh via a cheap per-request mtime check rather
+                              // than a full re-parse every request — see getSiteConfig() below [#REQ-CONFIG-01-07]
+                              try {
+                                    const siteCfgStat = statSync(dPath);
+                                    siteConfigs[siteID] = { cfg: thiscfg, path: dPath, mtimeMs: siteCfgStat.mtimeMs };
+                              } catch { /* shouldn't happen — dPath was just read above — fall through to per-request live lookup */ }
+
+                              // Optional per-site secrets, loaded once at startup and kept fresh via
+                              // a cheap per-request mtime check (see getSiteSecrets() below) [#REQ-SECRETS-01]
+                              // NOT part of the site.cfg/site.jfx dual-naming resolver above — this
+                              // filename is always exactly secrets.jfx.
+                              const secretsPath = `./websites/${dDir}/secrets/secrets.jfx`;
+                              let secretsStat = null;
+                              try { secretsStat = statSync(secretsPath); } catch { /* no secrets.jfx for this site — optional, fine */ }
+                              if (secretsStat) {
+                                    // ThrowOnError=false: reports Status/statusMsg (with the exact
+                                    // line/position of a syntax problem) instead of throwing.
+                                    let secretsCfg = new FlexJson(undefined, undefined, false);
+                                    secretsCfg.DeserializeFlexFile(secretsPath);
+                                    if (secretsCfg.Status == 0 && secretsCfg.jsonType == 'object') {
+                                          siteSecrets[siteID] = { cfg: secretsCfg, path: secretsPath, mtimeMs: secretsStat.mtimeMs };
+                                          console.log('  +++ SECRETS loaded for [' + siteID + ']');
+                                    } else {
+                                          console.log('ERROR: Failed to parse ' + secretsPath + ': ' + secretsCfg.statusMsg);
+                                    }
+                              }
+
+                              // loop through
                               let domainList = thiscfg.i('Domains');
                               for (const oneDomain of domainList) {
                                     domainName = oneDomain.toStr().toLowerCase();
@@ -138,7 +171,7 @@ dlist.forEach(dDir => {
                   } else {
                         // Problem reading config...
                         console.log(">>> Failed to read " + dPath);
-                        console.log("status=" + thiscfg.Status + ", StatusMsg=" + thiscfg.StatusMsg);
+                        console.log("status=" + thiscfg.Status + ", statusMsg=" + thiscfg.statusMsg); // NOTE: was "StatusMsg" (wrong case, always undefined) prior to this fix
                   }
             }
 
@@ -164,6 +197,85 @@ dlist.forEach(dDir => {
             console.error(err)
       }
 });
+
+// getSiteSecrets(siteId) — returns the cached FlexJson secrets for a site, reloading it if
+// its secrets.jfx file has changed since the last load (cheap fs.statSync().mtimeMs check,
+// not a full re-parse) [#REQ-SECRETS-01]. Sites with no secrets.jfx at startup have no entry
+// in siteSecrets and always return an empty FlexJson at zero I/O cost — adding a secrets.jfx
+// to a site that didn't have one at boot still requires a restart, same as adding a brand-new
+// site folder; only rotating/editing an ALREADY-present secrets.jfx is picked up live.
+function getSiteSecrets(siteId) {
+      const cached = siteSecrets[siteId];
+      if (!cached) { return new FlexJson("{}"); }
+      let stat;
+      try {
+            stat = statSync(cached.path);
+      } catch {
+            return cached.cfg; // e.g. transient FS hiccup — keep serving the last-known-good copy
+      }
+      if (stat.mtimeMs === cached.mtimeMs) {
+            return cached.cfg; // unchanged since last load — reuse cache, no re-parse
+      }
+      // ThrowOnError=false: a bad edit (e.g. a typo introduced while rotating a key) reports via
+      // Status/statusMsg — with the exact line/position of the problem — instead of throwing, so
+      // a syntax error can never crash the request handler and is always logged with full detail.
+      let secretsCfg = new FlexJson(undefined, undefined, false);
+      secretsCfg.DeserializeFlexFile(cached.path);
+      if (secretsCfg.Status == 0 && secretsCfg.jsonType == 'object') {
+            siteSecrets[siteId] = { cfg: secretsCfg, path: cached.path, mtimeMs: stat.mtimeMs };
+            console.log('  +++ SECRETS reloaded for [' + siteId + ']');
+            return secretsCfg;
+      }
+      console.log('ERROR: Failed to parse ' + cached.path + ' on reload: ' + secretsCfg.statusMsg + ' — keeping previous secrets');
+      return cached.cfg; // parse failed — keep serving the last-known-good copy rather than going blank
+}
+
+// getSiteConfig(siteId) — returns { cfg, err } for a site's site.cfg/site.jfx, reloading it if
+// the file has changed since the last load (cheap fs.statSync().mtimeMs check, not a full
+// re-parse every request) [#REQ-CONFIG-01-07]. Unlike getSiteSecrets(), site config is REQUIRED
+// (every real site has one), so a siteId with no cache entry (e.g. mimic targeting a site that
+// wasn't successfully discovered at startup) falls back to a direct, uncached read via
+// resolveSiteConfigPath() — the same live-lookup the platform always did before this change —
+// rather than silently returning empty. err is 0 on success, 173 if the site truly can't be
+// found/parsed either way (same error code/format the caller used previously).
+function getSiteConfig(siteId) {
+      const cached = siteConfigs[siteId];
+      if (cached) {
+            let stat;
+            try {
+                  stat = statSync(cached.path);
+            } catch {
+                  return { cfg: cached.cfg, err: 0 }; // e.g. transient FS hiccup — keep serving last-known-good
+            }
+            if (stat.mtimeMs === cached.mtimeMs) {
+                  return { cfg: cached.cfg, err: 0 }; // unchanged since last load — reuse cache, no re-parse
+            }
+            // ThrowOnError=false: a bad live edit reports via Status/statusMsg — with the exact
+            // line/position of the problem — instead of throwing, so it can never crash the
+            // request handler and is always logged with full detail.
+            let newCfg = new FlexJson(undefined, undefined, false);
+            newCfg.DeserializeFlexFile(cached.path);
+            if (newCfg.Status == 0 && newCfg.jsonType == 'object') {
+                  siteConfigs[siteId] = { cfg: newCfg, path: cached.path, mtimeMs: stat.mtimeMs };
+                  console.log('  +++ SITE config reloaded for [' + siteId + ']');
+                  return { cfg: newCfg, err: 0 };
+            }
+            console.log('ERROR: Failed to parse ' + cached.path + ' on reload: ' + newCfg.statusMsg + ' — keeping previous site config');
+            return { cfg: cached.cfg, err: 0 }; // parse failed — keep serving last-known-good rather than going blank
+      }
+
+      // No cache entry for this siteId — live fallback (unknown/uncached site, e.g. via mimic)
+      const dPath = resolveSiteConfigPath(sitesPath, siteId);
+      if (dPath) {
+            let tmpCfg = new FlexJson(undefined, undefined, false);
+            tmpCfg.DeserializeFlexFile(dPath);
+            if (tmpCfg.Status == 0 && tmpCfg.jsonType == 'object') {
+                  return { cfg: tmpCfg, err: 0 };
+            }
+            console.log('ERROR: Failed to parse ' + dPath + ' for uncached site [' + siteId + ']: ' + tmpCfg.statusMsg);
+      }
+      return { cfg: new FlexJson("{}"), err: 173 };
+}
 
 // Build cmd API handler registry for all sites [#REQ-API-06]
 const cmdRegistry = buildCmdRegistry(siteList);
@@ -398,24 +510,18 @@ http.createServer(async (req, res) => {
             // Verify user.siteid - if incorrect, null-out the user and related permissions
             if (cms.user.siteId != cms.siteId) { cms.noUser(); }
 
-            // Read Site config (first check if config already loaded)
-            var dPath = resolveSiteConfigPath(sitesPath, cms.siteId);
-            let cfg = null;
-            try {
-                  if (dPath) {
-                        let tmpCfg = new FlexJson();
-                        tmpCfg.DeserializeFlexFile(dPath);
-                        if (tmpCfg.Status == 0 && tmpCfg.jsonType == 'object') {
-                              cfg = tmpCfg;
-                        }
-                  }
-            } catch { }
-            if (!cfg) {
-                  err = 173;
+            // Read Site config — cached at startup, kept fresh via a cheap per-request mtime
+            // check (getSiteConfig() above) rather than a full re-parse every request [#REQ-CONFIG-01-07]
+            const siteResult = getSiteConfig(cms.siteId);
+            cms.SITE = siteResult.cfg;
+            if (siteResult.err) {
+                  err = siteResult.err;
                   errMessage = "Failed to load config file for site: " + cms.siteId + " (site.cfg or site.jfx) [ERR" + err + "]";
-                  cfg = new FlexJson("{}");
             }
-            cms.SITE = cfg;
+            // Cached at startup, kept fresh via a cheap per-request mtime check (getSiteSecrets()
+            // above) rather than a full re-parse every request like cms.SITE. Never part of the
+            // HEADER->SITE->SERVER tag-lookup chain — access explicitly via cms.SECRETS.getStr(...) [#REQ-SECRETS-01]
+            cms.SECRETS = getSiteSecrets(cms.siteId);
             cms.cmdRegistry = cmdRegistry[cms.siteId] || {}; // attach per-site cmd registry [#REQ-API-06-06]
 
             // Get a few key parameters from SITE

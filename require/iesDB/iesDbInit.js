@@ -65,7 +65,9 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
     const siteCfgPath = resolveSiteConfigPath('./websites', siteId);
     if (!siteCfgPath) { return; }
 
-    let siteCfg = new FlexJson();
+    // ThrowOnError=false: a malformed site.cfg reports via Status/statusMsg (exact line/position)
+    // instead of throwing — see CLAUDE.md's "FlexJSON" section.
+    let siteCfg = new FlexJson(undefined, undefined, false);
     siteCfg.DeserializeFlexFile(siteCfgPath);
     if (siteCfg.Status != 0) {
         dbLog(`${prefix} ERROR: Failed to parse ${siteCfgPath}: ${siteCfg.statusMsg}`, debugFile);
@@ -81,7 +83,7 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
     let allTables = [];
 
     if (existsSync(COMMON_DB_JFX)) {
-        let commonCfg = new FlexJson();
+        let commonCfg = new FlexJson(undefined, undefined, false); // ThrowOnError=false — see siteCfg above
         commonCfg.DeserializeFlexFile(COMMON_DB_JFX);
         if (commonCfg.Status == 0) {
             commonCfg.i('tables').toJsonArray().forEach(t => {
@@ -96,7 +98,7 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
     // --- Optionally read site-db.jfx for site-specific table extensions ---
     const siteDbPath = `./websites/${siteId}/db/site-db.jfx`;
     if (existsSync(siteDbPath)) {
-        let siteDbCfg = new FlexJson();
+        let siteDbCfg = new FlexJson(undefined, undefined, false); // ThrowOnError=false — see siteCfg above
         siteDbCfg.DeserializeFlexFile(siteDbPath);
         if (siteDbCfg.Status == 0) {
             siteDbCfg.i('tables').toJsonArray().forEach(t => {

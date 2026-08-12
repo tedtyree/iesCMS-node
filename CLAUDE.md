@@ -34,6 +34,8 @@ Copy `secrets_SAMPLE/server-PUBLIC-SAMPLE.cfg` → `secrets/server.cfg` and fill
 
 `secrets/` is git-ignored. Never commit it.
 
+This is the **server-wide** secrets file (one per server, shared credentials). For **per-site** credentials (a single site's own API keys/tokens), see "Per-Site Secrets (`cms.SECRETS`)" below instead — different file, different folder, different loading mechanism.
+
 ---
 
 ## Key Architecture
@@ -82,6 +84,7 @@ websites/<siteId>/
 ├── db/
 │   ├── site-db.jfx           # Optional: lists site-specific tables
 │   └── table-*.sql           # Optional: SQL schemas for site tables
+├── secrets/secrets.jfx       # Optional: API keys/tokens, loaded into cms.SECRETS — see below
 └── orig/                     # Optional: original HTML site for reference
 ```
 
@@ -144,6 +147,32 @@ cfg.WriteToFile('./output.jfx')
 ```
 
 **Important:** `cfg.i('missingKey')` returns a special null-like FlexJson object that is **truthy** in JS — always check `cfg.Status` or use `getStr`/`getNum`/`getBool`.
+
+**By default, a parse error *throws* rather than just setting `.Status`** — `new FlexJson()`'s
+3rd constructor param is `ThrowOnError`, default `true`, and `StatusErr()` (called internally on
+every parse problem) only skips the `throw` when it's `false`. This means the `if (cfg.Status != 0)`
+snippet above only runs if the file parsed cleanly enough to avoid throwing in the first place —
+with the default constructor, a malformed file throws a `FlexJsonError` instead of reaching that
+check, so relying on it alone without a surrounding `try/catch` is a latent crash for any code
+whose input isn't fully trusted (e.g. a config file a user/admin could hand-edit).
+
+**For any parse where the input might be malformed and a crash is unacceptable** (config/secrets
+files, user-editable `.jfx`, anything not guaranteed well-formed), construct with `ThrowOnError:false`
+instead of wrapping in `try/catch`:
+```javascript
+let cfg = new FlexJson(undefined, undefined, false); // ThrowOnError = false
+cfg.DeserializeFlexFile('./path/to/file.jfx');
+if (cfg.Status == 0 && cfg.jsonType == 'object') {
+    // success
+} else {
+    console.log('Parse failed: ' + cfg.statusMsg); // exact line/position of the problem
+}
+```
+`.statusMsg` carries the precise error (e.g. `"Expected : symbol in key:value pair @Line:1 @Position:0"`)
+either way — `ThrowOnError:false` just stops it from *also* throwing, so `.Status`/`.statusMsg` become
+the single source of truth for both success and failure. This is the pattern `app.js` uses for
+`cms.SITE`/`cms.SECRETS` loading (see below) — reach for it instead of a `try/catch` around
+`DeserializeFlexFile()`/`DeserializeFile()` as the primary error-handling mechanism.
 
 **`add(value, key)` only accepts a primitive or an existing `FlexJson` node — never a raw
 native JS array/object.** `convertType()` can't distinguish a plain object from an array
@@ -281,6 +310,40 @@ await cms.db.Close();         // single close owned by the parent
 When a handler is called on its own (one handler per request, the normal case), `Open()` returns `true` and the handler closes as usual. The pattern is transparent to callers.
 
 **Important:** always `await cms.db.Close()` — an unawaited `Close()` creates a race condition where the connection is torn down while a subsequent handler's query is still in flight.
+
+---
+
+## Site Config Loading (`cms.SITE`)
+
+`cms.SITE` (a site's `site.cfg`/`site.jfx`, resolved via `resolveSiteConfigPath()`) is loaded once at startup and kept fresh via a cheap per-request `fs.statSync().mtimeMs` check — not a full re-parse every request [#REQ-CONFIG-01-07].
+
+- `app.js`'s `getSiteConfig(siteId)` reuses the parse the startup site-discovery loop already does (stored in a `siteID → { cfg, path, mtimeMs }` map, `siteConfigs`) as the initial cache entry, then on each request compares the file's current mtime against the cached one — reusing the cached `FlexJson` object if unchanged, re-parsing only if the file was actually touched.
+- **This exists specifically to keep the live single-site-lock workflow working without a restart**: `require/iesCommon.js`'s `overrideMinViewLevel` ("used for locking website") reads `OverrideMinViewLevel` off `cms.SITE` every request — hand-editing that value in a site's config file changes the file's mtime, which invalidates just that one site's cache entry, so the lock takes effect on the very next request. A full startup-only cache (no reload check) was evaluated and explicitly rejected (2026-08-12) because restarting the shared Node process to lock one site would interrupt every other site's live users too.
+- A siteId with no cache entry at all (e.g. `mimic` targeting a site that wasn't successfully discovered at startup) falls back to a direct, uncached read via `resolveSiteConfigPath()` — the same live lookup the platform always did before caching was added.
+- If a reload attempt fails to parse, the last-known-good cached config is kept and served rather than going blank, and the failure is logged via `console.log(...)` — reaches `pm2 logs iescms` (PM2 captures all console output, see "Logging" below). A typo in a live-edited `site.cfg` degrades to "stale config" rather than "site goes blank."
+- **Every `FlexJson` used here is constructed with `ThrowOnError:false`**: `new FlexJson(undefined, undefined, false)` — the 3rd constructor param (default `true`). With this flag, a parse failure sets `.Status`/`.statusMsg` (the exact line/position, e.g. `"Expected : symbol in key:value pair @Line:1 @Position:0"`) instead of throwing a `FlexJsonError` — see `require/FlexJson/FlexJsonClass.js`'s `StatusErr()`, which only calls `throw` when `this._throwOnError` is true. This is the correct mechanism for "parse this and tell me what went wrong without crashing" — don't reach for `try/catch` around `DeserializeFlexFile()`/`DeserializeFile()` as the primary error signal; construct with `ThrowOnError:false` and check `.Status` instead.
+- `cms.SECRETS` (below) follows the identical cache+mtime-check pattern, added first and then applied to `cms.SITE` for consistency.
+
+---
+
+## Per-Site Secrets (`cms.SECRETS`)
+
+For credentials (API keys, tokens) a site needs but must not commit inside its own `site.cfg`/`site.jfx` — most websites are their own separate git repo (see README's "Install each website"), so a value written into `site.cfg` goes straight into that repo's history.
+
+- Optional file: `websites/<siteId>/secrets/secrets.jfx` — a FlexJSON file, shaped however that site needs. Omit it entirely if the site has no secrets.
+- **Loaded once at server startup** (`app.js`, into a `siteID → { cfg, path, mtimeMs }` map), then kept fresh via `getSiteSecrets(siteId)` — the same cache+mtime-check pattern as `cms.SITE` above, applied here first. Unlike a pure startup-only cache, **rotating a token in an already-present `secrets.jfx` takes effect on the very next request, no app restart needed** (revised 2026-08-12 for exactly this reason — see PRD.md #REQ-SECRETS-01-02). Only sites with a `secrets.jfx` at startup pay the per-request `statSync` cost; a site with none returns an empty `FlexJson` at zero I/O (unlike `cms.SITE`, which every real site has one of, so it always pays the check). Adding a `secrets.jfx` to a site that had none at boot still needs a restart, same as adding a brand-new site folder.
+- Exposed at request time as `cms.SECRETS` — always a valid `FlexJson` object (empty if the site has no secrets file), assigned right alongside `cms.SITE` in `app.js`. Read it the same way as `cms.SITE`/`cms.SERVER`:
+  ```javascript
+  const apiKey = cms.SECRETS.getStr('anthropic.apiKey', '');
+  ```
+- **Never wired into the `[[tag]]` lookup chain.** `getParam()`/`getParamStr()` in `require/iesCommon.js` only ever check `HEADER → SITE → SERVER` — `cms.SECRETS` is deliberately excluded, so a `[[someTag]]` in page/template content can never accidentally render a secret. The only way to read one is code explicitly calling `cms.SECRETS.getXxx(...)`.
+- This is a fixed filename, always exactly `secrets.jfx` — unrelated to the `site.cfg`/`site.jfx` dual-naming resolver described below; there is no `.cfg` fallback for secrets.
+- **Any site adopting this must gitignore its own `secrets/` folder** (that site's own `.gitignore`, not the platform root one):
+  ```
+  /secrets/*
+  !/secrets/.gitkeep
+  ```
+  plus a committed `secrets/.gitkeep` and a `secrets-example.jfx` template at the site root. Start from `secrets_SAMPLE/website-secrets-SAMPLE.jfx` (generic template), or see `websites/chatbot/secrets-example.jfx` for a working real-world example (`anthropic.apiKey` / `openai.apiKey`), and `websites/chatbot/cmd/chat/sendMessage_pub.js` for a consumer.
 
 ---
 
