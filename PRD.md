@@ -58,6 +58,7 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
   - each page as a header block [#REQ-CONFIG-01-03]
 - Each tag can refer to other tags using a sub-tag reference for example: site.cfg can contain a property ,HomeURL:"http://[[www]].[[URLHost]]" where [[www]] and [[URLHost]] are sub-tags that will be replaced with their actual values. [#REQ-CONFIG-01-04]
 - Configs from page, site, server get merged/layered such that a tag in a page could come from any of the layers. [[page_title]] would first look in the page header config, then the site config (maybe a defualt vlaue), and then the server config. [#REQ-CONFIG-01-05]
+- **TEMPORARY, during migration** [#REQ-CONFIG-01-06]: each site's config file may be named either `site.cfg` (legacy) or `site.jfx` (new) — every place that loads it (`app.js` startup site discovery, `app.js` per-request `cms.SITE` load, `iesDbInit.js`, `util/listSites.js`) resolves through the shared `require/resolveSiteConfig.js` helper. If a site has both files, `site.jfx` wins and `site.cfg` is ignored. Once all sites are migrated to `site.jfx`, this dual-lookup and the helper should be removed and the `.jfx` name hardcoded again.
 
 ## Common support functions to handle standard functionality across websites [#REQ-COMMON-01]
 

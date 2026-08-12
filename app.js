@@ -17,6 +17,7 @@ const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 const initSiteDatabases = require('./require/iesDB/iesDbInit.js');
 const { buildCmdRegistry } = require('./require/cmdRegistry.js');
+const { resolveSiteConfigPath } = require('./require/resolveSiteConfig.js');
 
 var httpQueryId = 0;
 
@@ -33,7 +34,6 @@ let vDynamic = null;
 var serverPort = 8118; // default port can be overridden in server.cfg
 const serverSecretsFolder = "./secrets/";
 const serverConfig = serverSecretsFolder + "server.cfg";
-const websitePathTemplate = './websites/{{siteID}}/site.cfg';
 
 function requireDynamically(path) {
       path = path.split('\\').join('/'); // Normalize windows slashes
@@ -108,9 +108,9 @@ try {
 
 console.log('DIR List:' + JSON.stringify(dlist));
 dlist.forEach(dDir => {
-      var dPath = websitePathTemplate.replace('{{siteID}}', dDir);
+      var dPath = resolveSiteConfigPath(sitesPath, dDir);
       try {
-            if (existsSync(dPath)) {
+            if (dPath) {
                   //file exists
                   let thiscfg = new FlexJson();
                   thiscfg.DeserializeFlexFile(dPath);
@@ -137,7 +137,7 @@ dlist.forEach(dDir => {
                         }
                   } else {
                         // Problem reading config...
-                        console.log(">>> Failed to read site.cfg: /websites/" + dDir);
+                        console.log(">>> Failed to read " + dPath);
                         console.log("status=" + thiscfg.Status + ", StatusMsg=" + thiscfg.StatusMsg);
                   }
             }
@@ -399,10 +399,10 @@ http.createServer(async (req, res) => {
             if (cms.user.siteId != cms.siteId) { cms.noUser(); }
 
             // Read Site config (first check if config already loaded)
-            var dPath = websitePathTemplate.replace('{{siteID}}', cms.siteId);
+            var dPath = resolveSiteConfigPath(sitesPath, cms.siteId);
             let cfg = null;
             try {
-                  if (existsSync(dPath)) {
+                  if (dPath) {
                         let tmpCfg = new FlexJson();
                         tmpCfg.DeserializeFlexFile(dPath);
                         if (tmpCfg.Status == 0 && tmpCfg.jsonType == 'object') {
@@ -412,7 +412,7 @@ http.createServer(async (req, res) => {
             } catch { }
             if (!cfg) {
                   err = 173;
-                  errMessage = "Failed to load config file: " + dPath + " [ERR" + err + "]";
+                  errMessage = "Failed to load config file for site: " + cms.siteId + " (site.cfg or site.jfx) [ERR" + err + "]";
                   cfg = new FlexJson("{}");
             }
             cms.SITE = cfg;

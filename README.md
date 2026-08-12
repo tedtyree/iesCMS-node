@@ -65,6 +65,7 @@ Websites should each be their own git repository.
 - Copy/clone website files/folders to websites/<id> 
 - copy websites/<id>/require/website_<id>.js to require/website_<id>.js
 - site.cfg contains core site parameters - update as needed
+  - **TEMPORARY, during migration:** the file may instead be named `site.jfx`. Every place that loads it resolves through `require/resolveSiteConfig.js`, which checks `site.jfx` first, then falls back to `site.cfg`. If both exist for a site, `site.jfx` wins and `site.cfg` is ignored. This dual-lookup will be removed once all sites are migrated to `site.jfx`.
 - For development purposes they can be included in the websites/ folder but are ignored by the parent git repository.
 - Restart the iesCMS app so that it sees the website config (and optional .js)
 

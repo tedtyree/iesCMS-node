@@ -5,6 +5,7 @@ usage: node listSites.js
 const fs = require('fs');
 const path = require('path');
 const FlexJson = require('../require/FlexJson/FlexJsonClass.js');
+const { resolveSiteConfigPath } = require('../require/resolveSiteConfig.js');
 
 const websitesDir = path.join(__dirname, '..', 'websites');
 
@@ -14,9 +15,9 @@ const subdirs = fs.readdirSync(websitesDir, { withFileTypes: true })
     .map(dirent => dirent.name);
 
 for (const subdir of subdirs) {
-    const siteCfgPath = path.join(websitesDir, subdir, 'site.cfg');
-    
-    if (!fs.existsSync(siteCfgPath)) {
+    const siteCfgPath = resolveSiteConfigPath(websitesDir, subdir);
+
+    if (!siteCfgPath) {
         continue;
     }
     

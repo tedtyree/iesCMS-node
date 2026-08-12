@@ -74,7 +74,7 @@ Each site lives in `websites/<siteId>/` and is self-contained:
 
 ```
 websites/<siteId>/
-├── site.cfg                  # Required. SITEID, Domains, databasename, paths
+├── site.cfg or site.jfx       # Required (one of the two — see note below). SITEID, Domains, databasename, paths
 ├── pages/<pageId>.cfg        # One file per web page
 ├── templates/layout_*.cfg   # HTML layout wrappers
 ├── require/website_engine.js # Optional custom engine (overrides cmsCommon)
@@ -86,6 +86,8 @@ websites/<siteId>/
 ```
 
 `cmsCommon/` provides defaults for everything — pages, templates, cmd handlers, DB schemas. Site-specific files override cmsCommon equivalents.
+
+**TEMPORARY, during migration — `site.cfg` / `site.jfx` dual naming:** each site's config file may currently be named either `site.cfg` (legacy) or `site.jfx` (new). Every place that loads it — `app.js` (startup site discovery and the per-request `cms.SITE` load), `require/iesDB/iesDbInit.js`, and `util/listSites.js` — resolves the filename through the shared helper `require/resolveSiteConfig.js` (`resolveSiteConfigPath(websitesDir, siteId)`), which checks `site.jfx` first and falls back to `site.cfg`. If a site has both files, `site.jfx` wins and `site.cfg` is silently ignored. When adding any new code that needs to locate a site's config file, use this helper rather than hardcoding `site.cfg`. Once all sites have migrated to `site.jfx`, remove the helper and hardcode `site.jfx` directly.
 
 ---
 

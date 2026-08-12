@@ -18,6 +18,7 @@
 const { existsSync, readFileSync, appendFileSync } = require('fs');
 const pg = require('pg');
 const FlexJson = require('../FlexJson/FlexJsonClass.js');
+const { resolveSiteConfigPath } = require('../resolveSiteConfig.js');
 
 const COMMON_DB_PATH = './cmsCommon/db';
 const COMMON_DB_JFX  = COMMON_DB_PATH + '/all-sites-db.jfx';
@@ -61,8 +62,8 @@ async function initSiteDatabase(siteId, connInfo, debugFile) {
     // DESIGN: databasename in site.cfg is the authoritative trigger for DB init.
     //         If absent, this site has no database — skip silently.
     //         site-db.jfx is optional and only used to add site-specific tables.
-    const siteCfgPath = `./websites/${siteId}/site.cfg`;
-    if (!existsSync(siteCfgPath)) { return; }
+    const siteCfgPath = resolveSiteConfigPath('./websites', siteId);
+    if (!siteCfgPath) { return; }
 
     let siteCfg = new FlexJson();
     siteCfg.DeserializeFlexFile(siteCfgPath);
