@@ -1,7 +1,7 @@
 //iesCommonLib
 // NOTE: This library/class is used to create the cms object.  Therefore all methods are accessible through the cms object
 const StringBuilder = require("string-builder");
-const { existsSync, readFileSync, appendFileSync, fstat } = require('fs');
+const { existsSync, readFileSync, appendFileSync, mkdirSync, fstat } = require('fs');
 const FlexJson = require('./FlexJson/FlexJsonClass.js');
 const iesSpamFilter = require('./iesSpamFilter/iesSpamFilterClass.js');
 const { connect } = require("http2");
@@ -2888,7 +2888,12 @@ class iesCommonLib {
 
     setLogFolder() {
         // FUTURE: specify log folder in site.cfg?
-        this.logFile = this.getParamStr("baseFolder","") + "/logs/log_" + this.timestamp() ;
+        let logDir = this.getParamStr("baseFolder","") + "/logs";
+        if (this.debugMode > 0) {
+            try { mkdirSync(logDir, { recursive: true }); }
+            catch (errMkdir) { console.log(this.httpQueryId + ":ERROR: Failed to create log folder [" + logDir + "] " + errMkdir.toString() + " [ERR1315]"); }
+        }
+        this.logFile = logDir + "/log_" + this.timestamp() ;
     }
 
     logMessage(debugLevel=1,msg) {
