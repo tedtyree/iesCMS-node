@@ -145,6 +145,95 @@ To support this without changing the JWT payload, secret, or expiry:
 - `minViewLevel` on a page header is enforced automatically by the website engine: below-level requests redirect to the site's login page (deep-link preserved), or get a JSON `401` if the page header sets `noRedirect:true` [#REQ-AUTH-02-06]
 - No password complexity rules exist beyond a minimum length check (currently 6 characters, enforced server-side) — client-side checks are UX-only and never authoritative [#REQ-AUTH-02-07]
 
+## OTP Phone Verification (Telnyx) [#REQ-OTP-01]
+
+Platform-level phone number verification via SMS or WhatsApp OTP codes, built on Telnyx's Verify
+API (`https://api.telnyx.com/v2`). Generic and reusable by any site on the platform — this layer
+only proves phone ownership at a point in time; deciding what "verified" means for a given site,
+and persisting that fact, is entirely up to that site.
+
+- One shared, server-wide Telnyx account/Verify Profile is used by every opted-in site — not a
+  per-site credential [#REQ-OTP-01-01]. Credentials (`apiKey`, `verifyProfileId`) live in
+  `secrets/server.cfg`'s `Telnyx` block, read via `cms.SERVER.getStr('Telnyx.apiKey','')` /
+  `cms.SERVER.getStr('Telnyx.verifyProfileId','')` — same pattern as the SMTP `email_*` keys. See
+  `secrets_SAMPLE/server-PUBLIC-SAMPLE.cfg`. A Telnyx account needs, at minimum: an API key
+  (Mission Control Portal → API Keys) and a Verify Profile (Portal → Verify → Profiles, with the
+  WhatsApp channel enabled if that's needed — Telnyx handles the WhatsApp Business integration
+  internally for Verify, no separate Meta/WABA setup is required).
+- `require/telnyxVerify.js` is the only code that talks to Telnyx (plain `axios` REST calls, no
+  SDK dependency) [#REQ-OTP-01-02]. It exports:
+  - `toE164(countryCode, rawPhone)` — normalizes a calling code (digits only, no `+`) + raw digits
+    into E.164 (`+15550100`); returns `null` if the result doesn't look like a real phone number.
+    If `rawPhone` already starts with `+`, it's used as-is and `countryCode` is ignored.
+  - `sendVerification(cms, phoneE164, channel)` — `channel` is `'sms'` or `'whatsapp'`; triggers a
+    Telnyx Verify send. Returns `{ success, error? }`.
+  - `checkVerification(cms, phoneE164, code)` — checks a user-submitted code against Telnyx.
+    Returns `{ success }`.
+  - `issueVerifiedReceipt(cms, phoneE164, channel)` / `checkVerifiedReceipt(cms, token, phoneE164)`
+    — see the receipt pattern below.
+- **No OTP code is ever generated or stored by this platform** — Telnyx's Verify API is itself the
+  system of record for code generation, expiry, and attempt-limiting [#REQ-OTP-01-03]. The only
+  thing this platform persists is a short-lived (10-minute) signed JWT **receipt**
+  (`issueVerifiedReceipt()`, signed with `cms.JWT_SECRET`, claims `{purpose, phone, channel,
+  siteId}`), minted once Telnyx confirms a submitted code was correct — proof that exact phone
+  number was verified, without the platform needing to store anything about the OTP code itself.
+  Consuming code must validate the receipt server-side with `checkVerifiedReceipt(cms, token,
+  phoneE164)` before trusting it (it checks the signature, `purpose`, an exact phone match, and
+  `siteId`) — **never trust a client-submitted "this phone is verified" flag on its own.**
+- Two generic `pubcmd` endpoints, auto-available to every site because `cmsCommon/cmd/**` is
+  merged into every site's command registry by `cmdRegistry.js` [#REQ-OTP-01-04]:
+  - `otp/send` — `POST /pubcmd { cmd:'otp/send', phone, countryCode, channel }` →
+    `{ success:true }` or `{ success:false, error }`.
+  - `otp/verify` — `POST /pubcmd { cmd:'otp/verify', phone, countryCode, code, channel }` →
+    `{ success:true, receipt:"<jwt>" }` or `{ success:false, error }`.
+  - Both are `auth:'public'` — they must be callable before a session exists (e.g. during
+    registration, where there is no logged-in user yet).
+- **A site must explicitly opt in** — both endpoints check `cms.SITE.getBool('OtpEnabled', false)`
+  and refuse to run otherwise [#REQ-OTP-01-05]. Because the Telnyx account is shared and billed
+  centrally across the whole platform, this stops an unrelated or test site from silently running
+  up per-verification charges just because the handlers exist in its registry (which they do,
+  automatically, for every site, opt-in or not — the flag only gates whether they'll actually run).
+- `otp/send` enforces a small in-process rate limit: 10 sends per phone number per hour, 40 sends
+  per IP address per hour [#REQ-OTP-01-06]. This is a narrow limiter local to that one handler
+  file (`cmsCommon/cmd/otp/send_pub.js`), not a reusable platform module — a shared
+  `require/rateLimit.js` was deliberately not built (see `websites/chatbot/CLAUDE.md`'s
+  rateLimit.js incident note for why a generic reusable rate-limit module was avoided a second
+  time here).
+
+### Adding OTP verification to a new site [#REQ-OTP-01-07]
+
+1. Add `OtpEnabled: true` to the site's `site.cfg`/`site.jfx`.
+2. From the client, call `otp/send` with the phone number, a country calling code (digits only,
+   no `+`), and a channel choice (`'sms'` or `'whatsapp'` — typically a user-facing toggle).
+3. Prompt the user for the code they received, then call `otp/verify` with the same
+   phone/countryCode plus the submitted code. On success this returns a `receipt` string, valid
+   for 10 minutes.
+4. Pass that `receipt` (plus the phone number and country code used) into whichever handler in the
+   site's own `cmd/` needs to act on "this phone is verified" — e.g. account creation, a profile
+   update, unlocking a feature. That handler validates the receipt itself before trusting it:
+   ```javascript
+   const { toE164, checkVerifiedReceipt } = require(path.resolve('./require/telnyxVerify.js'));
+   const phoneE164 = toE164(cms.body.countryCode, cms.body.phone);
+   const receipt = checkVerifiedReceipt(cms, cms.body.phoneVerifyReceipt, phoneE164);
+   if (receipt) { /* phoneE164 is verified — receipt.channel is 'sms' or 'whatsapp' */ }
+   ```
+   `checkVerifiedReceipt()` returns `null` for anything invalid, expired, phone-mismatched, or
+   issued under a different `siteId`.
+5. Decide, and persist, what "verified" means for that site. This platform layer only proves phone
+   ownership at the moment `otp/verify` succeeded — it is not stored anywhere as an ongoing fact
+   by the platform itself. See `websites/chatbot/require/workspace.js`'s `setPhoneVerified()` /
+   `getPhoneVerified()` for a real example: chatbot stores it in its own `workspace.jfx`, not the
+   shared `users` table, because verification status there is that site's business logic (gating a
+   feature), not platform-wide identity.
+6. Always re-verify on change. Whenever the site later lets a user submit a *different* phone
+   number, re-run this same flow rather than assuming a prior verified state still applies — see
+   `websites/chatbot/cmd/account/updateProfile_user.js` for the pattern (any phone change resets
+   that site's own verified flag unless a fresh, matching receipt comes with the change).
+
+See `websites/chatbot/CLAUDE.md`'s "Phone Verification (OTP via Telnyx)" section for the full,
+real end-to-end consumer of this (registration + Account Settings, gating free-tier bot creation
+on a verified phone) — the concrete worked example to copy from when wiring this into another site.
+
 ## Ideas
 
 - Make FlexJson object iterable + easy way to convert to a traditional JSON object

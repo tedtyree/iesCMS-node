@@ -349,41 +349,17 @@ For credentials (API keys, tokens) a site needs but must not commit inside its o
 
 ## OTP Phone Verification (Telnyx)
 
-Platform-level phone verification via SMS or WhatsApp, using Telnyx's Verify API. Generic and
-reusable by any site — the actual "what verification means for this site" business logic (e.g.
-gating a feature on a verified phone) stays site-specific; this layer only proves phone ownership.
+**Requirements and the "how to add this to a new site" integration guide live in `PRD.md`'s
+"OTP Phone Verification (Telnyx)" section (`#REQ-OTP-01`)** — read that first if you're building
+this into a site; it's the authoritative human-facing spec, not this file.
 
-- **`require/telnyxVerify.js`** — the one place that talks to Telnyx (plain `axios` REST calls,
-  no SDK dependency). Exports `toE164(countryCode, rawPhone)`, `sendVerification(cms, phoneE164, channel)`
-  (`channel` is `'sms'` or `'whatsapp'`), `checkVerification(cms, phoneE164, code)`,
-  `issueVerifiedReceipt(cms, phoneE164, channel)`, and `checkVerifiedReceipt(cms, token, phoneE164)`.
-- **No local OTP-code storage** — Telnyx's Verify API is the system of record for code
-  generation/expiry/attempt-limiting (that's what the managed Verify API is for, vs. a DIY
-  SMS-plus-homegrown-code-store). The only thing persisted on our side is a short-lived signed JWT
-  **receipt** (`issueVerifiedReceipt()`, 10-minute expiry, signed with `cms.JWT_SECRET`) minted once
-  Telnyx confirms a code was correct — proof a phone number was verified, without needing our own
-  storage. A consuming site validates the receipt with `checkVerifiedReceipt(cms, token, phoneE164)`
-  before trusting it (checks signature, `purpose`, exact phone match, and `siteId`).
-- **Credentials**: `secrets/server.cfg`'s `Telnyx` block (`apiKey`, `verifyProfileId`) — a single
-  shared, server-wide Telnyx account/Verify Profile used by every opted-in site, read via
-  `cms.SERVER.getStr('Telnyx.apiKey','')` / `cms.SERVER.getStr('Telnyx.verifyProfileId','')`, same
-  pattern as `email_login`/`email_smtp_server` for SMTP. See `secrets_SAMPLE/server-PUBLIC-SAMPLE.cfg`.
-- **Generic pubcmd endpoints**: `cmsCommon/cmd/otp/send_pub.js` (id `otp/send`) and
-  `cmsCommon/cmd/otp/verify_pub.js` (id `otp/verify`), both `auth:'public'` (must be callable
-  before a session exists, e.g. during registration). Since `cmsCommon/cmd/**` is auto-merged into
-  every site's command registry (`cmdRegistry.js`), these become callable on every site
-  automatically — see the opt-in gate below before assuming a site can actually use them.
-- **Per-site opt-in required**: `otp/send` and `otp/verify` both check
-  `cms.SITE.getBool('OtpEnabled', false)` and refuse to run if it's not set. Since Telnyx billing
-  is centralized on one shared account, this stops an unrelated or test site from silently running
-  up per-verification charges just because the handlers exist in its registry. A site must add
-  `OtpEnabled: true` to its own `site.cfg`/`site.jfx` to use this feature.
-- **Rate limiting is deliberately narrow, not a reusable module** — `otp/send`'s own in-file
-  `Map`-based limiter (10 sends/phone/hour, 40 sends/IP/hour), reset on process restart. No
-  `require/rateLimit.js` was added; see `websites/chatbot/CLAUDE.md`'s rateLimit.js incident note
-  for why a generic reusable limiter was deliberately avoided here.
-- See `websites/chatbot/CLAUDE.md`'s OTP section for a real end-to-end consumer (registration +
-  account settings, gating free-tier bot creation on a verified phone).
+Quick orientation for working in the code itself: the Telnyx-calling logic is
+`require/telnyxVerify.js`; the generic public endpoints are `cmsCommon/cmd/otp/send_pub.js` /
+`verify_pub.js` (ids `otp/send` / `otp/verify`), auto-available to every site but gated behind
+that site's own `OtpEnabled` flag; credentials live in `secrets/server.cfg`'s `Telnyx` block. See
+`websites/chatbot/CLAUDE.md`'s "Phone Verification (OTP via Telnyx)" section for the real
+end-to-end consumer (registration + Account Settings, gating free-tier bot creation on a verified
+phone).
 
 ---
 

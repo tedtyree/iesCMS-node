@@ -1,5 +1,12 @@
 # OTP (Phone Verification) via Telnyx — Platform + Chatbot Integration
 
+> **This is the original implementation plan, kept as a historical record.** For the
+> current, authoritative spec — including the "adding this to a new site" integration guide —
+> see `PRD.md`'s "OTP Phone Verification (Telnyx)" section (`#REQ-OTP-01`). For the real,
+> maintained implementation notes, see `websites/chatbot/CLAUDE.md`'s "Phone Verification (OTP
+> via Telnyx)" section. Details here (e.g. the free-tier bot count example) may drift from
+> reality over time; those two files are kept up to date, this one is not.
+
 ## Context
 
 `websites/chatbot`'s registration currently collects a phone number but only checks its format
