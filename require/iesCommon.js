@@ -3827,9 +3827,9 @@ class iesCommonLib {
                         } // end if (val)
                     } // end if(fld.substr(0...
 
-                    if (fld.toLowerCase()=="form_w") { form_w = val; }
+                    if (fld.toLowerCase()=="form_w" || fld.toLowerCase()=="w") { form_w = val; }
 
-                    if (fld.toLowerCase()!="form_id" && fld.toLowerCase()!="form_w") {    //**** form_id/form_w is already included in the header/footer
+                    if (fld.toLowerCase()!="form_id" && fld.toLowerCase()!="form_w" && fld.toLowerCase()!="w") {    //**** form_id/form_w/w is already included in the header/footer
                         if (fld.length + val.length > 100) {
                                     //*** LONG STRING VALUE
                                     strDefMsg += "\n" + sBold + fld + sBold2 + ":\n" + val + "\n\n";
@@ -4024,10 +4024,14 @@ class iesCommonLib {
             const epoch = '1970-01-01 00:00:00';
             let lastAdminVisit = (await this.getDbParam('FormLastAdminVisit', epoch)) || epoch;
             let lastNotificationSent = (await this.getDbParam('FormLastNotificationSent', epoch)) || epoch;
+            // Same bar used to decide whether THIS message's real-time email was suppressed
+            // (SpamObj.SuppressThreshold, from spam.cfg's SpamSuppressThreshold) - reused here so
+            // "spam" means the same thing in this summary as it did in the suppression decision.
+            let suppressThreshold = Number(SpamObj.SuppressThreshold) || 1;
 
             let sql = "SELECT " +
-                "COUNT(*) FILTER (WHERE SpamLevel <= 0) AS unreadcount, " +
-                "COUNT(*) FILTER (WHERE SpamLevel > 0) AS spamcount, " +
+                "COUNT(*) FILTER (WHERE SpamLevel < " + suppressThreshold + ") AS unreadcount, " +
+                "COUNT(*) FILTER (WHERE SpamLevel >= " + suppressThreshold + ") AS spamcount, " +
                 "EXTRACT(EPOCH FROM (NOW() - " + this.db.dbStr(lastNotificationSent) + "::timestamp)) / 86400.0 AS dayssincenotify " +
                 "FROM messagelog WHERE SubmitDate > " + this.db.dbStr(lastAdminVisit);
             let rs = await this.db.GetFirstRow(sql);

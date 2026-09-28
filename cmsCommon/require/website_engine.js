@@ -187,7 +187,7 @@ class webEngine {
             // FUTURE: Do we need to clip the FormFields? or just the message?  MaxMessageLength
             // FUTURE: Where do we check if setup indicates spam filtering yes/no
             cms.configureSpamFilter(cms.getParamStr("SpamFolder","",true,false)||cms.getParamStr("SpamFolderCommon","",true,false));
-            var SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body, 0, '', cms.body);
+            var SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body, 0, '', cms.body, cms.siteId);
             cms.spamFilter.debugLevel = 9; // DEBUG
             cms.spamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
 
@@ -246,8 +246,10 @@ class webEngine {
                 EmailFormFlag = true;
             } // end if
 
-            // If this is SPAM don't send the email
-            if (SpamObj.SpamLevel > 0) { EmailFormFlag = false; }
+            // If this is SPAM don't send the email. SpamLevel is a weighted tally, not a flag -
+            // only suppress once it clears the configured SuppressThreshold (SpamSuppressThreshold
+            // in spam.cfg, default 1) - see iesSpamFilterClass.js's CheckMessage().
+            if (SpamObj.SpamLevel >= SpamObj.SuppressThreshold) { EmailFormFlag = false; }
 
             // LOG/EMAIL form...
             // If request was for runcmd then we don't do any of this because the CustomForm() routine already generated a response.

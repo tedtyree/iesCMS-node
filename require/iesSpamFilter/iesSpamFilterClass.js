@@ -73,8 +73,8 @@ class iesSpamFilter {
         if (SetSpamLibFile) { this.spamLibFile = SetSpamLibFile; }
 	}
 
-    newSpamObj(FullMessage = "", SpamLevel = 0, SpamReason = "", Fields = null) {
-        return {SpamLevel, SpamReason, FullMessage, Fields};
+    newSpamObj(FullMessage = "", SpamLevel = 0, SpamReason = "", Fields = null, SiteID = '') {
+        return {SpamLevel, SpamReason, FullMessage, Fields, SiteID};
     }
 
     // CheckMessage() - process FullMessage and determine if it is spam
@@ -87,6 +87,7 @@ class iesSpamFilter {
 
         SpamObj.SpamLevel = 0;
         SpamObj.SpamReason = "";
+        SpamObj.SuppressThreshold = 1; // safe default; overwritten below once spam.cfg loads successfully
         var reason = "";
 
         // Attempt to read spam.cfg file - if it does not exist, then this website does not check for spam
@@ -136,6 +137,13 @@ class iesSpamFilter {
             return;
         }
 
+        // SpamLevel is a running tally of evidence, not a normalized score - different checks
+        // carry different confidence and should not all move the needle by the same amount (e.g.
+        // a single spam-phrase match is weak evidence; a missing/mismatched site-id field is
+        // close to definitive). SuppressThreshold is the bar the tally must clear before the
+        // real-time email is actually held back - see each check's own "...Weight" key below.
+        SpamObj.SuppressThreshold = spamCfg.getNum("SpamSuppressThreshold", 1);
+
         // Limit length of message?  MaxMessageLength
         // IsSpamIfTooLong/ClipIfTooLong
         var MaxLength = spamCfg.getNum("MaxMessageLength",0);
@@ -179,7 +187,7 @@ class iesSpamFilter {
             if (NonTextCount >= MinCheckCount)
             {
                 // Identified SPAM
-                SpamObj.SpamLevel += 1;
+                SpamObj.SpamLevel += spamCfg.getNum("NonTextCharWeight", 1);
                 reason = "NonTextCharacters=" + NonTextCount + "\r\n";
                 if (SpamObj.SpamReason.Length > 0) { SpamObj.SpamReason += ","; }
                 SpamObj.SpamReason += reason;
@@ -227,6 +235,7 @@ class iesSpamFilter {
                 else
                 {
                     // PROCESS CONFIG FILE
+                    var libraryMatchWeight = spamCfg.getNum("SpamLibraryMatchWeight", 1);
                     for (const rx of spamLib)
                     {
                         var rxID = rx.getStr("id","");
@@ -244,7 +253,7 @@ class iesSpamFilter {
                                 var m = SpamObj.FullMessage.match(r);
                                 if (m) // check for 1 or more matches
                                 {
-                                    SpamObj.SpamLevel += 1;
+                                    SpamObj.SpamLevel += libraryMatchWeight;
                                     reason = "Found Spam Match: " + rxID + "\r\n";
                                     if (SpamObj.SpamReason.Length > 0) { SpamObj.SpamReason += ","; }
                                     SpamObj.SpamReason += reason;
@@ -273,17 +282,43 @@ class iesSpamFilter {
             this.CheckGibberishFields(SpamObj, spamCfg);
         } // End if (spamCfg.getBool("CheckGibberishFields",false))
 
+        // Check for SITE ID MISMATCH: a bot blindly POSTing to a form endpoint has no reason to
+        // know about (or correctly set) the hidden site-id field a real form round-trips.
+        if (spamCfg.getBool("CheckSiteIdMismatch",false) && SpamObj.Fields)
+        {
+            this.CheckSiteIdMismatch(SpamObj, spamCfg);
+        } // End if (spamCfg.getBool("CheckSiteIdMismatch",false))
+
     } // end CheckMessage()
 
-    // CheckGibberishFields() - flags SPAM when most eligible fields look like a random
-    // alphanumeric blob rather than real text (irregular capitalization and/or very few vowels).
+    // CheckSiteIdMismatch() - flags SPAM when the posted site-id field ("w", falling back to the
+    // older "form_w" name) is missing or doesn't match the site actually handling the request.
+    CheckSiteIdMismatch(SpamObj, spamCfg)
+    {
+        var posted = SpamObj.Fields.w;
+        if (this.isNullOrWhiteSpace(posted)) { posted = SpamObj.Fields.form_w; }
+        posted = (posted || '').trim();
+        var expected = (SpamObj.SiteID || '').trim();
+
+        if (this.isNullOrWhiteSpace(posted) || posted.toLowerCase() !== expected.toLowerCase())
+        {
+            SpamObj.SpamLevel += spamCfg.getNum("SiteIdMismatchWeight", 1);
+            var reason = "SiteID mismatch: posted=" + (posted || "(missing)") + " expected=" + expected + "\r\n";
+            if (SpamObj.SpamReason.length > 0) { SpamObj.SpamReason += ","; }
+            SpamObj.SpamReason += reason;
+            if (this.debugLevel > 0) { this.debugMsg += "SPAM: " + reason; }
+        }
+    } // end CheckSiteIdMismatch()
+
+    // CheckGibberishFields() - adds weight for EACH field that looks like a random alphanumeric
+    // blob rather than real text (irregular capitalization and/or very few vowels). One odd field
+    // contributes a small amount; it takes several before SpamSuppressThreshold is reached.
     CheckGibberishFields(SpamObj, spamCfg)
     {
         var minLength = spamCfg.getNum("GibberishFieldMinLength", 10);
-        var thresholdPct = spamCfg.getNum("GibberishFieldThresholdPct", 50) / 100.0;
+        var weightPerField = spamCfg.getNum("GibberishWeightPerField", 1);
         var skipFields = ["form_id", "form_w", "w", "captchaid", "captcha"];
-        var eligible = 0;
-        var gibberish = 0;
+        var gibberishFields = [];
 
         for (const fld in SpamObj.Fields)
         {
@@ -294,14 +329,16 @@ class iesSpamFilter {
             if (val.indexOf('@') >= 0) { continue; } // looks like an email address
             if (!/^[A-Za-z0-9]+$/.test(val)) { continue; } // only judge plain alphanumeric blobs
 
-            eligible++;
-            if (this.LooksLikeGibberish(val)) { gibberish++; }
+            if (this.LooksLikeGibberish(val))
+            {
+                SpamObj.SpamLevel += weightPerField;
+                gibberishFields.push(fld);
+            }
         }
 
-        if (eligible >= 2 && (gibberish / eligible) >= thresholdPct)
+        if (gibberishFields.length > 0)
         {
-            SpamObj.SpamLevel += 1;
-            var reason = "Gibberish fields: " + gibberish + "/" + eligible + "\r\n";
+            var reason = "Gibberish field(s): " + gibberishFields.join(", ") + "\r\n";
             if (SpamObj.SpamReason.length > 0) { SpamObj.SpamReason += ","; }
             SpamObj.SpamReason += reason;
             if (this.debugLevel > 0) { this.debugMsg += "SPAM: " + reason; }
