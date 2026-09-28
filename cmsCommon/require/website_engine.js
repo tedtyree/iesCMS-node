@@ -187,7 +187,7 @@ class webEngine {
             // FUTURE: Do we need to clip the FormFields? or just the message?  MaxMessageLength
             // FUTURE: Where do we check if setup indicates spam filtering yes/no
             cms.configureSpamFilter(cms.getParamStr("SpamFolder","",true,false)||cms.getParamStr("SpamFolderCommon","",true,false));
-            var SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body);
+            var SpamObj = cms.spamFilter.newSpamObj(cms.emailInfo.body, 0, '', cms.body);
             cms.spamFilter.debugLevel = 9; // DEBUG
             cms.spamFilter.debugMsg = ""; // DEBUG - need to clear the message because this is GLOBAL STATIC
 

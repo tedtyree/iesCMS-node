@@ -73,8 +73,8 @@ class iesSpamFilter {
         if (SetSpamLibFile) { this.spamLibFile = SetSpamLibFile; }
 	}
 
-    newSpamObj(FullMessage = "", SpamLevel = 0, SpamReason = "") {
-        return {SpamLevel, SpamReason, FullMessage};
+    newSpamObj(FullMessage = "", SpamLevel = 0, SpamReason = "", Fields = null) {
+        return {SpamLevel, SpamReason, FullMessage, Fields};
     }
 
     // CheckMessage() - process FullMessage and determine if it is spam
@@ -266,7 +266,70 @@ class iesSpamFilter {
 
         } // End if (spamCfg.getBool("CheckAgainstSpamLibrary",false))
 
+        // Check for GIBBERISH FIELDS: bot submissions that fill most fields with a single long
+        // random-case string (no spaces) instead of real text.
+        if (spamCfg.getBool("CheckGibberishFields",false) && SpamObj.Fields)
+        {
+            this.CheckGibberishFields(SpamObj, spamCfg);
+        } // End if (spamCfg.getBool("CheckGibberishFields",false))
+
     } // end CheckMessage()
+
+    // CheckGibberishFields() - flags SPAM when most eligible fields look like a random
+    // alphanumeric blob rather than real text (irregular capitalization and/or very few vowels).
+    CheckGibberishFields(SpamObj, spamCfg)
+    {
+        var minLength = spamCfg.getNum("GibberishFieldMinLength", 10);
+        var thresholdPct = spamCfg.getNum("GibberishFieldThresholdPct", 50) / 100.0;
+        var skipFields = ["form_id", "form_w", "w", "captchaid", "captcha"];
+        var eligible = 0;
+        var gibberish = 0;
+
+        for (const fld in SpamObj.Fields)
+        {
+            if (skipFields.indexOf(fld.toLowerCase()) >= 0) { continue; }
+            var val = (SpamObj.Fields[fld] + '').trim();
+            if (val.length < minLength) { continue; } // too short to judge reliably
+            if (val.indexOf(' ') >= 0) { continue; } // real sentences/names have spaces
+            if (val.indexOf('@') >= 0) { continue; } // looks like an email address
+            if (!/^[A-Za-z0-9]+$/.test(val)) { continue; } // only judge plain alphanumeric blobs
+
+            eligible++;
+            if (this.LooksLikeGibberish(val)) { gibberish++; }
+        }
+
+        if (eligible >= 2 && (gibberish / eligible) >= thresholdPct)
+        {
+            SpamObj.SpamLevel += 1;
+            var reason = "Gibberish fields: " + gibberish + "/" + eligible + "\r\n";
+            if (SpamObj.SpamReason.length > 0) { SpamObj.SpamReason += ","; }
+            SpamObj.SpamReason += reason;
+            if (this.debugLevel > 0) { this.debugMsg += "SPAM: " + reason; }
+        }
+    } // end CheckGibberishFields()
+
+    // LooksLikeGibberish() - true if a single field value looks like random noise rather than
+    // real typed text: either it switches letter-case far more often than real words do, or it
+    // has an unusually low vowel ratio (a run of random consonants).
+    LooksLikeGibberish(val)
+    {
+        var letters = val.replace(/[^A-Za-z]/g, "");
+        if (letters.length < 4) { return false; } // not enough letters to judge (e.g. mostly digits)
+
+        var transitions = 0;
+        for (var i = 1; i < letters.length; i++)
+        {
+            var prevUpper = (letters[i-1] !== letters[i-1].toLowerCase());
+            var curUpper = (letters[i] !== letters[i].toLowerCase());
+            if (prevUpper !== curUpper) { transitions++; }
+        }
+        var transitionRatio = transitions / letters.length;
+
+        var vowels = (letters.match(/[aeiouAEIOU]/g) || []).length;
+        var vowelRatio = vowels / letters.length;
+
+        return (transitionRatio >= 0.25) || (vowelRatio < 0.2);
+    } // end LooksLikeGibberish()
 
     isNullOrWhiteSpace( input ) {
         return !input || !(input + '').trim();
