@@ -3985,6 +3985,8 @@ class iesCommonLib {
     // *************************************************************************************** SaveFormToLog()
     async saveFormToLog(strFormID, formData, maxLength=-1, spamLevel=0, spamReason='') {
 
+        if (!this.db) { return; } // site has no database configured (no databasename in site.cfg) - nothing to log to
+
         var dt = this.dbDatetime();
         var flds = JSON.stringify(formData);
         var sql="INSERT INTO messagelog (FormID, SubmitDate, SpamLevel, SpamReason, Params) " +
@@ -4020,6 +4022,13 @@ class iesCommonLib {
     // to the messages list, otherwise waits for NotifyAgainDays before reminding again.
     // See PRD.md #REQ-FORMNOTIFY-01.
     async checkAndSendForm(SpamObj) {
+        if (!this.db) {
+            // Site has no database configured (no databasename in site.cfg) - can't track the
+            // notification throttle state (messagelog/params tables), so fall back to emailing
+            // every submission, same as NotifyOnEveryMessage:true.
+            this.goSendEmail(this.emailInfo);
+            return;
+        }
         try {
             const epoch = '1970-01-01 00:00:00';
             let lastAdminVisit = (await this.getDbParam('FormLastAdminVisit', epoch)) || epoch;
