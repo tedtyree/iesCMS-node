@@ -30,5 +30,7 @@
     ,"jobjects"
     ,"jobjhist"
     ,"app_log"
+    ,"messagelog"
+    ,"params"
     ]
 }

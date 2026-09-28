@@ -267,8 +267,18 @@ class webEngine {
                 // Use default for FORM_Subject, FORM_SendTo
                 if (EmailFormFlag == true && (cpStatus == "" || cpStatus == "OK"))
                 {
-                    var eRet = cms.goSendEmail(cms.emailInfo);
-                    //Response.Write("DEBUG: eRet=" + eRet.jsonString + "<br>");  //DEBUG
+                    // NotifyOnEveryMessage:true restores the old "email every submission"
+                    // behavior; default is the event-driven throttle in checkAndSendForm().
+                    // See PRD.md #REQ-FORMNOTIFY-01.
+                    if (cms.SITE.getBool("NotifyOnEveryMessage", false))
+                    {
+                        var eRet = cms.goSendEmail(cms.emailInfo);
+                        //Response.Write("DEBUG: eRet=" + eRet.jsonString + "<br>");  //DEBUG
+                    }
+                    else
+                    {
+                        await cms.checkAndSendForm(SpamObj);
+                    }
                 }
 
                 // Check for errors/Display results

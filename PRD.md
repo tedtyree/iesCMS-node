@@ -234,6 +234,72 @@ See `websites/chatbot/CLAUDE.md`'s "Phone Verification (OTP via Telnyx)" section
 real end-to-end consumer of this (registration + Account Settings, gating free-tier bot creation
 on a verified phone) — the concrete worked example to copy from when wiring this into another site.
 
+## Contact-Form Message Log + Notification Throttling [#REQ-FORMNOTIFY-01]
+
+Every site using the default `form_submit` handling (`cmsCommon/require/website_engine.js`)
+previously emailed the site admin immediately on every form submission, with no way to hold back
+spam/garbled-junk without also holding back real messages [#REQ-FORMNOTIFY-01-01]. This platform
+feature makes notification throttled and spam-aware by default, without adding any cron/scheduler
+process to the codebase — it is purely event-driven, triggered by requests that were already
+happening (a form submission, an admin visiting the messages list).
+
+- **`wlog` → `messagelog`** [#REQ-FORMNOTIFY-01-02]: form submissions used to log to a table
+  called `wlog` that had no schema file and wasn't auto-created by `iesDbInit.js` (unlike every
+  other common table) — it only worked because it happened to already exist in a shared database
+  from the original iesCMS architecture, where one database/table was shared across every site. On
+  this platform, each site now gets its own database (`databasename` in `site.cfg`), so a
+  per-site id column inside a table already scoped to one site's database is redundant. `wlog` was
+  replaced with `messagelog` (`cmsCommon/db/table-messagelog.sql`, listed in
+  `cmsCommon/db/all-sites-db.jfx`) — identical shape, minus the site-id column, auto-created for
+  every site the same way as `users`/`jobjects`/`jobjhist`/`app_log`. This is intentionally a
+  narrow cleanup: other common tables that still carry a legacy `WorldID` column (e.g. `jobjects`)
+  were left untouched.
+  - Kept distinct from `app_log` (`cmsCommon/db/table-app_log.sql`), which is a generic
+    system/developer diagnostics log (`cms.appLog(...)`) with no admin-facing review UI — different
+    purpose, different shape. `messagelog` is the form-submission log with an existing admin review
+    page built around its exact shape (`cmsCommon/config/eclass-messagelog.cfg` — mark-as-spam,
+    `Comments`, `Status`, reachable at `/admin-edit?eclass=messagelog`).
+- **Spam filtering** [#REQ-FORMNOTIFY-01-03]: unchanged mechanism, `require/iesSpamFilter/iesSpamFilterClass.js`,
+  enabled per-site via that site's own `spam/spam.cfg` (`SpamFilterOn:true`). When a submission
+  scores `SpamLevel > 0`, the real-time-email path (`EmailFormFlag`) is already suppressed
+  (`website_engine.js`); the message is still always logged to `messagelog` with its `SpamLevel`/
+  `SpamReason`, and its count is folded into the next legitimate notification's summary.
+- **Event-driven notification throttle** [#REQ-FORMNOTIFY-01-04]: on every **non-spam** form
+  submission, `cms.checkAndSendForm(SpamObj)` (`require/iesCommon.js`) decides whether to notify
+  the site admin right now:
+  1. Count non-spam `messagelog` rows with `SubmitDate` after the site's `FormLastAdminVisit`
+     value (includes the message just submitted).
+  2. If that count is **1** (first unread message since the admin last opened the messages list)
+     → send now.
+  3. Else if the time since `FormLastNotificationSent` is at least `NotifyAgainDays` (site.cfg key,
+     default `7`) → send now (a reminder).
+  4. Otherwise → do nothing.
+  The notification email reports both counts since `FormLastAdminVisit` (e.g. *"3 new messages and
+  5 spam messages since your last review"*) plus a link to `/admin-edit?eclass=messagelog`.
+  `FormLastNotificationSent` updates whenever a send happens; `FormLastAdminVisit` updates
+  separately, whenever the admin actually opens the messages list (hooked into
+  `GenerateJsonData()`'s `editlist-json` handler in `iesCommon.js`, gated to the `messagelog`
+  table only) — visiting the page never sends anything by itself, it only resets the "unread
+  since" baseline.
+  - **Known limitation**: because this only runs on non-spam submissions, a site that receives
+    only spam and never a single legitimate message will never get any reminder email, even as
+    spam accumulates in `messagelog`. This matches the stated intent ("spam doesn't count as a
+    message to notify") but is worth revisiting if it surprises anyone in practice.
+- **Per-site opt-out** [#REQ-FORMNOTIFY-01-05]: `NotifyOnEveryMessage` (site.cfg, bool, default
+  `false`). Set `true` to fully restore the old behavior — immediate `cms.goSendEmail()` on every
+  non-spam submission, throttle logic skipped entirely.
+- **`params` table** [#REQ-FORMNOTIFY-01-06]: `FormLastAdminVisit`/`FormLastNotificationSent` are
+  stored as rows in a new generic per-site key/value table, `params` (`id` primary key, `value`
+  text; `cmsCommon/db/table-params.sql`, listed in `all-sites-db.jfx`) — no site-id column, same
+  reasoning as `messagelog`. Read/write via `cms.getDbParam(id, defaultVal)` /
+  `cms.setDbParam(id, value)` (`require/iesCommon.js`). This table is intentionally generic and
+  reusable for future site-level settings beyond this feature — it isn't a single-purpose table.
+- **Out of scope / not done here**: no migration of any pre-existing data from a live `wlog` table
+  into `messagelog` — this only defines the new table going forward. If historical form-submission
+  data needs to be preserved on a given server, that's a separate one-time manual migration.
+
+See `docs/form-notification-plan.md` for the implementation-plan writeup this section supersedes.
+
 ## Ideas
 
 - Make FlexJson object iterable + easy way to convert to a traditional JSON object

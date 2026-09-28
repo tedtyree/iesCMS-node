@@ -1716,6 +1716,9 @@ class iesCommonLib {
             {
                 try
                 {
+                    if (SearchTable.toLowerCase() === 'messagelog') {
+                        await this.setDbParam('FormLastAdminVisit', this.dbDatetime());
+                    }
                     let w = this.MakeSearch(out.Cols,searchText);
                     let w1 = "SiteID='" + this.siteId + "'";
                     if (flags.indexOf("noworldid") >= 0) { w1 = ""; }
@@ -3984,8 +3987,8 @@ class iesCommonLib {
 
         var dt = this.dbDatetime();
         var flds = JSON.stringify(formData);
-        var sql="INSERT INTO wlog (siteid, FormID, SubmitDate, SpamLevel, SpamReason, Params) " +
-            " VALUES ('" + this.siteId + "','" + strFormID + "', '" + dt + "', " + 
+        var sql="INSERT INTO messagelog (FormID, SubmitDate, SpamLevel, SpamReason, Params) " +
+            " VALUES ('" + strFormID + "', '" + dt + "', " +
             spamLevel + ", " + this.db.dbStr(spamReason,-1,true) + "," +
             this.db.dbStr(flds,maxLength,true)
             + ")";
@@ -3995,6 +3998,66 @@ class iesCommonLib {
         //*** FUTURE: Check for database errors using .then().catch()
 
     } // End Function
+
+    // *************************************************************************************** DB Param Store
+    // Generic per-site key/value settings table ("params" - id/value pairs). Lives in each
+    // site's own database, so no site-id column is needed. See PRD.md #REQ-FORMNOTIFY-01.
+    async getDbParam(id, defaultVal = '') {
+        let row = await this.db.GetFirstRow("SELECT value FROM params WHERE id=" + this.db.dbStr(id));
+        return row ? row.getStr('value', defaultVal) : defaultVal;
+    } // End getDbParam()
+
+    async setDbParam(id, value) {
+        let sql = "INSERT INTO params (id, value) VALUES (" + this.db.dbStr(id) + "," + this.db.dbStr(value) +
+            ") ON CONFLICT (id) DO UPDATE SET value=EXCLUDED.value";
+        await this.db.ExecuteSQL(sql);
+    } // End setDbParam()
+
+    // *************************************************************************************** checkAndSendForm()
+    // Event-driven notification throttle for form submissions (replaces emailing on every single
+    // submission). Called for non-spam submissions only - spam already skips this entirely via
+    // EmailFormFlag. Notifies immediately on the first unread message since the admin's last visit
+    // to the messages list, otherwise waits for NotifyAgainDays before reminding again.
+    // See PRD.md #REQ-FORMNOTIFY-01.
+    async checkAndSendForm(SpamObj) {
+        try {
+            const epoch = '1970-01-01 00:00:00';
+            let lastAdminVisit = (await this.getDbParam('FormLastAdminVisit', epoch)) || epoch;
+            let lastNotificationSent = (await this.getDbParam('FormLastNotificationSent', epoch)) || epoch;
+
+            let sql = "SELECT " +
+                "COUNT(*) FILTER (WHERE SpamLevel <= 0) AS unreadcount, " +
+                "COUNT(*) FILTER (WHERE SpamLevel > 0) AS spamcount, " +
+                "EXTRACT(EPOCH FROM (NOW() - " + this.db.dbStr(lastNotificationSent) + "::timestamp)) / 86400.0 AS dayssincenotify " +
+                "FROM messagelog WHERE SubmitDate > " + this.db.dbStr(lastAdminVisit);
+            let rs = await this.db.GetFirstRow(sql);
+            if (!rs) { return; }
+
+            let unreadCount = rs.getNum('unreadcount', 0);
+            let spamCount = rs.getNum('spamcount', 0);
+            let daysSinceNotify = rs.getNum('dayssincenotify', 999999);
+            let notifyAgainDays = this.SITE.getNum('NotifyAgainDays', 7);
+
+            let shouldSend = (unreadCount == 1) || (daysSinceNotify >= notifyAgainDays);
+            if (!shouldSend) { return; }
+
+            let baseUrl = this.getParamStr('HomeURL', '').replace(/\/+$/, '');
+            let notifyInfo = {
+                subject: this.getParamStr('FORM_Subject_DEFAULT', '') + ' - ' + unreadCount + ' new message(s)',
+                sendto: this.getParamStr('FORM_SendTo_DEFAULT', ''),
+                sendfrom: this.getParamStr('FORM_SendFrom_DEFAULT', ''),
+                cc: this.getParamStr('FORM_CC', ''),
+                bcc: this.getParamStr('FORM_BCC', ''),
+                isHtml: false,
+                body: unreadCount + ' new message(s) and ' + spamCount + ' spam message(s) since your last review.\n\n' +
+                    'Review: ' + baseUrl + '/admin-edit?eclass=messagelog'
+            };
+            this.goSendEmail(notifyInfo);
+            await this.setDbParam('FormLastNotificationSent', this.dbDatetime());
+        } catch (errCheckSend) {
+            this.logError('checkAndSendForm(): ' + errCheckSend);
+        }
+    } // End checkAndSendForm()
 
     // *******************************************************************************************
     // *******************************************************************************************
