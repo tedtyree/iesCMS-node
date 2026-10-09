@@ -63,6 +63,37 @@ var siteList = [];
 var siteSecrets = {}; // siteID -> { cfg: FlexJson, path, mtimeMs }, from websites/<siteID>/secrets/secrets.jfx — see getSiteSecrets() below [#REQ-SECRETS-01]
 var siteConfigs = {}; // siteID -> { cfg: FlexJson, path, mtimeMs }, from each site's site.cfg/site.jfx — see getSiteConfig() below [#REQ-CONFIG-01-07]
 
+// Static file allow-list [#REQ-STATIC-ALLOW-01] — see CLAUDE.md "Static File Allow-List".
+// Default-deny: any request that would otherwise fall into website_engine.js's generic
+// "NON-HTML/JSON RESOURCES" branch (any extension other than '', htm, html, cfg) is blocked
+// unless its top-level folder (or, for a root-level request, its exact filename) is on one
+// of these two lists, or a site's own StaticAllowFolders/StaticAllowFiles (site.cfg/site.jfx)
+// extends it. Kept hardcoded here, not in server.cfg, deliberately — this is security
+// policy, reviewed via normal code review, not an ops-editable, git-ignored setting.
+const STATIC_ALLOW_FOLDERS = [
+      'images', 'img', 'css', 'js', 'styles', 'src', 'assets', 'fonts', 'modules',
+      'require', 'cmd', 'spam', 'content', 'blogs'
+];
+const STATIC_ALLOW_ROOT_FILES = [
+      'favicon.ico', 'robots.txt', 'sitemap.txt', 'manifest.json', 'sw.js',
+      'apple-touch-icon.png', 'humans.txt'
+];
+
+// Reads a FlexJson array value (e.g. cms.SITE.i('StaticAllowFolders')) into a lowercased
+// Set of strings. Safe against a missing key: FlexJson.i() on a missing key returns a
+// truthy jsonType:"null" stub whose own [Symbol.iterator] yields itself once rather than
+// zero times, so this deliberately checks jsonType === 'array' before iterating at all.
+function flexArrayToSet(flexNode) {
+      const set = new Set();
+      if (flexNode && flexNode.jsonType === 'array') {
+            for (const item of flexNode) {
+                  const v = (item && typeof item.toStr === 'function') ? item.toStr('').trim() : '';
+                  if (v) { set.add(v.toLowerCase()); }
+            }
+      }
+      return set;
+}
+
 // Load SERVER parameters [#REQ-CONFIG-01-01]
 let serverCfg = new FlexJson();
 serverCfg.DeserializeFlexFile(serverConfig); // Cannot log the error yet, log file has not been created.
@@ -526,6 +557,65 @@ http.createServer(async (req, res) => {
 
             // Get a few key parameters from SITE
             cms.debugMode = cms.getParamNum("debugMode");
+
+            // Static file allow-list [#REQ-STATIC-ALLOW-01] — default-deny for anything
+            // that would otherwise fall into the generic static-file branch. Only applies
+            // to that branch (not '', htm, html — page lookups; not cfg — already blocked
+            // above) and exempts /orig/* entirely, which has its own dedicated gatekeeper
+            // + containment check directly below.
+            if (!cms.abort && cms.pathExt && cms.pathExt != 'htm' && cms.pathExt != 'html'
+                  && cms.urlBasePath.toLowerCase() != 'orig') {
+                  // Rule 1: hidden (dot-prefixed) path segments are always blocked — kills
+                  // /.git/*, /.github/*, /.claude/*, /.env, etc. — except the literal
+                  // ".well-known" segment, which is only exempted from THIS rule and still
+                  // has to pass Rule 2 below like any other folder (not relying on the
+                  // reverse proxy — Apache/Caddy configs vary and aren't verified per-site).
+                  const isHiddenSeg = (seg) => !!seg && seg.substr(0, 1) == '.' && seg.toLowerCase() != '.well-known';
+                  const hiddenHit = isHiddenSeg(cms.urlBasePath) || isHiddenSeg(cms.urlFileName)
+                        || cms.urlPathList.some(isHiddenSeg);
+                  if (hiddenHit) {
+                        err = 994; // ERR994
+                        errMessage = "Blocked hidden path segment: " + cms.url.pathname + " [ERR" + err + "]";
+                        if (debugMode > 0) {
+                              appendFileSync(debugHttpFile, "ERROR: " + errMessage + "\n");
+                        }
+                        cms.resultType = 'notfound';
+                        cms.abort = true;
+                  } else {
+                        // Rule 2: top-level folder (or root filename) must be allow-listed.
+                        const isCmsCommon = cms.urlBasePath.toLowerCase() == 'cmscommon';
+                        const folderSegments = isCmsCommon ? cms.urlPathList.slice(1) : cms.urlPathList.slice();
+                        const topFolder = (folderSegments[0] || '').toLowerCase();
+
+                        // Per-site StaticAllowFolders/StaticAllowFiles extend the shared defaults;
+                        // StaticDenyFolders/StaticDenyFiles narrow them back (deny always wins).
+                        // Not read for /cmscommon/* — those are shared platform files served
+                        // identically to every site, so a per-site override wouldn't be meaningful.
+                        const siteAllowFolders = isCmsCommon ? null : flexArrayToSet(cms.SITE.i('StaticAllowFolders'));
+                        const siteDenyFolders = isCmsCommon ? null : flexArrayToSet(cms.SITE.i('StaticDenyFolders'));
+                        const siteAllowFiles = isCmsCommon ? null : flexArrayToSet(cms.SITE.i('StaticAllowFiles'));
+                        const siteDenyFiles = isCmsCommon ? null : flexArrayToSet(cms.SITE.i('StaticDenyFiles'));
+
+                        let allowed;
+                        if (topFolder) {
+                              allowed = STATIC_ALLOW_FOLDERS.includes(topFolder) || (siteAllowFolders && siteAllowFolders.has(topFolder));
+                              if (allowed && siteDenyFolders && siteDenyFolders.has(topFolder)) { allowed = false; }
+                        } else {
+                              const rootFile = (cms.urlFileName || '').toLowerCase();
+                              allowed = STATIC_ALLOW_ROOT_FILES.includes(rootFile) || (siteAllowFiles && siteAllowFiles.has(rootFile));
+                              if (allowed && siteDenyFiles && siteDenyFiles.has(rootFile)) { allowed = false; }
+                        }
+                        if (!allowed) {
+                              err = 995; // ERR995
+                              errMessage = "Blocked (not on static allow-list): " + cms.url.pathname + " [ERR" + err + "]";
+                              if (debugMode > 0) {
+                                    appendFileSync(debugHttpFile, "ERROR: " + errMessage + "\n");
+                              }
+                              cms.resultType = 'notfound';
+                              cms.abort = true;
+                        }
+                  }
+            }
 
             // /orig folder gatekeeper [#REQ-ORIG-01]
             // cms.url.pathname and cms.pathExt are already parsed above — no re-splitting needed.

@@ -219,6 +219,74 @@ check whether the affected page's script/link tags are cache-busted at all, and 
 
 ---
 
+## Static File Allow-List [#REQ-STATIC-ALLOW-01]
+
+`app.js` serves any file that resolves on disk under a site's folder (or `cmsCommon/`)
+whenever the request's extension isn't `.cfg`/`.htm`/`.html`/empty — this is a raw
+`fs.createReadStream()`, not an Express static-file layer, so there's no built-in webroot
+boundary. Before this mechanism existed, that meant `.git/`, `secrets/secrets.jfx`,
+`require/*.js`, `cmd/**/*.js`, `db/*.sql`, `config/*.jfx`, and internal docs were all
+reachable over plain HTTP. The fix is a **default-deny allow-list** enforced in `app.js`
+right after `cms.SITE`/`cms.SECRETS` are loaded, before the `/orig` gatekeeper — a single
+choke point that covers every site (including ones with their own `CreateHtml()` override)
+because it runs upstream of any engine.
+
+**Rule 1 — hidden segments are always blocked**, no config needed: any path segment
+starting with `.` (`/.git/*`, `/.github/*`, `/.claude/*`, `/.env`, etc.) 404s, with one
+exception — the literal segment `.well-known` is exempted from this rule only (it still
+has to pass Rule 2 like any other folder). This is deliberately not left to the reverse
+proxy: Apache/Caddy configs vary per deployment and aren't verified live on every site's
+vhost, and Caddy only auto-intercepts `/.well-known/acme-challenge/*` for its own
+automatic-HTTPS flow, not other `.well-known` uses.
+
+**Rule 2 — the top-level folder (or, for a root-level request like `/favicon.ico`, the
+exact filename) must be on an allow-list.** Two hardcoded lists in `app.js`
+(`STATIC_ALLOW_FOLDERS` / `STATIC_ALLOW_ROOT_FILES`) apply to every site and to
+`cmscommon/`:
+
+```
+Folders:    images, img, css, js, styles, src, assets, fonts, modules,
+            require, cmd, spam, content, blogs
+Root files: favicon.ico, robots.txt, sitemap.txt, manifest.json, sw.js,
+            apple-touch-icon.png, humans.txt
+```
+
+These two lists are **kept hardcoded in `app.js` by design**, not read from `server.cfg` —
+this is security policy, meant to be reviewed via normal code review like the rest of
+`app.js`, not an ops-editable setting in a git-ignored file that could drift between
+servers with no diff to catch it. Changing the shared default requires an `app.js` code
+change, not a config edit.
+
+**Per-site overrides** — a site's own `site.cfg`/`site.jfx` can extend or narrow the
+effective list for its own namespace (not for `cmscommon/`, which is shared platform
+infrastructure served identically to every site regardless of which domain asked):
+
+```javascript
+,StaticAllowFolders: ["mod", "icons"]   // add folders, on top of the shared default
+,StaticAllowFiles:   ["icon.png"]       // add root-level filenames
+,StaticDenyFolders:  ["cmd"]            // remove a folder even if globally allowed
+,StaticDenyFiles:    ["sw.js"]          // remove a root filename even if globally allowed
+```
+
+Precedence is deny-wins: `effective = (default ∪ StaticAllowFolders) − StaticDenyFolders`
+(same for files). A site can only ever narrow its exposure below the platform baseline via
+`StaticDenyFolders`/`StaticDenyFiles` — it can never widen it past what
+`StaticAllowFolders`/`StaticAllowFiles` already permits. Current per-site extras: `un0`
+(`mod`), `delta_align` (`icons`), `heniv` (`uploads`), `lisa-block-sweep-web` (`_expo`
+folder + `icon.png` file).
+
+If you add a site with an unusual public folder (anything other than the shared defaults
+above) and its assets start 404ing, this is where to register it — add
+`StaticAllowFolders`/`StaticAllowFiles` to that site's own `site.cfg`/`site.jfx`. Don't
+widen the shared `app.js` lists for a one-off site need.
+
+Everything not on either list — `secrets/`, `config/`, `db/`, `docs/`, `design/`, any
+site's own internal data folders, every dotfile/dot-folder — is unreachable over HTTP by
+default. The full design rationale (including why an allow-list was chosen over an
+expanded deny-list) is in `docs/static-file-allowlist-plan.md`.
+
+---
+
 ## runcmd / pubcmd API
 
 All API calls go through `/runcmd` (authenticated) or `/pubcmd` (public).

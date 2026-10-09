@@ -323,9 +323,12 @@ class webEngine {
                 );
                 
             if (!cms.fileFullPath) {
-                // We didn't find the file - time to call it quits
-                cms.Html += 'file not found.<br>';
-                reject('ERROR: Page not found. [ERR1111]');
+                // We didn't find the file - respond with a real 404 instead of rejecting
+                // into app.js's generic SERVER ERROR catch-all (which always sends HTTP
+                // 200) - reuses the same resultType='notfound' branch app.js already uses
+                // elsewhere (plain text, real 404). [ERR1111]
+                cms.resultType = 'notfound';
+                resolve('');
                 return;
             }
 

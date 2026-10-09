@@ -184,3 +184,9 @@ Typical example config if port defined as 8118...
     ProxyPass / http://localhost:8118/
     ProxyPassReverse / http://localhost:8118/
 </VirtualHost>
+
+Note: iesCMS itself only serves static files from an explicit allow-list (folders like
+`images`/`css`/`js`/`require`/`cmd`, root files like `favicon.ico`/`manifest.json`) — it
+does not rely on this proxy config to keep sensitive paths (`.git/`, `secrets/`, `db/`,
+etc.) from reaching Node. See `CLAUDE.md`'s "Static File Allow-List" section for the full
+list and how to extend it per site.
