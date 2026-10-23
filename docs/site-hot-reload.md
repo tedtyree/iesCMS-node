@@ -84,9 +84,28 @@ booting iescms against it.
   (`clearRequireCacheForFile` — the legacy path lives outside the site's folder, so the
   directory-based clear can't see it), re-`require()`s + reinstantiates the engine, and
   rebuilds just that site's `cmdRegistry` entry via `buildSiteCmdRegistry(siteId,
-  commonHandlers)` (never rescans `cmsCommon/cmd/`). On any thrown error (e.g. a syntax
-  error in the edited file), the previous `websiteEngines[siteId]`/`cmdRegistry[siteId]`
-  are left untouched — same last-known-good philosophy as `getSiteConfig()`.
+  commonHandlers)` (never rescans `cmsCommon/cmd/`). The new engine instance and new cmd
+  registry are computed first and only committed together, atomically, once both are
+  known-good — **on any failure** (a thrown error, e.g. a syntax error in the engine
+  file, OR one or more `cmd/**/*.js` files that failed to `require()`), *nothing* is
+  committed and the previous `websiteEngines[siteId]`/`cmdRegistry[siteId]` are left
+  exactly as they were, same last-known-good philosophy as `getSiteConfig()`. The result
+  includes `handlerErrors: [{file, error}, ...]` when the cause was one or more bad cmd
+  handler files, so the caller sees exactly which file broke.
+  - **Why all-or-nothing:** `buildSiteCmdRegistry`/`loadHandlers` catch a bad
+    `require()` internally so ONE broken handler file never blocks the rest of a site's
+    `cmd/` folder from loading — but that means committing the resulting registry while
+    reporting `success:true` would silently drop that one handler while telling a CI/CD
+    script the deploy succeeded. Flagged during review ("a success:true next to a
+    silently dropped handler is how a deploy lies") — fixed by treating any handler load
+    failure as a full reload failure, not a partial one.
+  - **Not every "skip" is a failure.** A file that `require()`s cleanly but doesn't
+    export the `{id, handler}` shape (e.g. a `_`-prefixed helper module meant to be
+    required BY a handler file, not to be one — see
+    `websites/pamoja-or-ke/cmd/blogs/_blogUtils.js`) is only ever logged, never counted
+    as an error: it was never a working handler that broke, so counting it would make
+    reload of a site with such a helper fail forever for no real reason. Only an actual
+    `require()` exception counts.
 - **`discoverNewSites()`** — re-lists `./websites`, calls `loadSite()` on any folder not
   already in `siteList`, and returns only the siteIds that actually got registered (a
   folder with a SITEID/folder-name mismatch, like the existing `old-pamoja-or-ke` vs.

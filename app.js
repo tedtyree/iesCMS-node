@@ -145,8 +145,11 @@ try {
 }
 
 // Common handlers scanned once, independently of siteList — a per-site cmd registry is
-// just a clone of this plus that site's own cmd/ folder (see buildSiteCmdRegistry) [#REQ-API-06-01]
-const commonHandlers = buildCommonHandlers();
+// just a clone of this plus that site's own cmd/ folder (see buildSiteCmdRegistry)
+// [#REQ-API-06-01]. A common handler that fails to load is logged by buildCommonHandlers
+// itself (it's a shared platform concern, not a per-site one) — commonHandlersErrors
+// isn't used further here, but is kept so a future startup-summary log has it on hand.
+const { handlers: commonHandlers, errors: commonHandlersErrors } = buildCommonHandlers();
 const cmdRegistry = {}; // siteId -> that site's handler registry, populated by loadSite() below
 
 // Registers one site for the first time: parses its site.cfg/site.jfx (if present),
@@ -248,9 +251,16 @@ function loadSite(dDir) {
       // Only for a folder that actually turned into a registered site above — otherwise
       // (e.g. reloadOrLoadSite() probing a bogus siteId) this would leave a spurious
       // cmdRegistry[dDir] entry behind even though the site was never registered.
+      let handlerErrors = [];
       if (siteList.includes(dDir)) {
-            cmdRegistry[dDir] = buildSiteCmdRegistry(dDir, commonHandlers);
+            const built = buildSiteCmdRegistry(dDir, commonHandlers);
+            cmdRegistry[dDir] = built.registry;
+            handlerErrors = built.errors;
+            if (handlerErrors.length) {
+                  console.log(`[CMD] WARNING: site [${dDir}] registered with ${handlerErrors.length} cmd handler(s) that FAILED to load — see [CMD] lines above.`);
+            }
       }
+      return { registered: siteList.includes(dDir), handlerErrors };
 }
 
 console.log('DIR List:' + JSON.stringify(dlist));
@@ -260,8 +270,16 @@ dlist.forEach(loadSite);
 // cmd/**/*.js from disk, without restarting the process [#REQ-HOTRELOAD]. Never touches
 // cmsCommon (shared engine/handlers — out of scope, a bug fix there still needs
 // `pm2 restart iescms`) and never discovers brand-new site folders (see discoverNewSites
-// below for that). On any failure, leaves the PREVIOUS websiteEngines[siteId]/
-// cmdRegistry[siteId] in place — same last-known-good philosophy as getSiteConfig().
+// below for that). On ANY failure — a thrown error, OR one or more cmd handler files
+// that failed to require() — commits NOTHING and leaves the PREVIOUS
+// websiteEngines[siteId]/cmdRegistry[siteId] in place, same last-known-good philosophy
+// as getSiteConfig(). This is deliberately all-or-nothing: buildSiteCmdRegistry()
+// catches a bad require() internally so ONE broken handler file never blocks the rest of
+// the folder from loading, but silently committing a registry that's missing that one
+// handler while reporting success:true would be exactly the kind of lie a deploy script
+// must not be told — so any handler load failure aborts the whole reload instead of
+// partially applying it (flagged during review — a success:true next to a silently
+// dropped handler is how a deploy lies).
 function reloadSite(siteId) {
       if (!siteList.includes(siteId)) {
             return { success: false, error: `Unknown siteId: ${siteId}` };
@@ -274,11 +292,26 @@ function reloadSite(siteId) {
             if (enginePathUsed && !normalizedStartsWith(enginePathUsed, siteFolder)) {
                   clearRequireCacheForFile(enginePathUsed); // legacy ./require/website_<siteId>.js case
             }
+
+            // Compute the new engine instance + new cmd registry WITHOUT committing either
+            // yet — only written into websiteEngines/cmdRegistry below once we know the
+            // whole reload is clean, so a handler-load failure can still roll back the
+            // (already-succeeded) engine re-require too.
+            let newEngineInstance = null;
             if (enginePathUsed) {
                   const EngineCtor = require(enginePathUsed); // fresh require — cache just busted
-                  websiteEngines[siteId] = new EngineCtor(siteId);
+                  newEngineInstance = new EngineCtor(siteId);
             }
-            cmdRegistry[siteId] = buildSiteCmdRegistry(siteId, commonHandlers); // commonHandlers untouched
+            const { registry: newRegistry, errors: handlerErrors } = buildSiteCmdRegistry(siteId, commonHandlers);
+
+            if (handlerErrors.length) {
+                  console.log(`[RELOAD] ERROR: Site [${siteId}] reload ABORTED — ${handlerErrors.length} cmd handler(s) failed to load: ${handlerErrors.map(e => `${e.file} (${e.error})`).join('; ')} — keeping previous engine/registry`);
+                  return { success: false, siteId, error: `${handlerErrors.length} cmd handler(s) failed to load`, handlerErrors };
+            }
+
+            if (newEngineInstance) { websiteEngines[siteId] = newEngineInstance; }
+            cmdRegistry[siteId] = newRegistry; // commonHandlers untouched
+
             console.log(`[RELOAD] Site [${siteId}] reloaded OK — engine=${enginePathUsed || '(none - cmsCommon only)'}, cache entries cleared=${clearedUnderFolder.length}`);
             return { success: true, siteId };
       } catch (err) {
@@ -327,13 +360,16 @@ function reloadAll() {
 // already a known site, or treat it as first-time onboarding of a just-added site
 // folder otherwise [#REQ-HOTRELOAD]. success reflects whether <id> actually ended up in
 // siteList after loadSite() runs (loadSite only pushes a siteId once its config parses
-// and SITEID matches the folder name — see loadSite above).
+// and SITEID matches the folder name — see loadSite above). A first-time onboarding
+// that registered the site but had one or more cmd handlers fail to load is still
+// reported as success:true (the site IS now servable) but with handlerErrors attached —
+// unlike reloadSite()'s all-or-nothing rollback, there's no "previous good state" to
+// roll back to on a brand-new site.
 function reloadOrLoadSite(siteId) {
       if (siteList.includes(siteId)) { return reloadSite(siteId); }
-      loadSite(siteId);
-      const added = siteList.includes(siteId);
-      return added
-            ? { success: true, siteId, added: true }
+      const { registered, handlerErrors } = loadSite(siteId);
+      return registered
+            ? { success: true, siteId, added: true, ...(handlerErrors.length ? { handlerErrors } : {}) }
             : { success: false, siteId, error: `Not a known site and no valid site.cfg/site.jfx found under websites/${siteId}` };
 }
 
