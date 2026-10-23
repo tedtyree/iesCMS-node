@@ -434,7 +434,7 @@ initSiteDatabases(siteList, serverCfg, debugFile).catch(err => {
 //   GET /reload?site=<id>   -> reloadSite(id), or loadSite(id) if <id> is a brand-new folder
 const adminControlPort = serverCfg.getNum('AdminControlPort', 0);
 if (adminControlPort > 0) {
-      http.createServer((req, res) => {
+      const controlServer = http.createServer((req, res) => {
             const reqUrl = new URL(req.url, 'http://127.0.0.1');
             if (reqUrl.pathname !== '/reload') {
                   res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -445,7 +445,22 @@ if (adminControlPort > 0) {
             const result = siteId ? reloadOrLoadSite(siteId) : reloadAll();
             res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(result));
-      }).listen(adminControlPort, '127.0.0.1', () => {
+      });
+      // Without this handler, a listen() failure (e.g. the port is already taken by
+      // another app on this server) is an unhandled 'error' event — Node throws and
+      // takes down the ENTIRE iescms process (every site), just because this optional
+      // admin feature collided with something else. Log it clearly instead (reaches
+      // `pm2 logs iescms`) and keep serving every site normally without the control
+      // endpoint [#REQ-HOTRELOAD].
+      controlServer.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                  console.log(`[CONTROL] ERROR: AdminControlPort ${adminControlPort} is already in use by another process on this server — the local hot-reload endpoint will NOT be available. Site serving on port ${serverPort} is unaffected. Pick a different AdminControlPort in secrets/server.cfg (then restart) to enable it.`);
+            } else {
+                  console.log(`[CONTROL] ERROR: Failed to start local hot-reload endpoint on 127.0.0.1:${adminControlPort}: ${err.message} — site serving on port ${serverPort} is unaffected.`);
+                  console.error(err);
+            }
+      });
+      controlServer.listen(adminControlPort, '127.0.0.1', () => {
             console.log(`[CONTROL] Local hot-reload endpoint listening on 127.0.0.1:${adminControlPort}`);
       });
 }

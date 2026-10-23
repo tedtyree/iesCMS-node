@@ -405,6 +405,7 @@ When a handler is called on its own (one handler per request, the normal case), 
 - **`require/cmdRegistry.js`** exports `buildCommonHandlers()` (scans `cmsCommon/cmd/` once) and `buildSiteCmdRegistry(siteId, commonHandlers)` (one site's registry, safe to call repeatedly for a reload) in addition to the original `buildCmdRegistry(siteList)`.
 - **On failure** (e.g. a syntax error in the file just edited), `reloadSite` leaves the previous `websiteEngines[siteId]`/`cmdRegistry[siteId]` in place and reports `{success:false, error}` — same last-known-good philosophy as `getSiteConfig()` above. An in-flight request already holding the old engine instance finishes safely on old code (plain JS reference semantics) — no locking needed.
 - **Out of scope:** `cmsCommon`'s shared engine/handlers and any top-level `require/*.js` utility a site's code requires from outside its own folder — editing those still needs a full restart.
+- **Port conflict is non-fatal.** The control server has an explicit `.on('error', ...)` handler — if `AdminControlPort` collides with another process already using that port, this is logged clearly (`pm2 logs iescms`) and every site keeps serving normally; without that handler, an unhandled `EADDRINUSE` on an `http.Server` would crash the entire process over an optional admin feature.
 
 ---
 

@@ -42,6 +42,18 @@ site's optional `secrets.jfx`. When set to a port number, `app.js` opens the con
 listener on `127.0.0.1:<AdminControlPort>` (never `0.0.0.0` — unreachable off-box at the
 OS/network level regardless of firewall state).
 
+**Port conflict is handled gracefully, not fatally.** If `AdminControlPort` collides with
+something else already listening on that port on the same server, `listen()` fails with
+`EADDRINUSE`. The control server has an explicit `.on('error', ...)` handler for this —
+without one, an unhandled `error` event on an `http.Server` throws and takes down the
+*entire* Node process (every site), just because this optional admin feature happened to
+collide with an unrelated port. Instead, the collision is logged clearly (reaches
+`pm2 logs iescms`, e.g. `AdminControlPort 8119 is already in use by another process on
+this server`) and every site keeps serving normally on `serverPort` — only the control
+endpoint itself is unavailable until a non-conflicting port is chosen and the app is
+restarted. Verified by starting a dummy listener on the configured port first, then
+booting iescms against it.
+
 ### Control endpoint (`app.js`)
 
 - `GET /reload` → `reloadAll()` — discovers any brand-new site folders under
