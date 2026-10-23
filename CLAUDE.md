@@ -394,6 +394,20 @@ When a handler is called on its own (one handler per request, the normal case), 
 
 ---
 
+## Per-Site Hot Reload (no full restart) [#REQ-HOTRELOAD]
+
+`cms.SITE`/`cms.SECRETS`/pages/templates above already self-heal on edit without a restart. Two things don't: a site's `website_engine.js` and its `cmd/**/*.js` API handlers are `require()`'d once at startup and cached — editing either used to require `pm2 restart iescms`, bouncing every site, not just the one being deployed. Full design doc: `docs/site-hot-reload.md`.
+
+- **Trigger:** a second, tiny HTTP listener in `app.js`, bound only to `127.0.0.1`, opt-in via `AdminControlPort` in `secrets/server.cfg` (absent/`0` = disabled). Meant for a CI/CD deploy script or a server admin running directly on the box — not a site-facing API, not authenticated, and **must never be proxied by Apache/Caddy to the public internet**. Loopback binding is the access-control boundary.
+  - `GET /reload?site=<id>` — hot-reloads just that one already-known site (smallest blast radius), or onboards `<id>` as a brand-new site folder if it isn't registered yet.
+  - `GET /reload` — discovers/registers any brand-new site folder under `./websites/`, then hot-reloads every other already-known site.
+- **Core functions, all in `app.js`:** `loadSite(siteId)` (first-time registration — parses `site.cfg`/`site.jfx`, secrets, domains, engine, cmd registry; this is the startup loop's body, factored out so it's reusable), `reloadSite(siteId)` (busts `require.cache` under that site's folder via `require/hotReload.js`'s `clearRequireCacheUnderDir` — plus the legacy `./require/website_<id>.js` fallback path via `clearRequireCacheForFile`, since that one lives outside the site's folder — then re-`require()`s the engine and rebuilds just that site's `cmdRegistry` entry), `discoverNewSites()`, `reloadAll()`, `reloadOrLoadSite(siteId)`.
+- **`require/cmdRegistry.js`** exports `buildCommonHandlers()` (scans `cmsCommon/cmd/` once) and `buildSiteCmdRegistry(siteId, commonHandlers)` (one site's registry, safe to call repeatedly for a reload) in addition to the original `buildCmdRegistry(siteList)`.
+- **On failure** (e.g. a syntax error in the file just edited), `reloadSite` leaves the previous `websiteEngines[siteId]`/`cmdRegistry[siteId]` in place and reports `{success:false, error}` — same last-known-good philosophy as `getSiteConfig()` above. An in-flight request already holding the old engine instance finishes safely on old code (plain JS reference semantics) — no locking needed.
+- **Out of scope:** `cmsCommon`'s shared engine/handlers and any top-level `require/*.js` utility a site's code requires from outside its own folder — editing those still needs a full restart.
+
+---
+
 ## Per-Site Secrets (`cms.SECRETS`)
 
 For credentials (API keys, tokens) a site needs but must not commit inside its own `site.cfg`/`site.jfx` — most websites are their own separate git repo (see README's "Install each website"), so a value written into `site.cfg` goes straight into that repo's history.

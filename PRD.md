@@ -84,6 +84,13 @@ Allows a website to keep credentials (API keys, tokens, etc.) out of its `site.c
   - Convention: `/secrets/*` + `!/secrets/.gitkeep` (keeps the empty folder tracked in git while ignoring its contents) + a committed `secrets-example.jfx` template at the site root documenting the expected shape
 - First adopted by the `chatbot` site (`websites/chatbot/secrets/secrets.jfx`, holding `anthropic.apiKey` / `openai.apiKey`) [#REQ-SECRETS-01-06]
 
+## Per-Site Hot Reload [#REQ-HOTRELOAD-01]
+
+A single site's `website_engine.js`/`cmd/**/*.js` code changes must be deployable without restarting the shared `iescms` process, which would otherwise interrupt every other site's live users for a one-site deploy — the same motivation as the `cms.SITE`/`cms.SECRETS` live-reload above, extended to code rather than config.
+
+- Opt-in local-only HTTP control endpoint (`127.0.0.1` only, via `AdminControlPort` in `secrets/server.cfg`) lets a CI/CD deploy script or server admin on the box trigger a reload of one site, or of every site plus discovery of brand-new site folders — not exposed as a site-facing/authenticated API, since the caller already has shell access to the server.
+- Full design, endpoints, and known limitations: `docs/site-hot-reload.md`. Operator-facing usage: README's "Reloading a single website". Code reference: CLAUDE.md's "Per-Site Hot Reload" section.
+
 ## Common support functions to handle standard functionality across websites [#REQ-COMMON-01]
 
 - Common support functions are provided to handle standard functionality across websites [#REQ-COMMON-01-01]

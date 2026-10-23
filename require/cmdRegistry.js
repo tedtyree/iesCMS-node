@@ -60,30 +60,41 @@ function loadHandlers(filePath, registry) {
     }
 }
 
-// Build per-site registry at startup [#REQ-API-06]
-// Returns: { siteId: { 'cmd/key': { auth: Number, handler: fn }, ... }, ... }
-function buildCmdRegistry(siteList) {
-    const registry = {};
-
-    // 1. Scan common handlers once [#REQ-API-06-01]
+// Scan common handlers once [#REQ-API-06-01]. Split out from buildCmdRegistry() so a
+// single-site reload (see docs/site-hot-reload.md) can rebuild just one site's branch
+// without rescanning cmsCommon/cmd/ or touching any other site.
+function buildCommonHandlers() {
     console.log('[CMD] Loading common handlers from cmsCommon/cmd/');
     const commonHandlers = {};
     scanDir('./cmsCommon/cmd').forEach(f => loadHandlers(f, commonHandlers));
     console.log(`[CMD] Common handlers loaded: ${Object.keys(commonHandlers).length}`);
+    return commonHandlers;
+}
 
-    // 2. For each site, clone common + merge site-specific (site wins) [#REQ-API-06-02..04]
+// Build ONE site's registry given an already-built commonHandlers [#REQ-API-06-02..04].
+// Clone common + merge site-specific (site wins). Safe to call standalone and repeatedly
+// (e.g. for a live single-site reload) — never rescans cmsCommon/cmd/, and existsSync-
+// guards a site with no cmd/ folder (just returns the common clone, no error).
+function buildSiteCmdRegistry(siteId, commonHandlers) {
+    const siteReg = Object.assign({}, commonHandlers);
+    const siteDir = `./websites/${siteId}/cmd`;
+    if (existsSync(siteDir)) {
+        console.log(`[CMD] Loading site handlers for ${siteId} from ${siteDir}/`);
+        scanDir(siteDir).forEach(f => loadHandlers(f, siteReg));
+    }
+    console.log(`[CMD] ${siteId}: ${Object.keys(siteReg).length} handlers registered`);
+    return siteReg;
+}
+
+// Build per-site registry at startup [#REQ-API-06]
+// Returns: { siteId: { 'cmd/key': { auth: Number, handler: fn }, ... }, ... }
+function buildCmdRegistry(siteList) {
+    const commonHandlers = buildCommonHandlers();
+    const registry = {};
     siteList.forEach(siteId => {
-        const siteReg = Object.assign({}, commonHandlers);
-        const siteDir = `./websites/${siteId}/cmd`;
-        if (existsSync(siteDir)) {
-            console.log(`[CMD] Loading site handlers for ${siteId} from ${siteDir}/`);
-            scanDir(siteDir).forEach(f => loadHandlers(f, siteReg));
-        }
-        registry[siteId] = siteReg;
-        console.log(`[CMD] ${siteId}: ${Object.keys(siteReg).length} handlers registered`);
+        registry[siteId] = buildSiteCmdRegistry(siteId, commonHandlers);
     });
-
     return registry;
 }
 
-module.exports = { buildCmdRegistry };
+module.exports = { buildCmdRegistry, buildCommonHandlers, buildSiteCmdRegistry };

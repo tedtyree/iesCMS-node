@@ -61,6 +61,9 @@ To test a specific website, for example "chatbot" (That is the site id) navigate
 copy entire iesCMS-node folder to server > /var/www/iescms
 NOTE: Do not overwite websites folder (since each site should be managed it its own repo)
 NOTE: May need to update /secrets/server.cfg if there were structure changes to that file
+NOTE: Optionally set `AdminControlPort` in /secrets/server.cfg to enable per-site hot
+reload without restarting the whole app — see "Reloading a single website" below and
+`docs/site-hot-reload.md`.
 Copy websites/hostsite/require/website_hostsite.js to require/website_hostsite.js
 Key folders/files
   app.js
@@ -81,7 +84,9 @@ Websites should each be their own git repository.
   - **TEMPORARY, during migration:** the file may instead be named `site.jfx`. Every place that loads it resolves through `require/resolveSiteConfig.js`, which checks `site.jfx` first, then falls back to `site.cfg`. If both exist for a site, `site.jfx` wins and `site.cfg` is ignored. This dual-lookup will be removed once all sites are migrated to `site.jfx`.
   - The parsed config is cached at server startup and kept fresh via a cheap per-request file-modified-time check (not a full re-parse every request) — editing a live site's `site.cfg`/`site.jfx` (e.g. the `OverrideMinViewLevel` "lock this site" trick) still takes effect on the very next request, no restart needed.
 - For development purposes they can be included in the websites/ folder but are ignored by the parent git repository.
-- Restart the iesCMS app so that it sees the website config (and optional .js)
+- Restart the iesCMS app so that it sees the website config (and optional .js) —
+  **or**, if `AdminControlPort` is configured (see "Reloading a single website" below),
+  just hot-reload that one site instead, without bouncing every other site on the server.
 
 Rather than cloning the iesCMS to one location on the server (a github sync) and then copying it to a production location - on s3 we are triyng out just cloning directly to the production location and running it from there. See deploy_s3.sh
 
@@ -171,6 +176,33 @@ pm2 list
 # restart app
 
 pm2 restart app
+
+This bounces the whole process — every site on the server, not just the one you deployed.
+For a single-site code change, see "Reloading a single website" below instead.
+
+# Reloading a single website (no full restart)
+
+Editing one site's `website_engine.js` or any of its `cmd/**/*.js` API handlers doesn't
+take effect until that file is re-loaded into memory — normally that means
+`pm2 restart app`, which interrupts every other site too.
+
+To avoid that, set `AdminControlPort` in `/secrets/server.cfg` (e.g. `8119`) — this opens
+a second, tiny HTTP listener bound only to `127.0.0.1` (never reachable off-box, must
+never be proxied by Apache). From a deploy script or shell on the same server, as the
+last step after updating a site's files:
+
+```bash
+# Reload just one site (smallest impact — only that site's users see any effect):
+curl http://127.0.0.1:8119/reload?site=<siteId>
+
+# Or reload every site and pick up any brand-new site folder in one shot:
+curl http://127.0.0.1:8119/reload
+```
+
+`site.cfg`/`site.jfx`, pages, and templates already take effect live with no reload at
+all (see "Install each website" above) — this endpoint is only needed for
+`website_engine.js`/`cmd/**/*.js` code changes. Full design/limitations:
+`docs/site-hot-reload.md` and `CLAUDE.md`'s "Per-Site Hot Reload" section.
 
 # Apache2 setup
 

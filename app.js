@@ -16,12 +16,17 @@ const jsonConstants = require('./require/FlexJson/FlexJsonConstants.js');
 const iesCommonLib = require('./require/iesCommon.js');
 const iesUser = require('./require/iesUser.js');
 const initSiteDatabases = require('./require/iesDB/iesDbInit.js');
-const { buildCmdRegistry } = require('./require/cmdRegistry.js');
+const { buildCommonHandlers, buildSiteCmdRegistry } = require('./require/cmdRegistry.js');
 const { resolveSiteConfigPath } = require('./require/resolveSiteConfig.js');
+const { clearRequireCacheUnderDir, clearRequireCacheForFile } = require('./require/hotReload.js');
 
 var httpQueryId = 0;
 
 var websiteEngines = {};
+var websiteEnginePaths = {}; // siteId -> resolved absolute engine path actually require()'d at
+                              // load time (site override or legacy fallback) — needed by
+                              // reloadSite() below since the legacy path lives OUTSIDE the
+                              // site's own folder [#REQ-HOTRELOAD]. No entry = pure cmsCommon site.
 var debugLog = "";
 var debugMode = 99;
 var debugFile = "";
@@ -139,8 +144,17 @@ try {
       console.error(err);
 }
 
-console.log('DIR List:' + JSON.stringify(dlist));
-dlist.forEach(dDir => {
+// Common handlers scanned once, independently of siteList — a per-site cmd registry is
+// just a clone of this plus that site's own cmd/ folder (see buildSiteCmdRegistry) [#REQ-API-06-01]
+const commonHandlers = buildCommonHandlers();
+const cmdRegistry = {}; // siteId -> that site's handler registry, populated by loadSite() below
+
+// Registers one site for the first time: parses its site.cfg/site.jfx (if present),
+// caches it, loads its optional secrets.jfx, registers its domains, requires+instantiates
+// its website_engine.js (site override or legacy fallback), and builds its cmd registry
+// entry. Used both by the startup loop right below and later by discoverNewSites() for a
+// site folder added after boot, without restarting the process [#REQ-HOTRELOAD].
+function loadSite(dDir) {
       var dPath = resolveSiteConfigPath(sitesPath, dDir);
       try {
             if (dPath) {
@@ -153,7 +167,7 @@ dlist.forEach(dDir => {
                         let siteID = thiscfg.i("SITEID").toStr();
                         if (siteID != '' && siteID == dDir) {
                               console.log('>>> SITEID: ' + thiscfg.i("SITEID").toStr());
-                              siteList.push(siteID);
+                              if (!siteList.includes(siteID)) { siteList.push(siteID); }
 
                               // Cache the already-parsed site config (avoids a second parse of the
                               // same file), kept fresh via a cheap per-request mtime check rather
@@ -186,7 +200,7 @@ dlist.forEach(dDir => {
                               // loop through
                               let domainList = thiscfg.i('Domains');
                               for (const oneDomain of domainList) {
-                                    domainName = oneDomain.toStr().toLowerCase();
+                                    let domainName = oneDomain.toStr().toLowerCase();
                                     // FUTURE: Check for duplicates - raise error
                                     if (iesDomains[domainName]) {
                                           console.log("ERROR: Duplicate Domain [" + domainName + "] ./websites/" + dDir);
@@ -221,13 +235,107 @@ dlist.forEach(dDir => {
                   }
                   //websiteEngines[dDir] = newEngine; //new newEngine();
                   websiteEngines[dDir] = new newEngine(dDir);
+                  websiteEnginePaths[dDir] = path.resolve(enginePath); // [#REQ-HOTRELOAD] track actual path used, for reloadSite()
                   console.log("LOAD/REQUIRE WEBSITE ENGINE: " + enginePath);
             }
 
       } catch (err) {
             console.error(err)
       }
-});
+
+      // Build this site's cmd registry entry (cheap clone of commonHandlers + that site's
+      // own cmd/ folder, existsSync-guarded — see buildSiteCmdRegistry) [#REQ-API-06-02..04].
+      // Only for a folder that actually turned into a registered site above — otherwise
+      // (e.g. reloadOrLoadSite() probing a bogus siteId) this would leave a spurious
+      // cmdRegistry[dDir] entry behind even though the site was never registered.
+      if (siteList.includes(dDir)) {
+            cmdRegistry[dDir] = buildSiteCmdRegistry(dDir, commonHandlers);
+      }
+}
+
+console.log('DIR List:' + JSON.stringify(dlist));
+dlist.forEach(loadSite);
+
+// reloadSite(siteId) — hot-reloads one ALREADY-KNOWN site's website_engine.js +
+// cmd/**/*.js from disk, without restarting the process [#REQ-HOTRELOAD]. Never touches
+// cmsCommon (shared engine/handlers — out of scope, a bug fix there still needs
+// `pm2 restart iescms`) and never discovers brand-new site folders (see discoverNewSites
+// below for that). On any failure, leaves the PREVIOUS websiteEngines[siteId]/
+// cmdRegistry[siteId] in place — same last-known-good philosophy as getSiteConfig().
+function reloadSite(siteId) {
+      if (!siteList.includes(siteId)) {
+            return { success: false, error: `Unknown siteId: ${siteId}` };
+      }
+      const siteFolder = path.resolve('./websites/' + siteId);
+      const enginePathUsed = websiteEnginePaths[siteId]; // undefined => no custom engine (pure cmsCommon)
+
+      try {
+            const clearedUnderFolder = clearRequireCacheUnderDir(siteFolder);
+            if (enginePathUsed && !normalizedStartsWith(enginePathUsed, siteFolder)) {
+                  clearRequireCacheForFile(enginePathUsed); // legacy ./require/website_<siteId>.js case
+            }
+            if (enginePathUsed) {
+                  const EngineCtor = require(enginePathUsed); // fresh require — cache just busted
+                  websiteEngines[siteId] = new EngineCtor(siteId);
+            }
+            cmdRegistry[siteId] = buildSiteCmdRegistry(siteId, commonHandlers); // commonHandlers untouched
+            console.log(`[RELOAD] Site [${siteId}] reloaded OK — engine=${enginePathUsed || '(none - cmsCommon only)'}, cache entries cleared=${clearedUnderFolder.length}`);
+            return { success: true, siteId };
+      } catch (err) {
+            console.log(`[RELOAD] ERROR: Failed to reload site [${siteId}]: ${err.message} — keeping previous engine/registry`);
+            console.error(err);
+            return { success: false, error: err.message, siteId };
+      }
+}
+
+// True if resolvedFilePath falls under resolvedDirPath (case-insensitive on win32, since
+// require.cache keys preserve on-disk casing but the FS is case-insensitive there).
+function normalizedStartsWith(resolvedFilePath, resolvedDirPath) {
+      const norm = (p) => process.platform === 'win32' ? p.toLowerCase() : p;
+      return norm(resolvedFilePath).startsWith(norm(resolvedDirPath) + path.sep);
+}
+
+// discoverNewSites() — re-lists ./websites for folders not already in siteList and
+// registers each one via loadSite() (first-time onboarding: config, secrets, domains,
+// engine, cmd registry). Does not touch any already-known site [#REQ-HOTRELOAD].
+function discoverNewSites() {
+      const currentDirs = readdirSync(sitesPath).filter(function (file) {
+            return statSync(sitesPath + '/' + file).isDirectory();
+      });
+      const candidateDirs = currentDirs.filter(dDir => !siteList.includes(dDir));
+      const beforeCount = siteList.length;
+      candidateDirs.forEach(loadSite);
+      // Only the siteIds that actually got registered by the loadSite() calls above (it
+      // only pushes to siteList on success) — a candidate folder whose SITEID doesn't
+      // match its folder name, or a leftover non-site directory, must NOT be reported as
+      // newly added just because its folder name wasn't already in siteList.
+      return siteList.slice(beforeCount);
+}
+
+// reloadAll() — discovers+registers any brand-new site folders, then hot-reloads every
+// other already-known site's engine/cmd code [#REQ-HOTRELOAD]. The newly-discovered
+// sites are skipped in the reload pass since loadSite() already loaded them fresh.
+function reloadAll() {
+      const added = discoverNewSites();
+      const results = siteList
+            .filter(siteId => !added.includes(siteId))
+            .map(siteId => reloadSite(siteId));
+      return { success: results.every(r => r.success), added, results };
+}
+
+// reloadOrLoadSite(siteId) — the ?site=<id> control-endpoint path: hot-reload if <id> is
+// already a known site, or treat it as first-time onboarding of a just-added site
+// folder otherwise [#REQ-HOTRELOAD]. success reflects whether <id> actually ended up in
+// siteList after loadSite() runs (loadSite only pushes a siteId once its config parses
+// and SITEID matches the folder name — see loadSite above).
+function reloadOrLoadSite(siteId) {
+      if (siteList.includes(siteId)) { return reloadSite(siteId); }
+      loadSite(siteId);
+      const added = siteList.includes(siteId);
+      return added
+            ? { success: true, siteId, added: true }
+            : { success: false, siteId, error: `Not a known site and no valid site.cfg/site.jfx found under websites/${siteId}` };
+}
 
 // getSiteSecrets(siteId) — returns the cached FlexJson secrets for a site, reloading it if
 // its secrets.jfx file has changed since the last load (cheap fs.statSync().mtimeMs check,
@@ -308,15 +416,39 @@ function getSiteConfig(siteId) {
       return { cfg: new FlexJson("{}"), err: 173 };
 }
 
-// Build cmd API handler registry for all sites [#REQ-API-06]
-const cmdRegistry = buildCmdRegistry(siteList);
-
 // Initialize site databases after the site list has been built.
 // Runs async in the background during startup — fires and doesn't block the HTTP server.
 initSiteDatabases(siteList, serverCfg, debugFile).catch(err => {
       console.error('[DB-INIT] Unhandled error:', err);
       if (debugFile) { appendFileSync(debugFile, '[DB-INIT] Unhandled error: ' + err.message + '\n'); }
 });
+
+// Local-only hot-reload control endpoint [#REQ-HOTRELOAD] — see docs/site-hot-reload.md.
+// Opt-in via AdminControlPort in server.cfg (absent/0 = disabled, same "pay only if
+// configured" convention as a site's optional secrets.jfx). Intended for a deploy
+// script or server admin running ON this box (e.g. the last step of a CI/CD deploy) —
+// NOT a site-facing API, so it is bound explicitly to '127.0.0.1' (never '0.0.0.0'),
+// making it unreachable off-box at the OS/network level regardless of firewall state.
+// Must never be proxied by Apache/Caddy to the public internet.
+//   GET /reload             -> reloadAll()      (discovers new sites too)
+//   GET /reload?site=<id>   -> reloadSite(id), or loadSite(id) if <id> is a brand-new folder
+const adminControlPort = serverCfg.getNum('AdminControlPort', 0);
+if (adminControlPort > 0) {
+      http.createServer((req, res) => {
+            const reqUrl = new URL(req.url, 'http://127.0.0.1');
+            if (reqUrl.pathname !== '/reload') {
+                  res.writeHead(404, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ success: false, error: 'Not found' }));
+                  return;
+            }
+            const siteId = reqUrl.searchParams.get('site');
+            const result = siteId ? reloadOrLoadSite(siteId) : reloadAll();
+            res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+      }).listen(adminControlPort, '127.0.0.1', () => {
+            console.log(`[CONTROL] Local hot-reload endpoint listening on 127.0.0.1:${adminControlPort}`);
+      });
+}
 
 function parseCookies(str) {
       let rx = /([^;=\s]*)=([^;]*)/g;
