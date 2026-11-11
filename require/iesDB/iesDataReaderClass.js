@@ -36,6 +36,15 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 const FlexJson = require('../FlexJson/FlexJsonClass.js');
 const fs = require('fs');
 
+// node-postgres returns timestamp/date columns as native JS Date objects, which FlexJson.add()
+// cannot serialize (Date has no enumerable own properties, so it isn't a usable primitive or a
+// convertible plain object/array either) - same format as iesCommon.js's dbDatetime().
+function dbDatetimeStr(d) {
+    function pad(n) { return n < 10 ? "0" + n : n }
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " +
+           pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+}
+
 class iesDataReader {
 
         DR = null; // Array object returned from MySQL query
@@ -215,7 +224,7 @@ class iesDataReader {
                     {
                         try
                         {
-                            newJ.add(v,k);
+                            newJ.add((v instanceof Date) ? dbDatetimeStr(v) : v, k);
                         }
                         catch { newJ.add(new FlexJson("null"), k); }  //Invalid date values throw an error.  Here we ignore it and use NULL.
                         tmpJ = null;

@@ -121,6 +121,33 @@ page [#REQ-EDITFORM-01-01].
   MakeEditRow(...)`, `DirectoryInfo`, etc. — not valid JS, never executed). Porting this is a new
   feature, not a bug fix; left alone pending a separate decision.
 
+## DB Row → FlexJson Conversion: Date/Timestamp Columns [#REQ-DBJSON-01]
+
+Every query result, for every table on every site, is converted from a raw `pg` row object into
+a FlexJson row by `BuildJSON()` in `require/iesDB/iesDataReaderClass.js` — not specific to Message
+Log or any one eclass. `node-postgres` returns `timestamp`/`date` columns as native JS `Date`
+objects, and `FlexJson.add(value, key)` cannot serialize a `Date` (it has no enumerable own
+properties, so it's neither a usable primitive nor something `FlexJson.FromNative` can convert —
+the canonical `flex-json` library doesn't special-case `Date` either, see its `FromNative`/
+`FromNativeObject`). The existing code already threw and caught this
+(`catch { newJ.add(new FlexJson("null"), k); } //Invalid date values throw an error. Here we
+ignore it and use NULL.`) — meaning **any timestamp column, on any table, was always silently
+rendered as `null`/blank**, not a new regression. First noticed via Message Log's `SubmitDate`
+being blank in both the list and the opened-record form [#REQ-DBJSON-01-01].
+- **Fix** [#REQ-DBJSON-01-02]: convert a `Date` value to a plain `"YYYY-MM-DD HH:mm:ss"` string
+  (same format `iesCommon.js`'s `dbDatetime()` already uses elsewhere) before handing it to
+  `FlexJson.add()`, so it round-trips as an ordinary string the same way every other column type
+  already did. Local helper (`dbDatetimeStr()`) added directly in `iesDataReaderClass.js` rather
+  than touching `require/FlexJson/FlexJsonClass.js` — that file is a straight, un-customized
+  vendored copy of the canonical `flex-json` repo (see the FlexJSON section above), so an
+  iesCMS-specific fix belongs in iesCMS's own DB-row-conversion code, not inside the vendored
+  library copy where it would create local drift and be lost on the next re-sync.
+- Verified with a standalone simulated row (no live DB needed): a `Date`-valued column now
+  serializes as `"2026-09-28 04:14:17"` instead of `null`.
+- Any other table with a `timestamp`/`date` column (not just `messagelog`) was equally affected
+  and is fixed by this same change — worth a general sanity check on any admin list/form that
+  displays a date column, since this had been silently blank everywhere, possibly for a long time.
+
 ## Folder/Extensions per Website [#REQ-FOLDER-01]
 
 - Each website is contained within its own folder [#REQ-FOLDER-01-01]  
