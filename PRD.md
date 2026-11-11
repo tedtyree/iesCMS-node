@@ -19,6 +19,32 @@ What makes it unique:
 
 NOTE: Each requirement below is given a tag. In the sources code, the tags will be used to identify portions of the code that implement that requirement.
 
+## Case Insensitivity [#REQ-CASEINSENSE-01]
+
+General design rule: iesCMS should be case-insensitive end to end — config keys, tag names,
+field/column names, command/endpoint ids — anywhere a human (site builder or admin) types an
+identifier by hand [#REQ-CASEINSENSE-01-01]. PostgreSQL itself already forces this for unquoted
+identifiers (folds everything to lowercase), and FlexJson's `getStr`/`getNum`/`contains`/`.i()`
+already do case-insensitive key lookups to match — the config-file layer is fine. The actual risk
+is plain JS object-property access (`obj[key]`), which is always case-sensitive in JavaScript, so
+any code pulling a value out of a DB-row object using a name that came from a config file (an
+eclass's `PrimaryKey`, a `Field` name, etc.) must either lowercase that name first or fall back to
+the lowercased key if the exact-case lookup misses [#REQ-CASEINSENSE-01-02] — don't assume a
+config-authored identifier already matches the row object's casing.
+- **Known instance fixed** [#REQ-CASEINSENSE-01-03]: `cmsCommon/src/admin-editlist.js`'s
+  `ReturnSearch()` looked up `row[SearchConfig.PrimaryKey]` with no lowercase fallback, while the
+  column-value lookup a few lines below it already had one (`row[field] !== undefined ? row[field]
+  : row[field.toLowerCase()]`). Every eclass whose `PrimaryKey` happened to already be written
+  lowercase in its config (`edit-members`: `userid`, `edit-wikipage`: `pageid`) worked fine by
+  accident; `eclass-messagelog.cfg`'s `PrimaryKey:"wLogID"` didn't match the real Postgres column
+  `wlogid`, so `pk` was always empty and no Message Log row was ever clickable. Fixed both the
+  config (`PrimaryKey:"wlogid"`) and the lookup itself (added the same fallback pattern used
+  elsewhere in the file) so a future eclass with a mixed-case `PrimaryKey` doesn't silently hit the
+  same thing.
+- When adding new code that extracts a config-authored field/key name from a DB-row object, follow
+  the existing fallback pattern (`row[name] !== undefined ? row[name] : row[name.toLowerCase()]`)
+  rather than assuming callers will always write lowercase identifiers in their config.
+
 ## Folder/Extensions per Website [#REQ-FOLDER-01]
 
 - Each website is contained within its own folder [#REQ-FOLDER-01-01]  

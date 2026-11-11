@@ -125,7 +125,7 @@ function ReturnSearch(sData) {
 					newHtml += '<tr>';
 					// build link to open/edit record
 					let pk = "";
-					if (SearchConfig.PrimaryKey) { pk = row[SearchConfig.PrimaryKey]; }
+					if (SearchConfig.PrimaryKey) { pk = row[SearchConfig.PrimaryKey] !== undefined ? row[SearchConfig.PrimaryKey] : row[SearchConfig.PrimaryKey.toLowerCase()]; }
 					let link1a = "";
 					let link1b = "";
 					if (pk) { 
