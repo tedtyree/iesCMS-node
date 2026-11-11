@@ -1,0 +1,172 @@
+/* iesCMS Admin — redesigned shell (dashboard + utility templates) */
+/* Namespaced under #app-shell so it never collides with legacy admin.css rules. */
+
+#app-shell, #app-shell *{ box-sizing:border-box; }
+
+#app-shell{
+  --ink:#F1F7F3; --ink-2:#9FB8A9; --ink-3:#66816F;
+  --bg:#070D09; --surface:#111A14; --surface-2:#16211A; --border:#233229; --border-soft:#1C281F;
+  --accent:#2563EB; --accent-2:#93C5FD; --accent-soft:rgba(37,99,235,.16);
+  --orange:#C2410C;
+  --success:#4ADE80; --success-soft:rgba(74,222,128,.16);
+  --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
+  --glow: 0 0 0 1px rgba(37,99,235,.35), 0 6px 20px rgba(37,99,235,.25);
+  --orange-glow: 0 0 0 1px rgba(194,65,12,.35), 0 6px 20px rgba(194,65,12,.25);
+  --toggle-bg:#17231B; --toggle-ink:#EAF5EE;
+  --shadow-panel: 0 14px 40px rgba(0,0,0,.5);
+
+  display:flex; min-height:100vh; background:var(--bg); color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+}
+#app-shell[data-theme="light"]{
+  --ink:#0E170F; --ink-2:#3C4F3F; --ink-3:#5E7566;
+  --bg:#F5FAF6; --surface:#FFFFFF; --surface-2:#EBF5EE; --border:#D7E8DB; --border-soft:#E3F0E6;
+  --accent:#2F6FEB; --accent-2:#1D4ED8; --accent-soft:rgba(47,111,235,.10);
+  --orange:#D1480D;
+  --success:#16A34A; --success-soft:#E4F7EA;
+  --warning:#B45309; --warning-soft:#FDF3E0;
+  --shadow: 0 1px 2px rgba(14,23,15,.07), 0 1px 1px rgba(14,23,15,.04);
+  --glow: 0 0 0 1px rgba(47,111,235,.28), 0 6px 16px rgba(47,111,235,.18);
+  --orange-glow: 0 0 0 1px rgba(209,72,13,.25), 0 6px 16px rgba(209,72,13,.16);
+  --toggle-bg:#E7F3EA; --toggle-ink:#215A3B;
+  --shadow-panel: 0 14px 32px rgba(14,23,15,.14);
+}
+
+#app-shell a{ color:inherit; text-decoration:none; }
+
+/* ---- Topbar ---- */
+#app-shell .topbar{
+  position:fixed; top:0; left:0; right:0; height:60px; z-index:40;
+  display:flex; align-items:center; gap:12px; padding:0 16px;
+  background:var(--surface); border-bottom:1px solid var(--border);
+}
+#app-shell .topbar .hamburger{
+  display:none; align-items:center; justify-content:center; width:36px; height:36px;
+  border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink);
+  flex:none; cursor:pointer;
+}
+#app-shell .topbar .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+#app-shell .topbar .brand .logo-chip{
+  width:30px; height:30px; border-radius:8px; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex:none;
+}
+#app-shell .topbar .brand .site-name{ font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#app-shell .topbar .status-pill{
+  display:flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--border);
+  border-radius:999px; padding:5px 10px; font-size:12.5px; font-weight:600; flex:none;
+}
+#app-shell .topbar .status-dot{ width:7px; height:7px; border-radius:999px; background:var(--success); box-shadow:0 0 0 3px var(--success-soft); flex:none; }
+#app-shell .topbar .spacer{ flex:1; }
+#app-shell .topbar .icon-btn{
+  display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:999px;
+  background:var(--toggle-bg); border:1px solid var(--border); color:var(--toggle-ink); cursor:pointer; flex:none;
+}
+#app-shell .topbar .user-chip{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--ink-2); }
+
+/* ---- Sidebar / drawer (same element; becomes an off-canvas drawer on narrow screens) ---- */
+#app-shell .sidebar{
+  position:fixed; top:60px; left:0; bottom:0; width:248px; z-index:35;
+  background:var(--surface); border-right:1px solid var(--border);
+  padding:16px 12px 16px; overflow-y:auto;
+  transition:transform .2s ease;
+}
+#app-shell .sidebar .nav-group-label{
+  font-size:10.5px; font-weight:700; color:var(--ink-3); letter-spacing:.07em; text-transform:uppercase;
+  padding:14px 10px 6px;
+}
+#app-shell .sidebar .nav-group-label:first-child{ padding-top:4px; }
+#app-shell .sidebar .nav-item{
+  display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px;
+  font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:2px;
+}
+#app-shell .sidebar .nav-item svg{ flex:none; }
+#app-shell .sidebar .nav-item:hover{ background:var(--surface-2); }
+#app-shell .sidebar .nav-item.active{ background:var(--accent); color:#fff; box-shadow:var(--glow); }
+#app-shell .sidebar .nav-footer{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  margin-top:14px; padding:10px; border-top:1px solid var(--border-soft); font-size:12.5px; color:var(--ink-2);
+}
+
+#app-shell .drawer-backdrop{
+  position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.5); backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none; transition:opacity .2s ease;
+}
+
+/* ---- Main content area ---- */
+#app-shell .main{ flex:1; margin-left:248px; padding-top:60px; min-height:100vh; min-width:0; }
+#app-shell .main-inner{ padding:24px; max-width:1200px; }
+
+/* ---- Cards / tiles shared by both templates ---- */
+#app-shell .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+#app-shell .card-pad{ padding:20px; }
+#app-shell .section-title{ font-size:13px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; }
+
+#app-shell .config-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; }
+#app-shell .config-field dt{ font-size:11.5px; color:var(--ink-3); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; }
+#app-shell .config-field dd{ margin:0; font-size:14px; font-weight:600; word-break:break-word; }
+
+#app-shell .tile-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+#app-shell .tile{
+  display:flex; gap:12px; align-items:flex-start; padding:16px; border-radius:12px;
+  background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow);
+}
+#app-shell .tile:hover{ border-color:var(--accent); }
+#app-shell .tile .tile-icon{
+  width:38px; height:38px; border-radius:10px; background:var(--accent); color:#fff; flex:none;
+  display:flex; align-items:center; justify-content:center;
+}
+#app-shell .tile .tile-title{ font-size:14px; font-weight:700; margin:0 0 2px; }
+#app-shell .tile .tile-desc{ font-size:12.5px; color:var(--ink-2); margin:0; }
+
+#app-shell .extra-tile{
+  background:var(--orange); color:#fff; box-shadow:var(--orange-glow);
+}
+#app-shell .extra-tile .tile-icon{ background:rgba(255,255,255,.18); color:#fff; }
+#app-shell .extra-tile .tile-desc{ color:#fff; font-weight:500; }
+#app-shell .extra-badge{
+  display:inline-block; margin-top:8px; padding:3px 9px; border-radius:999px;
+  background:rgba(255,255,255,.22); color:#fff; font-size:11px; font-weight:700;
+}
+
+/* ---- Utility template chrome: breadcrumb + page header + toolbar ---- */
+#app-shell .breadcrumb{ font-size:12.5px; color:var(--ink-3); margin-bottom:10px; }
+#app-shell .breadcrumb a:hover{ color:var(--ink); }
+#app-shell .page-header-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+#app-shell .btn-primary{
+  display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff; border:none;
+  border-radius:8px; padding:9px 14px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit;
+}
+#app-shell .btn-secondary{
+  display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); color:var(--ink); border:1px solid var(--border);
+  border-radius:8px; padding:8px 13px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+}
+
+/* ---- Skin (not restructure) of the legacy jQuery-driven eclass editlist, inside .card ---- */
+#app-shell #editlist_title{ font-size:18px !important; font-weight:700 !important; color:var(--ink) !important; width:auto !important; }
+#app-shell #buttons_search1, #app-shell #buttons_search2,
+#app-shell #buttons_save1, #app-shell #buttons_save2{ font-size:13px; }
+#app-shell #buttons_search1 input, #app-shell #buttons_search2 input,
+#app-shell #buttons_save1 input, #app-shell #buttons_save2 input{
+  background:var(--accent); color:#fff; border:none; border-radius:7px; padding:7px 12px;
+  font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;
+}
+#app-shell #editlist_search, #app-shell #editlist_form{ background:transparent !important; padding:0 !important; }
+#app-shell table.tabletext{ width:100%; border-collapse:collapse; font-size:13.5px; }
+#app-shell table.tabletext tr.EditListTitles{ background:#161A24; }
+#app-shell table.tabletext tr.EditListTitles th{
+  color:#fff; text-transform:uppercase; font-size:11.5px; letter-spacing:.04em;
+  text-align:left; padding:10px 12px; font-weight:700;
+}
+#app-shell table.tabletext td{ padding:9px 12px; border-bottom:1px solid var(--border-soft); color:var(--ink); }
+#app-shell table.tabletext tr:hover td{ background:var(--surface-2); }
+
+@media (max-width: 860px){
+  #app-shell .topbar .hamburger{ display:flex; }
+  #app-shell .topbar .status-pill{ display:none; }
+  #app-shell .sidebar{ transform:translateX(-100%); box-shadow:var(--shadow-panel); }
+  #app-shell.drawer-open .sidebar{ transform:translateX(0); }
+  #app-shell.drawer-open .drawer-backdrop{ opacity:1; pointer-events:auto; }
+  #app-shell .main{ margin-left:0; }
+  #app-shell .main-inner{ padding:16px; }
+}
