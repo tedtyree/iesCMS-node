@@ -27,11 +27,13 @@
     logoChip.textContent = name ? name.slice(0, 2).toUpperCase() : '--';
   }
 
-  var here = window.location.pathname.replace(/\/+$/,'');
+  // Compare full path+query (not just the last path segment) so e.g. admin-edit?eclass=edit-members
+  // and admin-edit?eclass=MessageLog - same page, different eclass - don't both light up together.
+  function normalizeHref(h) { return h.replace(/^\.?\/+/,'').replace(/\/+$/,''); }
+  var here = normalizeHref(window.location.pathname + window.location.search);
   document.querySelectorAll('.sidebar .nav-item').forEach(function(link){
     var href = link.getAttribute('href') || '';
-    var path = href.split('?')[0].replace(/^\.?\//,'').replace(/\/+$/,'');
-    var hereBase = here.split('/').pop();
-    if (path && hereBase && path === hereBase) { link.classList.add('active'); }
+    if (!href || href === '#') { return; }
+    if (normalizeHref(href) === here) { link.classList.add('active'); }
   });
 })();
