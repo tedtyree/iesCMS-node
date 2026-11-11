@@ -45,6 +45,66 @@ config-authored identifier already matches the row object's casing.
   the existing fallback pattern (`row[name] !== undefined ? row[name] : row[name.toLowerCase()]`)
   rather than assuming callers will always write lowercase identifiers in their config.
 
+## Admin Edit Form Field Types — Engine Fixes [#REQ-EDITFORM-01]
+
+`cmsCommon/src/admin-editlist.js` (the shared jQuery eclass list/edit engine used by every
+`admin-edit?eclass=...` screen on every site — see `admin-editlist.js`'s `MakeEditRow()`) is a
+line-by-line JS port of an older VB/C#-era codebase. Large sections were left as commented-out
+reference source during that port, and a few spots that look like real, live JS turned out to
+still carry untranslated syntax or stub bodies — broken for *every* eclass/site using that field
+`Type`, not just one admin page, so each was fixed at the engine level rather than patched per
+page [#REQ-EDITFORM-01-01].
+
+- **Dropdown fields (`Type:list`, `lkup`, `class`, and every `list-status`/`list-yesno`/etc. alias)
+  were non-functional, not just mis-labeled** [#REQ-EDITFORM-01-02] — three separate bugs stacked:
+  1. `case "list", "lkup", "class":` — a comma inside one `case` label is a JS comma-expression,
+     not multiple alternatives, so this only ever matched `"class"`; `"list"`/`"lkup"` fell through
+     to `default:` (the "INVALID TYPE" message). Fixed by stacking proper separate `case` labels
+     (the same pattern already used correctly a few lines above for `list-status`/`list-status3`).
+  2. Even reached, it called `fAddDDown(dField2, sOpts, nWidth)` where `sOpts` is a plain
+     comma-separated **string** (e.g. `"Active,Inactive,Deleted"`, optionally `"value:Label"`
+     pairs, e.g. `list-viewlevels1`'s `"7:Hidden (Admin Only),3:Members Only,..."`), but
+     `fAddDDown` expected an **array** of `{value,text}` objects — `sOpts.length`/`sOpts[i].value`
+     against a string produced garbage. Added `ParseOptsString()` to convert the string format
+     into the array `fAddDDown` needs, handling both the plain and `value:label` forms.
+  3. The real-world call path (`GenForm()` → `MakeEditRow(..., true)` — the only live call site;
+     a second call site exists only inside the dead VB-syntax block) always took the
+     `useFormContent` branch, which called `GenerateOpts2()` — a no-op stub
+     (`debugger; return [{}];`) — and then discarded the `<select>` HTML `fAddDDown` returned
+     without ever appending it to the row's output, and without closing the `<td>`/`<tr>` tags it
+     had opened, corrupting every row rendered after it in the same form. Replaced the whole
+     branch with a direct, always-taken path: build the options array, call `fAddDDown` (now also
+     given the field's current value so it marks the matching `<option>` as `selected`,
+     case-insensitively per `#REQ-CASEINSENSE-01`), and append + close the row properly.
+  - Everywhere a `Status`/`Template`/similar dropdown appears on any site's Users, Pages, Message
+    Log, or Galleries screen was affected by this; all now render and pre-select correctly.
+- **`fAddHid()` (`Type:hidden`) was a literal stub** [#REQ-EDITFORM-01-03] — `return "fAddHid";`,
+  so hidden fields rendered the bare text "fAddHid" into the page instead of a real
+  `<input type="hidden">`, and the value was never submitted on save. Live and broken for
+  `edit-members`'s `SiteID` field and `edit-galleries`'s `WorldID` field. Fixed to actually render
+  `<input type='hidden' id='...' name='...' value='...'>`.
+- **`Type:richtext` had never been ported — it only existed inside a commented-out VB block**
+  [#REQ-EDITFORM-01-04], used by `edit-wikipage`'s `WikiHTML` (page content) and
+  `messagelog`'s `Comments`. The CKEditor upgrade/downgrade machinery it was designed to hook into
+  was already fully implemented and present (`SetItem()` converts any `<textarea id="rt_...">`
+  into a CKEditor instance after the form renders; `SaveItem()` reads `.getData()` back out of it
+  before the form serializes) — it had simply never had a live `case` to produce that `rt_`-prefixed
+  textarea in the first place. Implemented it, with one deliberate deviation from the old dead
+  code: the textarea's `id` is `rt_fld<Field>` (so the CKEditor-upgrade hook finds it) but its
+  `name` stays `fld<Field>` (not `rt_fld<Field>`) — `saveRecord_admin.js` looks up
+  `body['fld' + fieldName]` exactly, so keeping the old code's single `rt_fld<Field>` id-and-name
+  would have rendered and edited fine but **silently failed to save** (posted under a key the
+  server never looks for).
+- **Not fixed — flagged only, not a regression** [#REQ-EDITFORM-01-05]: `list-templates` and the
+  generic `plist-<Name>` mechanism (`edit-wikipage`'s `Template`/`MinViewLevel`/`MinEditLevel`
+  fields) were never implemented in the Node port at all — the only "implementation" anywhere in
+  the codebase is dead C#-syntax reference source in `iesCommon.js` (`public string
+  MakeEditRow(...)`, `DirectoryInfo`, etc. — not valid JS, never executed). Porting this is a new
+  feature, not a bug fix; left alone pending a separate decision. Also flagged: `Type:params`'s
+  case body still calls a nonexistent `Replace()` and uses VB `&` string concatenation (would
+  throw at runtime) — not fixed because no eclass on any site currently uses `Type:params`, so
+  nothing is actually broken today.
+
 ## Folder/Extensions per Website [#REQ-FOLDER-01]
 
 - Each website is contained within its own folder [#REQ-FOLDER-01-01]  

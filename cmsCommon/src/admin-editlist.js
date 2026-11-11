@@ -827,16 +827,12 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		fAddTxtBox(FldDate(dValue),dField2,nWidth,bReadOnly)
 		fAddLit("</td>" & sInterpret & "</tr>")
 		*/
-    case "list", "lkup", "class":
+    case "list":
+	case "lkup":
+	case "class":
 		ret += mEditRow + "<td>";
-		if (useFormContent && sOpts2=="") { 
-			sOpts2=GenerateOpts2(sOpts,dValue);
-			fAddDDown(dField2, sOpts2, nWidth);
-		} else {
-			newObj=fAddDDown(dField2, sOpts, nWidth);
-			GenerateOpts(newObj,sOpts,dValue);
-			ret += "</td>" + sInterpret + "</tr>";
-		}
+		ret += fAddDDown(dField2, ParseOptsString(sOpts), nWidth, dValue);
+		ret += "</td>" + sInterpret + "</tr>";
 		break;
 		/*
 	case "opt2"
@@ -860,6 +856,14 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
     case "note": // *** NOTE: TITLE GOES ABOVE TEXT BOX
 		ret += "<tr><td colspan=2 valign=top>" + bld1 + sAlias + ":" + bld2 + "<br>";
 		ret += fAddNoteBox(dValue,dField2,nWidth,nHeight,bReadOnly);
+		ret += "</td>" + sInterpret + "</tr>";
+		break;
+    case "richtext": // *** NOTE: TITLE GOES ABOVE RICH TEXT BOX
+		// id is "rt_"-prefixed so SetItem()/SaveItem() upgrade it to/from CKEditor, but name
+		// stays "fld<Field>" (not "rt_fld<Field>") so saveRecord_admin.js finds it when
+		// serializing the form — it looks up body['fld' + fieldName] exactly.
+		ret += "<tr><td colspan=2 valign=top>" + bld1 + sAlias + ":" + bld2 + "<br>";
+		ret += "<textarea id='rt_" + dField2 + "' name='" + dField2 + "' cols=" + nWidth + " rows=" + nHeight + (bReadOnly ? " readonly" : "") + ">" + dValue + "</textarea>";
 		ret += "</td>" + sInterpret + "</tr>";
 		break;
 		/*
@@ -1040,7 +1044,7 @@ function fAddNoteBox(sText="", sID="", nCols=45, nRows=5, bReadOnly=false) {
 } // End function
 
 function fAddHid(sText="", sID="") {
-	return "fAddHid";
+	return "<input type='hidden' id='" + sID + "' name='" + sID + "' value='" + sText + "'>";
 /*
 'MODIFY-HERE: .Net 2.0 uses HiddenField???
 '	Dim vObj as New HiddenField()
@@ -1052,13 +1056,26 @@ function fAddHid(sText="", sID="") {
 	*/
 } // End function
 
-function fAddDDown(sID="", sOpts=[{}], width=35) {
+function fAddDDown(sID="", sOpts=[{}], width=35, dValue="") {
 	var ret="<select id='" + sID + "' name='" + sID + "' style='width: " + width + "px;'>";
+	var vLower = ("" + dValue).toLowerCase(); // case-insensitive match, same as everywhere else in this codebase
 	for (var i = 0; i < sOpts.length; i++) {
-		ret += "<option value='" + sOpts[i].value + "'>" + sOpts[i].text + "</option>";
+		var sel = (("" + sOpts[i].value).toLowerCase() === vLower) ? " selected" : "";
+		ret += "<option value='" + sOpts[i].value + "'" + sel + ">" + sOpts[i].text + "</option>";
 	}
 	ret += "</select>";
 	return ret;
+} // End function
+
+// Turns a comma-separated option-list string ("Active,Inactive,Deleted" or
+// "7:Hidden,3:Members Only,...") into the [{value,text}] array fAddDDown expects.
+function ParseOptsString(sOpts) {
+	if (!sOpts) { return []; }
+	return ("" + sOpts).split(",").map(function(item) {
+		var idx = item.indexOf(":");
+		if (idx >= 0) { return { value: item.substring(0,idx), text: item.substring(idx+1) }; }
+		return { value: item, text: item };
+	});
 } // End function
 
 function fAddRichText(sText="", sID="", sCtlConfig="", nCols=45, nHeight=5) {
