@@ -95,15 +95,31 @@ page [#REQ-EDITFORM-01-01].
   `body['fld' + fieldName]` exactly, so keeping the old code's single `rt_fld<Field>` id-and-name
   would have rendered and edited fine but **silently failed to save** (posted under a key the
   server never looks for).
-- **Not fixed — flagged only, not a regression** [#REQ-EDITFORM-01-05]: `list-templates` and the
+- **`Type:params` reworked into a real, generically-useful feature** [#REQ-EDITFORM-01-05] — this
+  type's old case body (never actually used by any eclass) called a nonexistent `Replace()` and
+  VB `&` string concatenation, assuming a pipe-delimited value format that doesn't match how any
+  real column is written. The real need: `messagelog.Params` (and potentially other sites'
+  JSON-text columns) holds the raw submitted form data as a JSON-text blob — `SaveFormToLog()` in
+  `iesCommon.js` always writes it via `JSON.stringify(formData)`, so it's reliably strict JSON, not
+  the pipe-delimited format the old code assumed. Reworked `Type:params` into a read-only
+  key/value display: parses the column with `JSON.parse()` (consistent with the same codebase's
+  existing precedent for the analogous `extra` JSONB blob, which also just uses `JSON.parse()` —
+  no FlexJson involved, since FlexJson has no browser bundle and isn't loaded client-side anywhere)
+  wrapped in try/catch, falling back to escaped raw text for any non-JSON legacy/migrated row:
+  renders no `name` attribute, so it's simply absent from the posted form and the save handler
+  (which already skips any field not present in the post body) leaves the stored value untouched —
+  there was never a reason to let an admin hand-edit a public form submission's raw JSON anyway.
+  Wired into `eclass-messagelog.cfg` (`Field:Params,Type:params,Flags:l`) so the admin can finally
+  see the actual submitted message (previously only visible via a direct DB query), and reusable by
+  any other eclass with a similar JSON-text blob column — the key set it displays is whatever keys
+  are actually present, not hardcoded to any particular form's field names, so it works for any
+  site's contact-form shape, not just `un0`'s.
+- **Not fixed — flagged only, not a regression** [#REQ-EDITFORM-01-06]: `list-templates` and the
   generic `plist-<Name>` mechanism (`edit-wikipage`'s `Template`/`MinViewLevel`/`MinEditLevel`
   fields) were never implemented in the Node port at all — the only "implementation" anywhere in
   the codebase is dead C#-syntax reference source in `iesCommon.js` (`public string
   MakeEditRow(...)`, `DirectoryInfo`, etc. — not valid JS, never executed). Porting this is a new
-  feature, not a bug fix; left alone pending a separate decision. Also flagged: `Type:params`'s
-  case body still calls a nonexistent `Replace()` and uses VB `&` string concatenation (would
-  throw at runtime) — not fixed because no eclass on any site currently uses `Type:params`, so
-  nothing is actually broken today.
+  feature, not a bug fix; left alone pending a separate decision.
 
 ## Folder/Extensions per Website [#REQ-FOLDER-01]
 

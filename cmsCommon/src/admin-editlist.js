@@ -811,9 +811,11 @@ function MakeEditRow(aFlds,dValue, sInterpret, objEnv, ggParams,
 		ret += fAddTxtBox(dValue,dField2,nWidth,bReadOnly);
 		ret += "</td>" + sInterpret + "</tr>";
 		break;
-	case "params":
-		ret += mEditRow + "<td>";
-		ret += fAddTxtBox(Replace(dValue,"|","<br>"),"fld" & dField,nWidth,bReadOnly);
+	case "params": // *** Read-only display of a JSON-text column (e.g. messagelog.Params, the raw
+	               // submitted form data). Renders no named input, so it's simply absent from the
+	               // posted form and the save handler leaves the stored value untouched.
+		ret += "<tr><td colspan=2 valign=top>" + bld1 + sAlias + ":" + bld2 + "<br>";
+		ret += fAddParamsBox(dValue,nWidth,nHeight);
 		ret += "</td>" + sInterpret + "</tr>";
 		break;
 	case "password":
@@ -1041,6 +1043,28 @@ function fAddNoteBox(sText="", sID="", nCols=45, nRows=5, bReadOnly=false) {
 			if (bReadOnly) { readonly = " readonly "; }
 			ret = "<textarea id='" + sID + "' name='" + sID + "' cols=" + nCols + " rows=" + nRows + "'" + readonly + ">" + sText + "</textarea>"; // FUTURE HANDLE QUOTES AND SPECIAL CHARACTERS
 			return ret;
+} // End function
+
+// Read-only display for a JSON-text column (e.g. messagelog.Params — see saveFormToLog() in
+// iesCommon.js, which always writes it via JSON.stringify, so a plain JSON.parse here is safe).
+// Falls back to escaped raw text if a historical/migrated row isn't valid JSON.
+function fAddParamsBox(sText, nWidth, nHeight) {
+	var parsed = null;
+	try { parsed = JSON.parse(sText); } catch (e) { parsed = null; }
+	var rows = "";
+	if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+		for (var key in parsed) {
+			if (!Object.prototype.hasOwnProperty.call(parsed, key)) { continue; }
+			var val = parsed[key];
+			if (val === null || val === undefined) { val = ""; }
+			else if (typeof val === "object") { val = JSON.stringify(val); }
+			else { val = String(val); }
+			rows += "<div style='margin-bottom:6px;'><b>" + $('<div>').text(key).html() + ":</b> " + $('<div>').text(val).html() + "</div>";
+		}
+	} else {
+		rows = $('<div>').text(sText || "").html();
+	}
+	return "<div style='width:" + nWidth + "px; max-height:" + nHeight + "px; overflow:auto; border:1px solid #ccc; background:#f7f7f7; padding:8px; font-family:monospace; font-size:12.5px; white-space:pre-wrap;'>" + rows + "</div>";
 } // End function
 
 function fAddHid(sText="", sID="") {
