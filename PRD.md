@@ -29,7 +29,7 @@ NOTE: Each requirement below is given a tag. In the sources code, the tags will 
 - API endpoints are not typical NodeJS routes. Instead there is a single command endpoint that handles all API requests. [#REQ-FOLDER-01-06] - currently "cmd" but could be changed in the future to "api" or other standard.
 - Optional CustomForms() can be added per website in the custom engine to process forms that are unique to the website [#REQ-FOLDER-01-07]
 - Not yet implemented? handleEvents() can be added per website in the custom engine to extend functionality for events per website [#REQ-FOLDER-01-08]
-- The admin-extras.cfg in pages folder is an extension of the admin page and can be used to add custom menu options/functionality to the admin page [#REQ-FOLDER-01-09]
+- The admin-extras.cfg in pages folder is an extension of the admin page and can be used to add custom menu options/functionality to the admin page [#REQ-FOLDER-01-09] — see `#REQ-ADMINUI-01-02a` for the expected markup shape on the dashboard template.
 
 ## Database per Website [#REQ-DB-01]
 
@@ -306,6 +306,71 @@ happening (a form submission, an admin visiting the messages list).
   data needs to be preserved on a given server, that's a separate one-time manual migration.
 
 See `docs/form-notification-plan.md` for the implementation-plan writeup this section supersedes.
+
+## Admin Panel UI — Dashboard & Utility Templates [#REQ-ADMINUI-01]
+
+The default admin panel (`cmsCommon/pages/admin.cfg` and the `admin-edit*` family) was a
+table-based, ASP.NET-era layout carried over from the original CMS — hard to use, not
+mobile-friendly, and not visually consistent page to page [#REQ-ADMINUI-01-01]. It now runs on
+two templates sharing one nav block, replacing `cmsCommon/templates/layout_admin.cfg` as the
+default for `admin.cfg`/`admin-edit.cfg` (the old template/menu files are untouched and still
+used by anything still pointed at `Template:admin`):
+
+- **`templates/layout_admin_dashboard.cfg`** [#REQ-ADMINUI-01-02] — the home page
+  (`pages/admin.cfg`): site-config summary + Launch tile grid + `[[subpage:admin-extras]]`.
+  - **`admin-extras` markup shape** [#REQ-ADMINUI-01-02a] — this is the pre-existing per-site
+    "Admin Extras" extension point (`#REQ-FOLDER-01-09`), unchanged mechanism — a site adds its
+    own `websites/<siteId>/pages/admin-extras.cfg` to override `cmsCommon`'s empty-state default
+    and it gets inlined into the dashboard's `.tile-grid` via `[[subpage:admin-extras]]`. To look
+    right there, each item should be a `<div class="tile extra-tile">` containing a
+    `<span class="tile-icon">` (an inline SVG — `cmsCommon/pages/admin-extras.cfg`'s default stub
+    uses a generic "sparkle" icon so a site doesn't have to pick one per item) and a
+    `<p class="tile-title">`/`<p class="tile-desc">` pair; an optional `<span class="extra-badge">`
+    can label where the link goes (e.g. "Specific to un0"). These classes come from
+    `cmsCommon/src/admin2.css` — solid-fill orange, white text, no per-site CSS needed.
+- **`templates/layout_admin_utility.cfg`** [#REQ-ADMINUI-01-03] — list/edit pages
+  (`pages/admin-edit.cfg`, i.e. every `eclass=` screen: Pages, Users, Message Log, Settings,
+  etc.): breadcrumb + card chrome wrapping `[[content_area]]`. Keeps the full legacy
+  jQuery/jQuery-UI/DataTables/CKEditor head block the eclass editor depends on; the dashboard
+  template doesn't load any of that.
+- **Shared chrome** [#REQ-ADMINUI-01-04] — both templates include `pages/admin-shell.cfg` via
+  `[[subpage:admin-shell]]` for the topbar + sidebar/drawer. This is exactly the existing
+  subpage-include mechanism (no new plumbing), chosen because tag replacement already runs over
+  the whole assembled template, not just page content, so a template can pull in a page-folder
+  partial the same way a page can. Nav *links* still come from `[[menu:admin]]` →
+  `templates/menu_admin.cfg` as before, just regrouped/iconed — unchanged mechanism.
+- **Per-site override** [#REQ-ADMINUI-01-05] — this lives entirely in `cmsCommon/`, so any site
+  can override any piece of it (`admin-shell.cfg`, `menu_admin.cfg`, either `layout_admin_*.cfg`,
+  `admin.cfg`, `admin-edit.cfg`) the same way a site overrides any other cmsCommon file: drop a
+  same-named file in its own `templates/`/`pages/` folder.
+- **Theming** [#REQ-ADMINUI-01-06] — `src/admin2.css` / `src/admin2.js` (new, namespaced under
+  `#app-shell` so none of this touches the legacy `admin.css`/`admin.js` used elsewhere). Dark/light
+  toggle persists via `localStorage`, default dark. Mobile breakpoint turns the sidebar into an
+  off-canvas drawer (same DOM, CSS transform — not a second nav render).
+- **`admin-editlist-wide.cfg` re-skinned, not rebuilt** [#REQ-ADMINUI-01-07] — this file holds the
+  DOM `admin-editlist.js` (the jQuery eclass list/edit engine) depends on by id:
+  `editlist_title`, `editlist_search`, `editlist_form`, `editlist_loading`, `buttons_search1/2`,
+  `buttons_save1/2`, `editlist_add1/2`, `editlist_refresh1/2`, `fltSearch`, `fltHistory`,
+  `editlist_searchform`, plus the `remove_ok` class — and the result table it generates at
+  runtime is `table.tabletext` / `tr.EditListTitles` (not a class anyone would guess from the old
+  markup). All of these were kept exactly; only the surrounding HTML/classes were restyled. Any
+  future touch to this file must keep those exact ids/classes or `admin-editlist.js` breaks.
+- **`[[admin_block]]` removed from both templates** [#REQ-ADMINUI-01-08] — it's a floating
+  "edit this page" overlay (`templates/admin_block.cfg`) meant for regular site pages, not the
+  admin panel itself; the original `layout_admin.cfg` included it too but that was never
+  appropriate here. `ShowAdminMenuLink:false` in `admin.cfg`'s header does not actually suppress
+  it (dead flag), so simply dropping the tag was the fix, not restyling the overlay.
+- **Known gotcha hit during this work** [#REQ-ADMINUI-01-09] — an explanatory HTML comment inside
+  `admin-shell.cfg` that mentioned `[[subpage:...]]`/`[[menu:...]]` as literal prose got
+  tag-processed for real (tag replacement doesn't know about HTML comments — see "Escaping `[[`"
+  under FlexJSON in `CLAUDE.md`), corrupting the rendered page. General rule going forward:
+  explain the "why" of admin-panel template changes here in PRD.md, not in comments inside the
+  `.cfg`/template files themselves.
+- **Not done here / out of scope** [#REQ-ADMINUI-01-10]: no other `admin-*` page beyond
+  `admin.cfg`/`admin-edit.cfg` was migrated (e.g. `adminReports`, `admin-bkstg` still render on
+  whatever template they already used); no real multi-site "switcher" dropdown was built (the
+  topbar only shows the current site's identity/status, no cross-site session switching —
+  that would be a separate, larger feature with real access-control behind it).
 
 ## Ideas
 
